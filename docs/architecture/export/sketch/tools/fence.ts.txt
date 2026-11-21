@@ -1,0 +1,26 @@
+// tools/check.ts, step "fences" (SKETCH): replaces today's refs/-only fence with every rule of
+// LAYERS.bend. The shell finds import edges (IO); Bend says which are allowed.
+//
+// It walks the same file list as the other steps (Isabella's upcoming auto-discovery of .bend
+// files, plus .js/.ts/.html), so a new file is fenced the moment it exists.
+//
+// Prints each refused edge as "<from> (<layer>) imports <to> (<layer>)" and exits 1.
+
+import Layers from "../LAYERS.bend";
+
+type Edge = { from: string; to: string };   // repo-relative paths
+
+// Edges by text, as today's fence: `import ./x.bend`, `import ../x.bend as Y`, `from "x"`, `src="x"`.
+// Bare specifiers ("bend-ui", "bend-ui/web") resolve to node_modules/bend-ui/...; "bun", "node:*"
+// and "ogw:*" are not repo files and are skipped.
+export function edges(files: string[]): Edge[] {
+  // TODO not implemented
+  throw new Error("not implemented");
+}
+
+export function fence(files: string[]): string[] {
+  // TODO not implemented:
+  //   for e in edges(files): a = Layers.layer_of(e.from); b = Layers.layer_of(e.to)
+  //     if !Layers.may_import(a, b) -> offense line
+  throw new Error("not implemented");
+}

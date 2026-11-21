@@ -1,0 +1,139 @@
+# The engine's layers, and which may import which. (SKETCH: lives at the repo root, beside
+# PROJECT.bend.) One list of rules; tools/check.ts's fence step and export/ both ask it, so
+# "the runtime never imports the editor" and "nothing reaches refs/" are checked on every
+# `bun run check` and on every export, not kept by convention.
+#
+#   layer_of(path)        which layer a repo path is in (paths relative to the repo root)
+#   may_import(a, b)      may a file of layer a import a file of layer b?
+#   ships(l)              may a file of layer l be inside a published game?
+#
+# The shell (tools/check.ts) reads files and finds import edges (IO); this file decides.
+#
+# Limits now:
+# - Edges are found by text (`import ./x.bend`, `from "x"`, `src="x"`), as the refs/ fence
+#   does today; a dynamic import(`${x}`) is not seen. Export closes the gap: it also checks the
+#   inputs the bundler actually read (export/contract.bend, Forbidden).
+# - engine/world.bend and engine/gizmo.bend import Bend-UI tokens (colors, motion). Engine -> UiKit
+#   is NOT allowed; those three exact edges are listed in debts() (graft from candidate 2). The
+#   check prints them every run, and a debt that no longer exists fails the check, so the list
+#   cannot rot. Moving gizmo to editor/ is Isabella's call.
+#
+# `TODO` marks a body not written yet (sketch).
+
+import Base
+
+type Layer is Data:
+  Engine{}          # engine/**            pure Bend rules: math, scene, input/, tick, play, shader, place
+  PlatWeb{}         # platform/web/**      JS that reads input and draws (WebGL2, WebAudio)
+  PlatNative{}      # platform/native/**   Bend effect files + C for the native track (later)
+  PlatServer{}      # platform/server/**   Bun shell of the world server (later)
+  Server{}          # server/**            pure Bend rules of the world server (later)
+  Project{}         # projects/**          a game's own content and rules
+  Catalog{}         # PROJECT.bend          the list of projects
+  UiKit{}           # node_modules/bend-ui/**
+  Editor{}          # editor/**, index.html, main.js, KEYS.bend (the editor's page)
+  Export{}          # export/**             a tool: reads a project, writes a game folder
+  Tools{}           # tools/**
+  Tests{}           # tests/**, LAWS.bend, PROOF.bend, SPEC.bend
+  Refs{}            # refs/**               third-party references; never ship
+  Outside{}         # anything else (a path this file does not know: refused by the fence)
+
+# Which layer a path is in. Longest, most specific prefixes first.
+def layer_of(path: String) -> Layer:
+  # TODO not implemented:
+  #   starts_with "engine/"            -> Engine
+  #   starts_with "platform/web/"      -> PlatWeb
+  #   starts_with "platform/native/"   -> PlatNative
+  #   starts_with "platform/server/"   -> PlatServer
+  #   starts_with "server/"            -> Server
+  #   starts_with "projects/"          -> Project
+  #   == "PROJECT.bend"                -> Catalog
+  #   starts_with "node_modules/bend-ui/" -> UiKit
+  #   starts_with "editor/" | == "index.html" | == "main.js" | == "KEYS.bend" -> Editor
+  #   starts_with "export/"            -> Export
+  #   starts_with "tools/"             -> Tools
+  #   starts_with "tests/" | LAWS/PROOF/SPEC.bend -> Tests
+  #   starts_with "refs/"              -> Refs
+  #   else                             -> Outside
+  # (CATCHES M1: each String.starts_with result is matched in its own helper def.)
+  TODO
+
+# Whether a layer may be inside a published game (web or native). Everything a game runs on.
+def ships(l: Layer) -> Bool:
+  match l:
+    case Engine{}:     True{}
+    case PlatWeb{}:    True{}
+    case PlatNative{}: True{}
+    case Project{}:    True{}
+    case Catalog{}:    True{}
+    case UiKit{}:      True{}     # game menus are Bend-UI too (team rule: UI only Bend-UI)
+    case PlatServer{}: False{}    # ships to the server, never inside the client folder
+    case Server{}:     False{}
+    case Editor{}:     False{}
+    case Export{}:     False{}
+    case Tools{}:      False{}
+    case Tests{}:      False{}
+    case Refs{}:       False{}
+    case Outside{}:    False{}
+
+# Whether a file of layer `a` may import a file of layer `b`. The rule of the whole repo.
+#
+#   Engine     -> Engine                             (three named debts to UiKit, see debts())
+#   PlatWeb    -> PlatWeb, Engine                     (never Project: it gets the game as a value)
+#   PlatNative -> PlatNative, Engine
+#   Server     -> Server, Engine                      (the world server runs the same rules)
+#   PlatServer -> PlatServer, Server, Engine
+#   Project    -> Project, Engine
+#   Catalog    -> Project, Engine
+#   UiKit      -> UiKit
+#   Editor     -> Editor, Engine, PlatWeb, Catalog, Project, UiKit
+#   Export     -> Export, Catalog, Engine, UiKit      (+ the bend loader, outside the repo)
+#   Tools      -> anything but Refs; Tests -> anything but Refs
+#   Refs       -> anything (it is a dead end: nothing imports it)
+#   Outside    -> nothing
+#
+# Nothing but Tools/Tests/Export itself imports Export; nothing but Refs imports Refs; nothing
+# that ships imports Editor. Those three are the laws in LAWS.bend below this sketch.
+def may_import(a: Layer, b: Layer) -> Bool:
+  # TODO not implemented: one match on `a`, each case a match on `b` (helper per `a`, M1/M4).
+  TODO
+
+# LAW (LAWS.bend): nothing outside refs/ imports refs/   -- today's fence, now one rule of many.
+#   law only_refs_import_refs:     for a: Layer {may_import(a, Refs{}) == is_refs(a) : Bool}
+# LAW: nothing that ships imports the editor.
+#   law shipped_never_imports_editor: for a: Layer {Bool.and(ships(a), may_import(a, Editor{})) == False{} : Bool}
+# LAW: only tools, tests and export itself import export/.
+#   law export_is_a_dead_end:      for a: Layer {may_import(a, Export{}) == is_tooling(a) : Bool}
+# Each is a case split over a finite enum: provable by `{==}` per case (PROOF.bend style).
+
+
+# ---------- Grafted from candidate 2 ----------
+
+# An edge allowed for now although it breaks a rule, and why.
+type Debt is Data:
+  Debt{from: String, to: String, why: String}
+
+def debts() -> List<&2, Debt>:
+  [Debt{"engine/world.bend", "node_modules/bend-ui/TOKENS.bend",
+        "grid colors come from Bend-UI tokens; move them into engine/color.bend or pass them in"},
+   Debt{"engine/gizmo.bend", "node_modules/bend-ui/TOKENS.bend",
+        "the gizmo is the editor's; move engine/gizmo.bend to editor/ (Isabella's call)"},
+   Debt{"engine/gizmo.bend", "node_modules/bend-ui/MOTION.bend", "same move as above"}]
+
+# What the fence prints for one import edge.
+type Edge is Data:
+  Fine{}
+  Owed{why: String}
+  Blocked{from: String, to: String, rule: String}
+
+def edge(from: String, to: String) -> Edge:
+  # TODO not implemented: Owed when (from, to) is a debt; Fine when may_import(layer_of(from),
+  #   layer_of(to)); else Blocked{from, to, "<a> may not import <b>"}.
+  TODO
+
+# The real invariant: every file in the CLOSURE of the game page (platform/web/game.html) whose
+# layer does not ship. An editor file reached through three innocent imports still fails.
+# export/ also asks this of the bundler's actual inputs (contract.bend, Forbidden).
+def stowaways(closure: List<&2, String>) -> List<&2, String>:
+  # TODO not implemented: keep each path with ships(layer_of(path)) == False{}.
+  TODO

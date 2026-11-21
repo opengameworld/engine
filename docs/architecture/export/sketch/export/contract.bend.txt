@@ -1,0 +1,205 @@
+# The game folder: the one shape every export writes and every host reads. (SKETCH)
+#
+# Like Vercel's Build Output API (.vercel/output/), Unity's Build/ folder + Addressables catalog
+# and Unreal's staged build + manifest: whatever made it, a folder of this shape can be
+# published, and a host only translates it. This file decides everything about that folder:
+# what may be in it, how each file is cached, what headers it needs, whether it ships at all,
+# what its build id is made from, and what game.json says. The shell (export/web.ts) only
+# measures (Facts) and writes what this file returns.
+#
+#   out/web/<game>/
+#     game.json        the manifest (format 1), written LAST: a folder without it is unfinished
+#     site/            exactly what is served, rooted at /
+#       index.html     the one page (Page): revalidated on every load
+#       _/<name>-<hash>.js|css   bundle (Code): immutable, cached for a year
+#       a/<hash>.<ext>           conditioned assets (Asset, format 2): immutable
+#
+#   release(checks, facts) -> Shipped{manifest} | Refused{reasons}
+#   cache(kind)            -> Immutable | Revalidate
+#   headers(m, kind)       -> the headers every host must send for that kind
+#   id_text(m)             -> the canonical text the shell hashes into the build id
+#   json(m, id)            -> game.json's text
+#   missing(m, present)    -> manifest paths that are not on disk with the same hash
+#
+# Limits now:
+# - Hashes (sha256) and sizes are measured by the shell; Bend never reads files (CATCHES X6).
+# - Format 1 is web only. Native (`app/` instead of `site/`) and Asset entries are format 2.
+# - Precompressed files (.br, .gz) never enter the folder: hosts compress (Vercel does it
+#   itself; Caddy `encode`). Unity's precompressed builds need exact Content-Encoding headers
+#   on every host or a slow JS fallback; we avoid the whole class.
+#
+# `TODO` marks a body not written yet (sketch).
+
+import Base
+import ../LAYERS.bend as L
+
+# ---------- What is in the folder ----------
+
+# Not `Kind`: it is a Bend keyword (CATCHES N4).
+type Role is Data:
+  Page{}          # site/index.html: the only file whose name is not a hash
+  Code{}          # site/_/*: JS and CSS chunks named by their hash (Bun.build)
+  Asset{}         # site/a/*: conditioned assets named by hash (format 2: KTX2, GLB, Opus)
+
+# One served file. `path` is relative to site/; `gz` is its gzip size (what a player downloads).
+type Entry is Data:
+  Entry{path: String, role: Role, bytes: U32, gz: U32, sha: String}
+
+type Cache is Data:
+  Immutable{}     # public, max-age=31536000, immutable
+  Revalidate{}    # public, max-age=0, must-revalidate
+
+type Header is Data:
+  Header{name: String, value: String}
+
+# The manifest: everything a host or a later check needs to know about one export.
+# No time, no machine name: the same sources give the same manifest and the same build id.
+type Manifest is Data:
+  Manifest{
+    format: U32,             # 1
+    game: String,            # the project's id ("character")
+    title: String,           # what the page and the host show
+    target: Target,          # what this build runs on (format 1 writes Web{} only)
+    source: Source,          # where it came from; decides what may go live (hosts.bend)
+    seed: String,            # the world's seed (AGENTS.md: set once, never changes); checked on promote
+    isolation: Bool,         # cross-origin isolation (COOP/COEP) for threads; off by default
+    entries: List<&2, Entry> # sorted by path
+  }
+
+# Every target a game may be built for, present from format 1 so native builds and the
+# world server need no format change (graft from candidate 2). Only Web{} is exported today.
+type Target is Data:
+  Web{}
+  MacArm64{}
+  WinX64{}
+  WorldServer{}
+
+# Provenance. Not part of the build id (the same bytes from two commits are the same build),
+# but it travels with the build: game.json is also served at site/game.json, so promote and
+# rollback read the manifest of ANY deployment back from the host, not only the last export.
+type Source is Data:
+  Source{commit: String, dirty: Bool, checked: Bool}
+
+# ---------- What the shell measured ----------
+
+# The only input. Everything here is a measurement; nothing here is a decision.
+type Facts is Data:
+  Facts{
+    game: String,
+    title: String,
+    target: Target,
+    source: Source,
+    seed: String,
+    isolation: Bool,           # read from the project's settings (export/games.bend), passed through
+    inputs: List<&2, String>,  # every source file the bundler read (repo-relative paths)
+    files: List<&2, Entry>     # every file the bundler wrote, classified by the shell's path rule below
+  }
+
+# ---------- The verdict ----------
+
+type Reason is Data:
+  ChecksFailed{}                        # bun run check did not pass
+  Forbidden{path: String}               # a source from a layer that never ships (editor/, refs/, tools/...)
+  NoPage{}                              # no site/index.html
+  TwoPages{}                            # more than one Page
+  Unhashed{path: String}                # a Code/Asset file whose name carries no hash (would be cached forever)
+  OverBudget{gz: U32, budget: U32}      # the first load (Page + Code, gzip) is over budget()
+
+type Outcome is Data:
+  Shipped{m: Manifest}
+  Refused{reasons: List<&2, Reason>}
+
+# The first load a player waits for, gzip, before the first frame: 300 KB.
+# Today's page is ~48 KB. Unity's tuned empty build is ~2.2 MB (EXPORT.html, fig. 3). The budget
+# is the reach rule in numbers: on a 1.6 Mbit/s phone link 300 KB is under 2 s.
+def budget() -> U32: 307200
+
+def cache(k: Role) -> Cache:
+  match k:
+    case Page{}:  Revalidate{}
+    case Code{}:  Immutable{}
+    case Asset{}: Immutable{}
+
+# The folder's path rule, used by the shell to classify what Bun.build wrote:
+# "index.html" -> Page, "_/..." -> Code, "a/..." -> Asset, anything else -> refused as Unhashed.
+def role_of(path: String) -> Maybe<&2, Role>:
+  # TODO not implemented: String.starts_with per prefix, each result matched in its own helper (M1).
+  TODO
+
+# Reasons from the sources: every input must be in a layer that ships (LAYERS.bend).
+def forbidden(inputs: List<&2, String>) -> List<&2, Reason>:
+  # TODO not implemented:
+  #   for p in inputs: match L.ships(L.layer_of(p)) -> False => Forbidden{p}
+  TODO
+
+# Reasons from the files: exactly one Page, every other file hashed, first load within budget().
+def shape(files: List<&2, Entry>) -> List<&2, Reason>:
+  # TODO not implemented:
+  #   pages = count kind == Page;  0 -> NoPage, >1 -> TwoPages
+  #   for Code/Asset entries: name must end in -<8+ hex>.<ext> or be <hex>.<ext> -> else Unhashed{path}
+  #   first = sum gz of Page + Code;  first > budget() -> OverBudget{first, budget()}
+  TODO
+
+# Sorted entries and the manifest, once the reasons are empty.
+def manifest(f: Facts) -> Manifest:
+  # TODO not implemented: Manifest{1, game, title, engine, dirty, isolation, sort_by_path(files)}
+  TODO
+
+# Helper of release: the reasons decide (matched as a parameter, CATCHES M1).
+def decide(reasons: List<&2, Reason>, f: Facts) -> Outcome:
+  match reasons:
+    case []:
+      Shipped{manifest(f)}
+    case r <> rest:
+      Refused{r <> rest}
+
+def release.go(f: Facts) -> Outcome:
+  # TODO not implemented: decide(List.append(forbidden(inputs(f)), shape(files(f))), f)
+  TODO
+
+# Nothing ships if a law fails: the checks are matched FIRST, so the law below holds by
+# reduction, whatever the facts. `checks` is a separate parameter (not a Facts field) so the
+# proof needs no destructuring.
+def release(checks: Bool, f: Facts) -> Outcome:
+  match checks:
+    case False{}:
+      Refused{[ChecksFailed{}]}
+    case True{}:
+      release.go(f)
+
+# ---------- Headers ----------
+
+# The headers a kind needs, the same on every host (hosts.bend translates them, never decides).
+#   every kind: Cache-Control from cache(kind); X-Content-Type-Options: nosniff
+#   Page, when isolation: Cross-Origin-Opener-Policy: same-origin,
+#                         Cross-Origin-Embedder-Policy: require-corp
+def headers(isolation: Bool, k: Role) -> List<&2, Header>:
+  # TODO not implemented
+  TODO
+
+# ---------- Identity ----------
+
+# The build id is sha256 of this text, first 12 hex (the shell hashes; this says what).
+# One line per entry, "sha path", in path order, then "format game engine isolation".
+# Same sources -> same text -> same id: exporting twice is a no-op for every host.
+# `title` is not listed: it is inside index.html, so index.html's sha already covers it.
+# `dirty` is not listed: it changes what may be promoted (hosts.bend), not what is served.
+def id_text(m: Manifest) -> String:
+  # TODO not implemented: String.join(lines, "\n")
+  TODO
+
+# game.json's text (JSON). Written by the shell after every file of site/ is in place.
+def json(m: Manifest, id: String) -> String:
+  # TODO not implemented: hand-written JSON (String.concat), keys in a fixed order.
+  TODO
+
+# What a re-read finds wrong: manifest paths not present with the same sha (verify, and the
+# hosts' after-upload check). [] means the folder is whole.
+def missing(m: Manifest, present: List<&2, Entry>) -> List<&2, String>:
+  # TODO not implemented
+  TODO
+
+# Plain text for a person, one line per reason (the CLI prints it; --json prints the values).
+def say(r: Reason) -> String:
+  # TODO not implemented, e.g. Forbidden{p} -> "editor code reached the game: " ++ p
+  TODO

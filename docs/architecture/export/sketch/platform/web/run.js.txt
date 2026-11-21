@@ -1,0 +1,23 @@
+// platform/web/run.js: a game running without the editor (SKETCH, runtime: ships in every game).
+// The counterpart of editor/app.js's startEditor, for players. Export needs only this signature;
+// the body is where Isabella's upcoming work lands, so it is hers to fill (or a minimal
+// draw-only loop until engine/tick.bend and engine/play.bend exist):
+//
+//   createLoop (loop.js)  -> fixed 60/s steps through engine/tick.bend        (Isabella)
+//   createInput (input.js)-> a list of Bend Event values per tick, engine/input/ (Isabella)
+//   engine/play.bend      -> starts in Play, never Edit (no editor here)       (Isabella)
+//   createRenderer (draw.js) -> draws what Bend returns; order and depth from material.bend (Vini, Isabella)
+//
+// It imports engine/ and platform/web/ only (LAYERS: PlatWeb -> PlatWeb, Engine). The game comes
+// in as a value, so this file never names a project, the catalog, the editor or Bend-UI.
+//
+// Limits now:
+// - No loading screen: the page is ~48 KB and has no assets to wait for yet. When assets arrive
+//   (format 2), it reads their URLs from the manifest the page is given, never from paths.
+
+// `game` is { id, title, opening, camera } (the virtual "ogw:game" module export builds).
+export function runGame(canvas, game) {
+  // TODO not implemented: fitCanvas; renderer = createRenderer(canvas, game.opening);
+  //   input = createInput(...); loop = createLoop({ draw, tick }) with tick -> Tick/Play (Bend); loop.start()
+  throw new Error("not implemented");
+}
