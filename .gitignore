@@ -35,5 +35,3 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # study pages (artifacts), kept local
 tothinkabout/
-# reference assets (third-party, never shipped)
-refs/

@@ -47,7 +47,7 @@ bun run build    # bundle to dist/
 ## Reference characters (`refs/`, never shipped)
 
 `refs/` holds third-party characters used only to study and test the rig
-standard. It is gitignored, nothing outside it may import from it
+standard. Nothing outside it may import from it
 (`bun run check` fails if anything does), and the build never sees it. When
 present, `bun run dev` also serves each `refs/<name>/index.html`, and
 `bun run check` proves each `refs/<name>/PROOF.bend`.

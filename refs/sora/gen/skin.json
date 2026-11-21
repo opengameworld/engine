@@ -1,0 +1,29 @@
+{
+  "generatedBy": "tools/gltf.ts",
+  "credit": "\"Sora (Kingdom Hearts Melody of Memory)\" (https://skfb.ly/pPNsQ) by 雨宮レン, CC BY 4.0. Character (c) Square Enix / Disney.",
+  "stride": 48,
+  "vertices": 4074,
+  "indices": 15924,
+  "indexOffset": 195552,
+  "layout": {
+    "position": 0,
+    "normal": 12,
+    "uv": 24,
+    "joints": 32,
+    "weights": 40
+  },
+  "bones": 171,
+  "parts": [
+    {
+      "name": "21_body-m_0.1_16_16",
+      "first": 0,
+      "count": 11724
+    },
+    {
+      "name": "21_face-m_0.1_16_16",
+      "first": 11724,
+      "count": 4200
+    }
+  ],
+  "textures": []
+}

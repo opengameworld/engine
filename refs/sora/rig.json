@@ -1,0 +1,182 @@
+{
+  "about": "How tools/gltf.ts reads the reference rig into the engine's rig standard. Third-party asset: study only, never shipped.",
+  "credit": "\"Sora (Kingdom Hearts Melody of Memory)\" (https://skfb.ly/pPNsQ) by 雨宮レン, CC BY 4.0. Character (c) Square Enix / Disney.",
+  "drop": [
+    "Armature",
+    "CHARACTER0000033 md",
+    "kh sk",
+    "root ground",
+    "root ground_end"
+  ],
+  "parents": {
+    "koshi": "root",
+    "hara1": "koshi"
+  },
+  "slots": {
+    "koshi": "hips",
+    "hara1": "spine",
+    "hara2": "chest",
+    "mune": "upper_chest",
+    "head neck lower": "neck",
+    "head neck upper": "head",
+    "*kata": "shoulder",
+    "*ude1": "upper_arm",
+    "*ude2": "lower_arm",
+    "*te": "hand",
+    "*yubiA1": "thumb_1",
+    "*yubiA2": "thumb_2",
+    "*yubiA3": "thumb_3",
+    "*yubiB": "index_0",
+    "*yubiB1": "index_1",
+    "*yubiB2": "index_2",
+    "*yubiB3": "index_3",
+    "*yubiC": "middle_0",
+    "*yubiC1": "middle_1",
+    "*yubiC2": "middle_2",
+    "*yubiC3": "middle_3",
+    "*yubiD": "ring_0",
+    "*yubiD1": "ring_1",
+    "*yubiD2": "ring_2",
+    "*yubiD3": "ring_3",
+    "*yubiE": "little_0",
+    "*yubiE1": "little_1",
+    "*yubiE2": "little_2",
+    "*yubiE3": "little_3",
+    "*momo": "upper_leg",
+    "*sune": "lower_leg",
+    "*ashi1": "foot",
+    "*ashi2": "toes"
+  },
+  "roles": [
+    {
+      "match": "(hineri|roll|Roll|kaiten) spo$",
+      "role": "Twist"
+    },
+    {
+      "match": " spo$",
+      "role": "Support"
+    },
+    {
+      "match": "kami|sode|suso|hood|neckla|jip|ctl",
+      "role": "Chain"
+    }
+  ],
+  "rules_about": "One rule per Twist and Support bone (engine/helpers.bend): [part, driver, amount]. Roll = the driver's turn around its length; Full = its whole turn; Hold = stays at rest. Amounts set by eye.",
+  "rules": {
+    "*ude1hineri spo": [
+      "Roll",
+      "*ude1",
+      -0.5
+    ],
+    "*ude1roll spo": [
+      "Roll",
+      "*ude1",
+      -0.5
+    ],
+    "*tehineri spo": [
+      "Roll",
+      "*te",
+      0.5
+    ],
+    "*kataRoll spo": [
+      "Hold",
+      "*kata",
+      0.0
+    ],
+    "*momohineri spo": [
+      "Roll",
+      "*momo",
+      -0.5
+    ],
+    "*ashi1hineri spo": [
+      "Roll",
+      "*ashi1",
+      0.5
+    ],
+    "*ashi1kaiten spo": [
+      "Hold",
+      "*ashi1",
+      0.0
+    ],
+    "*hiji spo": [
+      "Full",
+      "*ude2",
+      -0.5
+    ],
+    "*teBend spo": [
+      "Full",
+      "*te",
+      -0.5
+    ],
+    "*tekubi spo": [
+      "Hold",
+      "*te",
+      0.0
+    ],
+    "*ude1waki spo": [
+      "Full",
+      "*ude1",
+      -0.4
+    ],
+    "*wakishita spo": [
+      "Full",
+      "*ude1",
+      0.5
+    ],
+    "*sode ctl spo": [
+      "Hold",
+      "*ude1",
+      0.0
+    ],
+    "*hood spo": [
+      "Hold",
+      "*kata",
+      0.0
+    ],
+    "*hija spo": [
+      "Full",
+      "*sune",
+      -0.5
+    ],
+    "*hizaura spo": [
+      "Full",
+      "*sune",
+      0.5
+    ],
+    "*suneura spo": [
+      "Full",
+      "*sune",
+      -0.3
+    ],
+    "*momoBendF spo": [
+      "Full",
+      "*momo",
+      0.5
+    ],
+    "*momoBendB spo": [
+      "Full",
+      "*momo",
+      0.5
+    ],
+    "*momoBendS spo": [
+      "Full",
+      "*momo",
+      0.5
+    ],
+    "*ashikou spo": [
+      "Hold",
+      "*ashi1",
+      0.0
+    ],
+    "*ashikakato spo": [
+      "Hold",
+      "*ashi1",
+      0.0
+    ],
+    "*shoe spo": [
+      "Hold",
+      "*ashi1",
+      0.0
+    ]
+  }
+}
