@@ -9,7 +9,7 @@
 # Because the turns are given by slot and in the character's axes (X to
 # its left, Y up, Z ahead; engine/pose.bend's turned()), the same code
 # animates any skeleton that follows the rig standard: the test arm, the
-# reference rig, a character of your own.
+# mannequin, a character of your own.
 #
 # One cycle is two steps, left then right. At phase 0 both legs pass under
 # the hips; at a quarter, the left leg is forward.
@@ -174,10 +174,15 @@ def hips_bob(+s: Sk.Skeleton, +seconds: F32) -> List<&2, C.Track>:
   +base = Tr.position(Sk.rest(Sk.at(s, bone)))
   bob_for(U32.is_lt(bone, Sk.count(s)), bone, base, seconds)
 
+# How long each clip lasts, on any skeleton: a walk cycle takes a second,
+# a breath three.
+def walk_seconds() -> F32: 1.0
+def idle_seconds() -> F32: 3.0
+
 # A walk of one cycle in a second, at 1.3 m/s.
 def walk(+s: Sk.Skeleton) -> C.Clip:
-  C.Clip{"walk", 1.0, 1.3, List.append(&2, C.Track, tracks_go(walk_slots(), 0, s, 1.0), hips_bob(s, 1.0))}
+  C.Clip{"Walk", walk_seconds(), 1.3, True{}, List.append(&2, C.Track, tracks_go(walk_slots(), 0, s, walk_seconds()), hips_bob(s, walk_seconds()))}
 
 # Standing still: one breath every 3 seconds.
 def idle(+s: Sk.Skeleton) -> C.Clip:
-  C.Clip{"idle", 3.0, 0.0, tracks_go(idle_slots(), 1, s, 3.0)}
+  C.Clip{"Idle", idle_seconds(), 0.0, True{}, tracks_go(idle_slots(), 1, s, idle_seconds())}

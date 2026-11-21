@@ -225,7 +225,7 @@ law deform_under_twist_is_invalid:
      Sk.Bone{"twist", "", Sk.Twist{}, 0, t, 0.0},
      Sk.Bone{"hand", "", Sk.Deform{}, 1, t, 0.0}]}) == False{} : Bool}
 
-# LAW: helpers may hang from helpers (the reference rig does this).
+# LAW: helpers may hang from helpers (the mannequin does this).
 law support_under_twist_is_valid:
   for t: Tr.Transform
   {Sk.valid(Sk.Skeleton{[
@@ -248,9 +248,17 @@ law reduce_motion_freezes_scenes:
   for dt: F32
   {S.advance(s, dt, True{}) == s : S.Scene}
 
+# LAW: a character that is not on does not play: with Play not pressed,
+# asking it to play changes nothing, with motion reduced or not.
+law a_stopped_figure_does_not_play:
+  for f: Fig.Figure
+  for dt: F32
+  for reduce: Bool
+  {Fig.play(Fig.set_on(f, False{}), dt, reduce) == Fig.set_on(f, False{}) : Fig.Figure}
+
 # ---------- Skin weights ----------
 # The weight rules of engine/skin.bend, on single vertices (the reference
-# rig's 4074 vertices are checked by refs/sora/LAWS.bend when present).
+# rig's 4074 vertices are checked by mannequin/LAWS.bend).
 
 # LAW: weights that sum to 65535 over distinct bones are fine.
 law weights_that_sum_to_the_whole_hold:

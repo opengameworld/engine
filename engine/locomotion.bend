@@ -126,6 +126,29 @@ def drive(s: S.Scene, +i: Input, +dt: F32, +stepping: Bool) -> S.Scene:
   S.Scene{xs} = s
   S.Scene{drive_go(xs, i, dt, stepping)}
 
+# One frame of the editor
+# =======================
+
+# Does this frame change the scene? With motion allowed, any scene with a
+# character does (the clock runs). With reduce_motion on, only one where
+# someone pressed Play (engine/figure.bend's play).
+def runs(+s: S.Scene, +reduce: Bool) -> Bool:
+  (S.animated(s) && (Bool.not(reduce) || S.playing(s)))
+
+# Held keys drive the characters only while motion is allowed; with
+# reduce_motion on, a key press is one step (drive's stepping), not a frame.
+def driven(reduce: Bool, +s: S.Scene, +i: Input, +dt: F32) -> S.Scene:
+  match reduce:
+    case True{}:
+      s
+    case False{}:
+      drive(s, i, dt, False{})
+
+# The scene one frame later: the keys held, the clock, and what plays on
+# request.
+def frame(+s: S.Scene, +i: Input, +dt: F32, +reduce: Bool) -> S.Scene:
+  S.play(S.advance(driven(reduce, s, i, dt), dt, reduce), dt, reduce)
+
 # An input from its two codes (for main.js, which reads the keys).
 def input(+forward: U32, +turn: U32) -> Input:
   Input{forward, turn}

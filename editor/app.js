@@ -1,5 +1,5 @@
 // The editor: shared by every page that opens a scene (index.html for the
-// engine's projects, refs/*/index.html for reference characters). It puts
+// engine's projects, refs/*/index.html for study-only characters). It puts
 // the pieces together and decides nothing: Bend says what the panels show,
 // what a key does and how the camera moves; platform/web/ draws the scene
 // (draw.js), reads the keyboard and the pointer (input.js) and runs the
@@ -22,6 +22,7 @@ import Camera from "../engine/camera.bend";
 import Material from "../engine/material.bend";
 import { mountDefaults } from "./defaults/defaults.js";
 import Panels from "./panels/view.bend";
+import Anim from "./animation/view.bend";
 import Defaults from "./defaults/defaults.bend";
 import Loco from "../engine/locomotion.bend";
 import { createRenderer } from "../platform/web/draw.js";
@@ -47,12 +48,14 @@ export function startEditor(opening, { skins = {}, camera = null, shaders = {} }
   // The clock: characters' animations move on by themselves only when
   // motion is not reduced (ACCESSIBILITY.bend, through Editor Defaults).
   // With reduce_motion on, a character moves only when its time is typed
-  // in the Details panel.
+  // in the Details panel, or while its Play is pressed there. Bend says
+  // whether a frame changes the scene (runs) and what it becomes (frame).
   const loop = createLoop({
     draw: () => { renderer.draw(scene, cam); defaults.draw(); },
     tick: (dt) => {
-      if (Scene.animated(scene) && !Defaults.reduce_motion(still.matches)) {
-        moved(Scene.advance(Loco.drive(scene, held(), dt, false), dt, false));
+      const reduce = Defaults.reduce_motion(still.matches);
+      if (Loco.runs(scene, reduce)) {
+        moved(Loco.frame(scene, held(), dt, reduce));
         redraw();
       }
     },
@@ -104,6 +107,7 @@ export function startEditor(opening, { skins = {}, camera = null, shaders = {} }
       const selected = Panels.selected(st);
       if (selected !== Panels.selected(before)) inspector.render(selected);
       const next = Panels.scene(st);
+      animFollow(next, Panels.selected(st), true);
       if (next === scene) return;   // a thing was picked: the scene is the same
       scene = next;
       renderer.edited(scene, selected);
@@ -111,9 +115,37 @@ export function startEditor(opening, { skins = {}, camera = null, shaders = {} }
     },
   });
   still.addEventListener("change", () => panels.dispatch(Panels.motion_event(still.matches)));
+
+  // The Animation screen (editor/animation/view.bend): a tab beside Scene. It is a page written
+  // in Bend, drawn on the body around the editor's window; Bend says everything it shows and does.
+  // Here it is only mounted, and the scene goes back and forth as with the panels above.
+  const anim = mount(document.body, {
+    init: () => Anim.start(scene, still.matches),
+    render: Anim.render, on_event: Anim.on_event, on_input: Anim.on_input,
+  }, {
+    adopt: true,
+    changed: (st) => {
+      const next = Anim.scene(st);
+      panels.set(Panels.follow(panels.state, next, Anim.selected(st)));
+      if (next === scene) return;
+      scene = next;
+      redraw();
+    },
+  });
+  // The scene or the selection changed outside the screen: it gets them, and is drawn again when
+  // asked (`draw`), or when Bend says it shows a time that moves every frame.
+  function animFollow(next, selected, draw) {
+    const st = Anim.follow(anim.state, next, selected);
+    anim.set(st, { render: draw || Anim.draws_frames(st) });
+  }
+  still.addEventListener("change", () => anim.dispatch(Anim.motion_event(still.matches)));
   // The scene moved on outside the panels (a walk, the clock): they get it, and draw it at their
   // next event, as before (the Details fields are not drawn again every frame).
-  const moved = (next) => { scene = next; panels.set(Panels.with_scene(panels.state, scene), { render: false }); };
+  const moved = (next) => {
+    scene = next;
+    panels.set(Panels.with_scene(panels.state, scene), { render: false });
+    animFollow(scene, Anim.selected(anim.state), false);
+  };
 
   // Shortcuts: the keymap and what each view looks from are KEYS.bend.
   {

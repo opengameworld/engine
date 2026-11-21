@@ -8,5 +8,8 @@
 import Base
 
 # Motion sickness. True: the camera never travels between views; it cuts
-# straight to the new one. The same for any motion added later.
+# straight to the new one. The same for any motion added later: nothing
+# starts moving by itself. A character's clip plays only after the person
+# presses Play on it (Details panel), in place, and stops when they press
+# Stop; that is motion asked for, and the camera still does not move.
 def reduce_motion() -> Bool: True{}

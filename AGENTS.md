@@ -5,6 +5,20 @@ the team's rules live in the `opengame` repository's `AGENTS.md`; read it
 too. This file repeats the rules that apply to every change here, so an
 agent opened in this repository sees them.
 
+## Read first: the game this engine serves
+
+The vision is in `../opengame/AGENTS.md` (the sibling folder of this
+repository). Read that file at the start of every session, before answering
+a question about what fits the game. In short, so no one has to repeat it:
+
+- A metaverse inspired by Greed Island: one planet, mapped whole, at 1:1
+  human scale in meters. No goal and no win condition: walking, riding
+  creatures, living in the world.
+- It runs on the web, on everything: desktop, phone, VR. The ambition is
+  Roblox-like accessibility with Unreal-level graphics.
+- The world's seed is fixed from the start; the world evolves without
+  breaking what was generated.
+
 ## What we are building
 
 - A game engine from scratch, one step at a time. Each version adds what we
@@ -54,16 +68,32 @@ Say which of these you read in this session and which you only remember.
 | `editor/` | The editor: a tool | Never |
 | `tools/` | dev server, check, tests, importer | Never |
 | `projects/` | The engine's own test projects | No |
-| `refs/` | Third-party reference characters, for study and tests | Never |
+| `mannequin/` | The standard character: its skeleton, helper rules, skin and laws | Yes, with its credit |
+| `library/` | The animation library: its catalog and each collection's motions, with credits | Yes, the clips a game uses |
+| `refs/` | Third-party assets kept only for study (none now) | Never |
 
 - `platform/web/` imports nothing from `editor/`. The editor imports from
   `platform/web/`.
 - Nothing outside `refs/` imports from `refs/`. `bun run check` fails if
   anything does.
 
+## The mannequin
+
+- `mannequin/` is the engine's standard character, as Manny and Quinn are
+  Unreal's: the engine opens with it, clips are made on it and shown on it,
+  and other characters are checked against it and retargeted to it. This
+  was decided by the project's owner; do not propose another one.
+- The rig standard is `engine/skeleton.bend` (roles, slots, laws). The
+  mannequin is the character that keeps it; its rest pose is the T-pose
+  (`tests/mannequin.bend`).
+- It is content, not engine code: a game may bring its own character, if
+  that character keeps the standard.
+- Its mesh and textures are third-party work (`mannequin/CREDITS.md`). The
+  credit goes wherever the mannequin goes.
+
 ## Before a commit
 
-- `bun run check` passes: laws, types, tests, reference laws, fences. It
+- `bun run check` passes: laws (the mannequin's too), types, tests, fences. It
   finds every `.bend` file by itself.
 - A change that must not alter what is seen is measured before and after,
   not judged by eye: the editor's elements with `ui-verify`, and pictures

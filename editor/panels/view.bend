@@ -55,6 +55,12 @@ def with_scene(+st: St, +s: S.Scene) -> St:
     case View{_, i, still}:
       View{s, i, still}
 
+# The scene and the selection as another part of the editor left them (the Animation screen).
+def follow(+st: St, +s: S.Scene, +i: U32) -> St:
+  match st:
+    case View{_, _, still}:
+      View{s, i, still}
+
 def motion_event(+still: Bool) -> Ev:
   motion_set{still}
 

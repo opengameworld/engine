@@ -7,8 +7,8 @@ import { writeShaderCatalog } from "./shaders/catalog.js";
 
 const PORT = "3100";
 
-// Reference characters' pages (refs/*/index.html), served beside the
-// engine's page when they exist. refs/ is gitignored and never built.
+// Study-only characters' pages (refs/*/index.html), served beside the
+// engine's page when they exist. refs/ is never built.
 const REFERENCE_PAGES = existsSync("refs")
   ? readdirSync("refs").map((d) => `refs/${d}/index.html`).filter((p) => existsSync(p))
   : [];
@@ -38,6 +38,7 @@ if (process.env.WSL_DISTRO_NAME && /^\/mnt\/[a-z](?:\/|$)/i.test(process.cwd()))
   const sources = [
     "*.bend", "main.js", "index.html", "engine/**/*.{bend,js}",
     "editor/**/*.{bend,js,css}", "platform/web/**/*.js", "projects/**/*.bend", "projects/*/shaders/**/*",
+    "mannequin/**/*.bend", "library/**/*.bend",
     ...(existsSync("refs") ? ["refs/**/*.{bend,js,html,css}"] : []),
   ].map((pattern) => new Glob(pattern));
   function snapshot() {
@@ -59,7 +60,7 @@ if (process.env.WSL_DISTRO_NAME && /^\/mnt\/[a-z](?:\/|$)/i.test(process.cwd()))
     if (changed) restart(changed);
   }, 1000);
 } else {
-  for (const dir of [".", "engine", "projects", "editor", ...(existsSync("refs") ? ["refs"] : [])]) {
+  for (const dir of [".", "engine", "projects", "mannequin", "library", "editor", ...(existsSync("refs") ? ["refs"] : [])]) {
     watch(dir, { recursive: dir !== "." }, (_, file) => {
       if (!file) return;
       const path = file.replaceAll("\\", "/");

@@ -10,7 +10,7 @@ MASTER
 RUN
 
 Open a terminal in this folder:
-  cd ~/Documents/HOC/GameEngine
+  cd ~/Documents/opengameworld/engine
 
 Install once:
   bun install

@@ -12,23 +12,27 @@
 # Limits now:
 # - Which project opens is this file's open(); there is no project picker
 #   in the editor.
-# - The build (bun run build) bundles every project listed here. Nothing
-#   from refs/ may ever be listed: refs/ holds third-party reference assets
-#   that never ship (tools/check.ts fails if anything outside refs/ imports
-#   from it).
+# - The build (bun run build) bundles every project listed here, the
+#   mannequin's skin with them. Nothing from refs/ may ever be listed:
+#   refs/ is for third-party assets kept only for study, which never ship
+#   (tools/check.ts fails if anything outside refs/ imports from it).
 
 import Base
 import ./engine/scene.bend as S
 import ./engine/camera.bend as Cam
 import ./projects/water/scene.bend as WaterScene
 import ./projects/character/scene.bend as CharacterScene
+import ./mannequin/scene.bend as MannequinScene
+import ./projects/animation/scene.bend as AnimationScene
 
 type Project is Data:
   Water{}
   Character{}
+  Mannequin{}
+  Animation{}
 
 # Which project opens. Change this one line.
-def open() -> Project: Character{}
+def open() -> Project: Animation{}
 
 def name(p: Project) -> String:
   match p:
@@ -36,6 +40,10 @@ def name(p: Project) -> String:
       "Water"
     case Character{}:
       "Character"
+    case Mannequin{}:
+      "Mannequin"
+    case Animation{}:
+      "Animation"
 
 def folder(p: Project) -> String:
   match p:
@@ -43,19 +51,24 @@ def folder(p: Project) -> String:
       "water"
     case Character{}:
       "character"
+    case Mannequin{}:
+      "mannequin"
+    case Animation{}:
+      "animation"
 
-def pick_preview(water: Bool, character: Bool) -> Project:
-  match water character:
-    case True{} _:
-      Water{}
-    case _ True{}:
-      Character{}
-    case _ _:
-      open()
+def pick_project(c: Bool, a: Project, b: Project) -> Project:
+  match c:
+    case True{}:
+      a
+    case False{}:
+      b
 
 # A preview link can open a project explicitly. Unknown names use the default.
 def preview(+slug: String) -> Project:
-  pick_preview(String.eq(slug, "water"), String.eq(slug, "character"))
+  pick_project(String.eq(slug, "water"), Water{},
+  pick_project(String.eq(slug, "character"), Character{},
+  pick_project(String.eq(slug, "mannequin"), Mannequin{},
+  pick_project(String.eq(slug, "animation"), Animation{}, open()))))
 
 def start(p: Project) -> S.Scene:
   match p:
@@ -63,6 +76,10 @@ def start(p: Project) -> S.Scene:
       WaterScene.start()
     case Character{}:
       CharacterScene.start()
+    case Mannequin{}:
+      MannequinScene.start()
+    case Animation{}:
+      AnimationScene.start()
 
 # The scene the editor opens with.
 def opening() -> S.Scene:
@@ -74,6 +91,10 @@ def camera(p: Project) -> Cam.Cam:
     case Water{}:
       Cam.start()
     case Character{}:
+      Cam.close_up()
+    case Mannequin{}:
+      Cam.close_up()
+    case Animation{}:
       Cam.close_up()
 
 def opening_camera() -> Cam.Cam:

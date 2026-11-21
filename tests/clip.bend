@@ -34,7 +34,7 @@ def eighth() -> Q.Q:
 
 # A one-second clip that turns the forearm (bone 2) a quarter around Z.
 def bend() -> C.Clip:
-  C.Clip{"bend", 1.0, 0.0, [C.Turns{2, [C.Turn{0.0, Q.identity()}, C.Turn{1.0, quarter()}]}]}
+  C.Clip{"bend", 1.0, 0.0, True{}, [C.Turns{2, [C.Turn{0.0, Q.identity()}, C.Turn{1.0, quarter()}]}]}
 
 def rest() -> P.Pose:
   P.rest(Arm.skeleton())

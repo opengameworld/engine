@@ -15,7 +15,7 @@
 # driver's frame into the helper's (both at rest), scaled by `amount`, and
 # applied on top of the helper's rest. This is stage 4 of Gregory's
 # pipeline ("post-processing"), what Unity's Twist Correction constraint
-# does, and what the reference rig's original game computed at runtime for
+# does, and what the game the mannequin's rig comes from computed at runtime for
 # its " spo" bones (the file carries no rules, so these are ours).
 #
 # The law that comes with it: every Twist and Support bone has exactly one

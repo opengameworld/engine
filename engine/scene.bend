@@ -206,6 +206,57 @@ def advance(s: Scene, +dt: F32, +reduce: Bool) -> Scene:
   Scene{xs} = s
   Scene{advance_go(xs, dt, reduce)}
 
+# Playing on request (engine/figure.bend's play): every character whose
+# Play was pressed moves on, also with reduce_motion on.
+def play_look(l: Look, +dt: F32, +reduce: Bool) -> Look:
+  match l:
+    case Rigged{f}:
+      Rigged{Fig.play(f, dt, reduce)}
+    case _:
+      l
+
+def play_go(xs: List<&2, Thing>, +dt: F32, +reduce: Bool) -> List<&2, Thing>:
+  match xs:
+    case Nil{}:
+      Nil{}
+    case h <> t:
+      Thing{n, p, l} = h
+      Thing{n, p, play_look(l, dt, reduce)} <> play_go(t, dt, reduce)
+
+def play(s: Scene, +dt: F32, +reduce: Bool) -> Scene:
+  Scene{xs} = s
+  Scene{play_go(xs, dt, reduce)}
+
+def on_look(l: Look) -> Bool:
+  match l:
+    case Rigged{f}:
+      Fig.is_on(f)
+    case _:
+      False{}
+
+def any_on(xs: List<&2, Thing>) -> Bool:
+  match xs:
+    case Nil{}:
+      False{}
+    case h <> t:
+      (on_look(look(h)) || any_on(t))
+
+# Is any character playing because someone pressed Play?
+def playing(s: Scene) -> Bool:
+  Scene{xs} = s
+  any_on(xs)
+
+# The thing with another figure; a thing that is not a character stays.
+def with_figure(t: Thing, f: Fig.Figure) -> Thing:
+  Thing{n, p, l} = t
+  match l:
+    case Rigged{_}:
+      Thing{n, p, Rigged{f}}
+    case Shown{m, mat}:
+      Thing{n, p, Shown{m, mat}}
+    case Hidden{}:
+      Thing{n, p, Hidden{}}
+
 # Is anything in the scene animated? (main.js runs the clock only then.)
 def any_rigged(xs: List<&2, Thing>) -> Bool:
   match xs:

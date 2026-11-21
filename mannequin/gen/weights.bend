@@ -4,7 +4,7 @@
 # "Sora (Kingdom Hearts Melody of Memory)" (https://skfb.ly/pPNsQ) by 雨宮レン, CC BY 4.0. Character (c) Square Enix / Disney.
 
 import Base
-import ../../../engine/skin.bend as Skin
+import ../../engine/skin.bend as Skin
 
 def bones() -> U32: 171
 

@@ -6,8 +6,9 @@
 #           motion)
 # Keys are (time in seconds, value), in order. Between two keys a rotation
 # moves along the shortest arc (Q.slerp) and a position along a straight
-# line, as glTF's LINEAR sampler does. A clip loops: time past its length
-# starts again from 0.
+# line, as glTF's LINEAR sampler does. A clip that loops (a walk) starts
+# again from 0 past its length; one that plays once (a throw) holds its
+# last key.
 #
 # sample() turns a clip and a time into a pose: start from a base pose
 # (usually the rest pose) and overwrite what each track drives. Bones
@@ -39,23 +40,27 @@ type Track is Data:
   Shifts{bone: U32, shifts: List<&2, Shift>}
 
 type Clip is Data:
-  Clip{name: String, seconds: F32, speed: F32, tracks: List<&2, Track>}
+  Clip{name: String, seconds: F32, speed: F32, loop: Bool, tracks: List<&2, Track>}
 
 def name(c: Clip) -> String:
-  Clip{n, _, _, _} = c
+  Clip{n, _, _, _, _} = c
   n
 
 def seconds(c: Clip) -> F32:
-  Clip{_, s, _, _} = c
+  Clip{_, s, _, _, _} = c
   s
 
 def speed(c: Clip) -> F32:
-  Clip{_, _, v, _} = c
+  Clip{_, _, v, _, _} = c
   v
 
 def tracks(c: Clip) -> List<&2, Track>:
-  Clip{_, _, _, ts} = c
+  Clip{_, _, _, _, ts} = c
   ts
+
+def loops(c: Clip) -> Bool:
+  Clip{_, _, _, l, _} = c
+  l
 
 def turn_time(k: Turn) -> F32:
   Turn{t, _} = k
@@ -158,10 +163,18 @@ def apply_go(ts: List<&2, Track>, p: P.Pose, +t: F32) -> P.Pose:
     case h <> rest:
       apply_go(rest, apply_track(p, h, t), t)
 
-# The pose of a clip at time t (in seconds; the clip loops), on top of a
-# base pose.
+# The time inside the clip: wrapped for a clip that loops, held at the
+# end for one that plays once.
+def inside(loop: Bool, +t: F32, +seconds: F32) -> F32:
+  match loop:
+    case True{}:
+      wrap(t, seconds)
+    case False{}:
+      F32.clamp(t, 0.0, seconds)
+
+# The pose of a clip at time t (in seconds), on top of a base pose.
 def sample(+c: Clip, +base: P.Pose, +t: F32) -> P.Pose:
-  apply_go(tracks(c), base, wrap(t, seconds(c)))
+  apply_go(tracks(c), base, inside(loops(c), t, seconds(c)))
 
 # How many tracks drive this bone (for the laws: a clip must drive only
 # bones that exist and a bone at most once per kind of track).

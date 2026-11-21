@@ -1,8 +1,13 @@
 # Skeleton: the bones of a character, at rest.
 #
-# The engine's rig standard. Its structure comes from the reference rig
-# (refs/, never shipped): a few bones that clips animate, and many more
-# that the engine computes from them.
+# The engine's rig standard. The character that keeps it is the mannequin
+# (mannequin/), and its structure comes from that rig: a few bones that
+# clips animate, and many more that the engine computes from them.
+#
+# The reference pose is the T-pose: standing on the origin, facing +Z, left
+# side toward +X, arms straight out along X and level with the ground. It
+# is what Unity's Humanoid, Godot's humanoid profile and VRM ask for, so a
+# clip made for any of them starts from the same pose.
 #
 # Every bone has a role, which says who moves it:
 # - Root     on the ground, under everything. Moving it moves the whole
@@ -35,6 +40,11 @@
 #   is not caught by the compiler, only by the laws that look for slots.
 # - The laws here look at integers and kinds only. Positions and rotations
 #   are floats, which the law checker does not compute; tests check those.
+# - The core and the outfit share one list: a skin with other Chain bones
+#   needs its own whole skeleton, with the core's bones at other indexes.
+#   A core kept apart, with each skin adding to it, is not built.
+# - The T-pose is checked on the mannequin only (tests/mannequin.bend);
+#   nothing checks it on another skeleton yet.
 
 import Base
 import ./vec.bend as V
@@ -271,6 +281,42 @@ def deform_go(+s: Skeleton, xs: List<&2, Bone>) -> Bool:
 
 def deform_under_deform(+s: Skeleton) -> Bool:
   deform_go(s, bones(s))
+
+# The core and the outfit
+# =======================
+# The core is every bone but the Chain ones: the root, the body, its twist
+# and support bones. It is the standard itself, the part every character
+# on this skeleton shares. Chain bones belong to one skin: its hair, its
+# clothes. Unreal draws the same line: meshes share a Skeleton, and one
+# mesh may add bones at the ends, never rename or reorder the shared ones.
+
+def is_chain(k: Role) -> Bool:
+  match k:
+    case Chain{}:
+      True{}
+    case _:
+      False{}
+
+# A core bone never hangs from a Chain bone.
+def core_ok(+s: Skeleton, +b: Bone) -> Bool:
+  (is_chain(role(b)) || not(is_chain(role_of(s, parent(b)))))
+
+def core_go(+s: Skeleton, xs: List<&2, Bone>) -> Bool:
+  match xs:
+    case Nil{}:
+      True{}
+    case +h <> t:
+      (core_ok(s, h) && core_go(s, t))
+
+# Taking every Chain bone away leaves a whole skeleton: no core bone loses
+# its parent. This is what lets another skin use the same core.
+def core_closed(+s: Skeleton) -> Bool:
+  core_go(s, bones(s))
+
+# How many bones the core has.
+def core_count(+s: Skeleton) -> U32:
+  +xs = bones(s)
+  (role_count_go(xs, 0) + role_count_go(xs, 1) + role_count_go(xs, 2) + role_count_go(xs, 3) : U32)
 
 # All the structural laws at once.
 def valid(+s: Skeleton) -> Bool:

@@ -6,7 +6,7 @@ Needs Bend (`bend`) and a clone of [bendlang/bend](https://github.com/bendlang/b
 ```sh
 bun install
 bun run dev      # http://localhost:3100
-bun run check    # laws, types, tests, reference laws, the refs/ fence
+bun run check    # laws, types, tests, the refs/ fence
 bun run build    # bundle to dist/
 ```
 
@@ -28,7 +28,11 @@ Open `http://localhost:3100/?project=water` and select **Water**. In **Details â
 
 | File | What it is |
 | --- | --- |
-| `PROJECT.bend` | The projects (Water, Character), which one opens, and its starting camera |
+| `PROJECT.bend` | The projects (Water, Character, Mannequin, Animation), which one opens, and its starting camera |
+| `library/` | The animation library: `catalog.bend` (the folders, and the clip an entry becomes on a character) and one folder per collection (`quaternius/`: the source files, `clips.json`, the motions `tools/clips.ts` wrote, the credits) |
+| `projects/animation/` | The Animation project: the mannequin, to try the library on (add a clip in Details, press Play) |
+| `tools/clips.ts` | The clip importer: the animations of .glb files + clips.json â†’ motions (Bend) |
+| `mannequin/` | The standard character: `rig.json`, what the importer wrote (`gen/`), its laws, its scene and its credits |
 | `projects/water/` | The Water project: a plane with a material |
 | `projects/character/` | The Character project: the hand-written test arm (`arm.bend`) and its scene |
 | `engine/world.bend` | The World: origin, axes, units, ground grid, sky, grid fade |
@@ -54,28 +58,61 @@ Open `http://localhost:3100/?project=water` and select **Water**. In **Details â
 | `platform/web/loop.js` | The browser's frames: dt, redraw, the canvas's size. Runtime |
 | `editor/app.js` | The editor: puts the pieces together (theme, panels, gizmo, shortcuts, camera), shared by every page |
 | `editor/defaults/` | Editor Defaults: gizmo + info, accessibility (`ACCESSIBILITY.bend`). The info button is a page written in Bend (`view.bend`); the gizmo is a canvas (`defaults.js`) |
+| `editor/animation/` | The Animation screen, a tab beside Scene: the library, the transport, the clip's details. One page written in Bend (`view.bend`), with its own styles; no JS, HTML or CSS of its own |
 | `editor/panels/` | The Scene and Details panels: what they hold (`panels.bend`) and what is drawn for it (`view.bend`, a page written in Bend). No JS of their own: Bend-UI's driver draws them |
 | `tools/gltf.ts` | The importer: a .glb + rig.json â†’ skeleton, rules, weights (Bend) and skin.bin |
-| `tools/check.ts` | `bun run check`: laws, types (every `.bend` file, found by itself), tests, reference laws, the refs/ fence |
+| `tools/check.ts` | `bun run check`: laws (the engine's, the editor's, the mannequin's), types (every `.bend` file, found by itself), tests, the refs/ fence |
 | `AGENTS.md` | The rules for agents working here; the game's vision is in the `opengame` repository |
 | `tests/` | Numerical tests (`checks()` lists), run by `tools/test.ts` |
 | `KEYS.bend` | The keymap: views 1â€“4, walking W/A/S/D |
 | `SPEC.bend`, `LAWS.bend`, `PROOF.bend` | The engine's laws and their proofs |
 | `main.js`, `index.html` | The engine's page: opens the project PROJECT.bend names |
 
-## Reference characters (`refs/`, never shipped)
+## The mannequin (`mannequin/`)
 
-`refs/` holds third-party characters used only to study and test the rig
-standard. Nothing outside it may import from it
-(`bun run check` fails if anything does), and the build never sees it. When
-present, `bun run dev` also serves each `refs/<name>/index.html`, and
-`bun run check` proves each `refs/<name>/PROOF.bend`.
+The engine's standard character, as Manny and Quinn are Unreal's: the
+project the engine opens with, the character clips are made on and shown
+on, and the rig other characters are checked against. The rig standard is
+`engine/skeleton.bend`; the mannequin is the character that keeps it, and
+`bun run check` proves it every time (`mannequin/PROOF.bend`,
+`tests/mannequin.bend`). It is content: a game may bring its own character
+instead. Its mesh and textures are third-party work, credited in
+`mannequin/CREDITS.md`; the credit goes wherever the mannequin goes.
 
-Re-import the reference after changing its `rig.json`:
+Re-import it after changing its `rig.json`:
 
 ```sh
-bun tools/gltf.ts refs/sora/gltf/sora_all.glb refs/sora/rig.json refs/sora/gen
+bun tools/gltf.ts mannequin/gltf/sora_all.glb mannequin/rig.json mannequin/gen
 ```
+
+## The animation library (`library/`)
+
+Clips from anywhere are stored once as motions (`engine/motion.bend`): for
+each slot of the rig standard, how far it has turned from the T-pose.
+`engine/retarget.bend` makes a motion into a clip for one skeleton, so the
+same motion plays on any character that keeps the standard. The catalog has
+two folders: a third-party collection, with its name and credit on the
+folder, and the clips made for this engine.
+
+To try it: open the Animation project (`PROJECT.bend`'s `open()`) and the
+Animation tab over the viewport. A click on a clip of the library tries it
+on the mannequin, Add keeps it, and the transport under the viewport plays
+it, moves it a frame at a time or to any moment. Play works with Reduce
+motion on: it is motion asked for, in place, and it stops when asked.
+
+Import a collection again after changing its `clips.json`:
+
+```sh
+bun tools/clips.ts library/quaternius/clips.json library/quaternius/gen
+```
+
+## Study-only assets (`refs/`, never shipped)
+
+`refs/` is for third-party assets kept only to study. There are none now.
+Nothing outside it may import from it (`bun run check` fails if anything
+does), and the build never sees it. When it has characters, `bun run dev`
+also serves each `refs/<name>/index.html`, and `bun run check` proves each
+`refs/<name>/PROOF.bend`.
 
 ## Walking
 

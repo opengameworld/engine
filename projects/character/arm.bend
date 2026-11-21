@@ -1,10 +1,10 @@
 # The engine's own test character: a left arm, written by hand.
 #
-# Eight bones, one of each role but Chain, laid out like the reference rig's
+# Eight bones, one of each role but Chain, laid out like the mannequin's
 # arm: shoulder → upper arm → forearm → hand → two index segments, with a twist bone halfway
 # down the forearm and a support bone at the elbow. It lets every
-# animation step be tested without the reference rig (refs/), which never
-# ships.
+# animation step be tested on eight bones, before it meets the mannequin's
+# 171 (mannequin/).
 #
 # Bones point along their own +Y, as in Blender and glTF: a child sits at
 # (0, length, 0) of its parent. The upper arm is turned a quarter around Z,

@@ -34,3 +34,20 @@ the engine uses the closest Bend-UI piece, and each place says so in its
    The material inspector uses a native range input next to a numeric
    readout. A Bend-UI range field could provide the same min, max, and
    step semantics with the shared field sizing and focus styles.
+
+5. A page mounted around another page
+
+   For the Animation screen (editor/animation/): a page that adopts an
+   element takes every child that is itself the root of another mounted
+   page as one of its own nodes, so its first redraw counts one node too
+   many, makes the whole view again and removes the other page's root.
+   Today the screen is mounted on the body, where no other page's root is
+   a direct child. The driver could tell its own nodes from other pages'
+   roots.
+
+
+6. A pause icon
+
+   For the Animation screen's transport: while a clip plays, the Play
+   icon is shown tinted. The transport's time bar is the native range
+   input too (request 4).

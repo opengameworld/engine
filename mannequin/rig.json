@@ -1,5 +1,5 @@
 {
-  "about": "How tools/gltf.ts reads the reference rig into the engine's rig standard. Third-party asset: study only, never shipped.",
+  "about": "How tools/gltf.ts reads the mannequin's source file into the engine's rig standard (engine/skeleton.bend).",
   "credit": "\"Sora (Kingdom Hearts Melody of Memory)\" (https://skfb.ly/pPNsQ) by 雨宮レン, CC BY 4.0. Character (c) Square Enix / Disney.",
   "drop": [
     "Armature",
@@ -59,6 +59,125 @@
     {
       "match": "kami|sode|suso|hood|neckla|jip|ctl",
       "role": "Chain"
+    }
+  ],
+  "names_about": "The engine's name of each bone without a slot, so no name of the source file reaches the engine. The side letter in front of a bone (\"L hiji spo\") is taken off before matching and comes back at the end (\"elbow.L\"). The rules below still name bones as the file does.",
+  "names": [
+    {
+      "match": "^kataRoll spo$",
+      "name": "shoulder_roll"
+    },
+    {
+      "match": "^hood spo$",
+      "name": "hood_base"
+    },
+    {
+      "match": "^sode ctl spo$",
+      "name": "sleeve_base"
+    },
+    {
+      "match": "^ude1hineri spo$",
+      "name": "upper_arm_twist"
+    },
+    {
+      "match": "^ude1roll spo$",
+      "name": "upper_arm_roll"
+    },
+    {
+      "match": "^ude1waki spo$",
+      "name": "armpit"
+    },
+    {
+      "match": "^wakishita spo$",
+      "name": "underarm"
+    },
+    {
+      "match": "^hiji spo$",
+      "name": "elbow"
+    },
+    {
+      "match": "^teBend spo$",
+      "name": "wrist_bend"
+    },
+    {
+      "match": "^tekubi spo$",
+      "name": "wrist"
+    },
+    {
+      "match": "^tehineri spo$",
+      "name": "lower_arm_twist"
+    },
+    {
+      "match": "^momohineri spo$",
+      "name": "upper_leg_twist"
+    },
+    {
+      "match": "^hizaura spo$",
+      "name": "knee_back"
+    },
+    {
+      "match": "^ashi1kaiten spo$",
+      "name": "foot_turn"
+    },
+    {
+      "match": "^ashikakato spo$",
+      "name": "heel"
+    },
+    {
+      "match": "^ashikou spo$",
+      "name": "instep"
+    },
+    {
+      "match": "^shoe spo$",
+      "name": "shoe"
+    },
+    {
+      "match": "^ashi1hineri spo$",
+      "name": "lower_leg_twist"
+    },
+    {
+      "match": "^hija spo$",
+      "name": "knee"
+    },
+    {
+      "match": "^suneura spo$",
+      "name": "calf"
+    },
+    {
+      "match": "^momoBend([BFS]) spo$",
+      "name": "hip_$1"
+    },
+    {
+      "match": "^kami ([a-z])(\\d)$",
+      "name": "hair_$1$2"
+    },
+    {
+      "match": "^sode([A-D])(\\d)$",
+      "name": "sleeve_$1$2"
+    },
+    {
+      "match": "^suso([A-D]?)(\\d)$",
+      "name": "hem_$1$2"
+    },
+    {
+      "match": "^ctl$",
+      "name": "sleeve_ctl"
+    },
+    {
+      "match": "^hood$",
+      "name": "hood"
+    },
+    {
+      "match": "^hood1$",
+      "name": "hood_1"
+    },
+    {
+      "match": "^neckla chain(.*)$",
+      "name": "necklace_$1"
+    },
+    {
+      "match": "^jip1$",
+      "name": "zipper_1"
     }
   ],
   "rules_about": "One rule per Twist and Support bone (engine/helpers.bend): [part, driver, amount]. Roll = the driver's turn around its length; Full = its whole turn; Hold = stays at rest. Amounts set by eye.",

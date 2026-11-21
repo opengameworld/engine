@@ -17,7 +17,7 @@
 #   pointing, no holding a cup): those are hand poses still to come.
 # - The thumb closes across the palm by a fixed turn; it does not oppose
 #   the fingers.
-# - Assumes a T-pose rest with palms down, as the reference rig has.
+# - Assumes a T-pose rest with palms down, as the mannequin has.
 
 import Base
 import ./vec.bend as V

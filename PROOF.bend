@@ -5,6 +5,7 @@ import ./LAWS.bend as Laws
 import ./PROJECT.bend as P
 import ./engine/scene.bend as S
 import ./engine/locomotion.bend as Loco
+import ./engine/figure.bend as Fig
 
 def Laws.engine_keys_never_clash():
   {==}
@@ -102,6 +103,10 @@ def Laws.every_project_opens_complete(p):
       {==}
     case P.Character{}:
       {==}
+    case P.Mannequin{}:
+      {==}
+    case P.Animation{}:
+      {==}
 
 def Laws.arm_is_valid():
   {==}
@@ -126,6 +131,11 @@ def Laws.support_under_twist_is_valid(t):
 
 def Laws.reduce_motion_freezes_figures(f, dt):
   {==}
+
+def Laws.a_stopped_figure_does_not_play(f, dt, reduce):
+  match f:
+    case Fig.Figure{s, k, ps, i, w, h, r, v, cs, n, o, tr}:
+      {==}
 
 # A scene's things, advanced with reduce_motion on, are the same things:
 # by induction on the list, looking at each thing's look.

@@ -2,9 +2,8 @@
 # animation system, one step at a time.
 #
 # This is content. It uses only the engine's own test character, a short
-# arm written by hand (arm.bend). The reference character lives in refs/
-# and is never imported from here: refs/ is not part of the engine and
-# never ships.
+# arm written by hand (arm.bend). The standard character is the Mannequin
+# project (mannequin/).
 #
 # Limits now:
 # - The arm has no skin: it is drawn as lines, one per bone, colored by
