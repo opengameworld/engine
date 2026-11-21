@@ -44,6 +44,7 @@ console.log(`${typed.length} files compile`);
 
 step("tests");
 await $`bun tools/test.ts`;
+await $`bun test tests/shader-catalog.test.js`;
 
 // Reference characters (refs/, gitignored): their own laws, when they are
 // on this machine. Each has a PROOF.bend next to its generated skeleton.

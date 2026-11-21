@@ -19,6 +19,7 @@ import { createKeys } from "bend-ui/keys";
 import Keys from "../KEYS.bend";
 import Scene from "../engine/scene.bend";
 import Camera from "../engine/camera.bend";
+import Material from "../engine/material.bend";
 import { mountDefaults } from "./defaults/defaults.js";
 import Panels from "./panels/view.bend";
 import Defaults from "./defaults/defaults.bend";
@@ -26,13 +27,14 @@ import Loco from "../engine/locomotion.bend";
 import { createRenderer } from "../platform/web/draw.js";
 import { createInput } from "../platform/web/input.js";
 import { createLoop, fitCanvas } from "../platform/web/loop.js";
+import { materialInspector } from "./shaders/inspector.js";
 
 // Opens the editor on a scene (a Bend value, engine/scene.bend).
 //
 // `camera` is where the editor's camera starts (engine/camera.bend; its
 // start() when none). `skins` gives, for each figure's skin name, the files
 // to draw it with (platform/web/draw.js says their shape).
-export function startEditor(opening, { skins = {}, camera = null } = {}) {
+export function startEditor(opening, { skins = {}, camera = null, shaders = {} } = {}) {
   theme({ mode: "dark", radius: "pill" });   // every button and segmented in the layout is a pill
 
   const canvas = document.getElementById("scene");
@@ -57,7 +59,7 @@ export function startEditor(opening, { skins = {}, camera = null } = {}) {
   });
   const redraw = loop.redraw;
 
-  const renderer = createRenderer(canvas, opening, { skins, redraw });
+  const renderer = createRenderer(canvas, opening, { skins, redraw, shaders });
 
   const defaults = mountDefaults(document.getElementById("editor-defaults"), {
     getCam: () => cam,
@@ -68,16 +70,43 @@ export function startEditor(opening, { skins = {}, camera = null } = {}) {
   // The Scene and Details panels (editor/panels/view.bend): the scene's things and the
   // selected one's components. Bend says what they show and what a click or a typed number
   // does; Bend-UI's driver draws it. When an edit made a new scene, it comes back here.
+  const inspector = materialInspector({
+    assets: renderer.shaderAssets,
+    errors: renderer.shaderErrors,
+    inspect: renderer.inspectMaterial,
+    assign: (i, id) => {
+      const current = Scene.material(Scene.look(Scene.at(scene, i)));
+      if (Material.shader_id(current) === id) return;
+      const material = id ? Material.imported(id) : renderer.inspectMaterial(i)?.original;
+      if (!material || !renderer.bindMaterial(i, material)) return;
+      scene = Scene.with_material(scene, i, material);
+      panels.set(Panels.with_scene(panels.state, scene));
+      redraw();
+    },
+    edit: (i, name, numbers) => {
+      const object = renderer.inspectMaterial(i);
+      if (!object?.shader.asset) return;
+      const material = Scene.material(Scene.look(Scene.at(scene, i)));
+      const updated = renderer.updateMaterial(material, object.values.fields, name, numbers);
+      moved(Scene.with_material(scene, i, updated));
+      renderer.edited(scene, i);
+      redraw();
+    },
+  });
+  inspector.render(0);
   const panels = mount(document.getElementById("editor-panels"), {
     init: () => Panels.start(scene, still.matches),
     render: Panels.render, on_event: Panels.on_event, on_input: Panels.on_input,
   }, {
     adopt: true,
-    changed: (st) => {
+    patched: inspector.attach,
+    changed: (st, before) => {
+      const selected = Panels.selected(st);
+      if (selected !== Panels.selected(before)) inspector.render(selected);
       const next = Panels.scene(st);
       if (next === scene) return;   // a thing was picked: the scene is the same
       scene = next;
-      renderer.edited(scene, Panels.selected(st));
+      renderer.edited(scene, selected);
       redraw();
     },
   });

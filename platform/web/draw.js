@@ -24,6 +24,7 @@ import Material from "../../engine/material.bend";
 import Transform from "../../engine/transform.bend";
 import Figure from "../../engine/figure.bend";
 import { flat, program as link } from "./gpu.js";
+import { createMaterials } from "./materials.js";
 
 // A renderer for `canvas`, ready for the things of `opening`.
 //
@@ -32,9 +33,10 @@ import { flat, program as link } from "./gpu.js";
 // written by tools/gltf.ts. A figure whose skin has no entry is drawn as bones.
 // `redraw` is called when something arrives late (a skin's files) and the
 // picture must be drawn again.
-export function createRenderer(canvas, opening, { skins = {}, redraw = () => {} } = {}) {
+export function createRenderer(canvas, opening, { skins = {}, redraw = () => {}, shaders = {} } = {}) {
   const gl = canvas.getContext("webgl2", { antialias: true });
   const program = (vert, frag) => link(gl, vert, frag);
+  const materials = createMaterials(gl, Glsl.mesh_vert(), shaders);
 
   const prog = program(Glsl.line_vert(), Glsl.line_frag());
 
@@ -57,17 +59,6 @@ export function createRenderer(canvas, opening, { skins = {}, redraw = () => {} 
   gl.enableVertexAttribArray(col);
   gl.vertexAttribPointer(col, 3, gl.FLOAT, false, 24, 12);
 
-  // A material's values go to their uniforms; material.bend names each one.
-  // Setting a value never compiles anything.
-  function setValues(p, values) {
-    for (let l = values; l.$ === "Con"; l = l.tail) {
-      const loc = gl.getUniformLocation(p, Material.uniform(l.head));
-      const xs = flat(Material.numbers(l.head));
-      if (xs.length === 1) gl.uniform1f(loc, xs[0]);
-      else if (xs.length === 3) gl.uniform3fv(loc, xs);
-    }
-  }
-
   // Every thing that is shown gets, once, its shader (from its material),
   // its mesh on the GPU (3 floats per vertex, 3 indices per triangle) and
   // its model matrix (from its place).
@@ -75,23 +66,26 @@ export function createRenderer(canvas, opening, { skins = {}, redraw = () => {} 
     const look = Scene.look(thing);
     const material = Scene.material(look);
     const shape = Scene.shape(look);
-    const p = program(Glsl.mesh_vert(), Material.frag(material));
-    gl.useProgram(p);
-    setValues(p, Material.values(material));
+    let shader;
+    try {
+      shader = materials.prepare(material);
+    } catch (error) {
+      materials.errors.set(Material.shader_id(material) || Scene.name(thing), error.message);
+      shader = materials.prepare(Material.missing());
+    }
     const idx = new Uint32Array(flat(shape.indices));
     const vao = gl.createVertexArray();
     gl.bindVertexArray(vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(flat(shape.vertices)), gl.STATIC_DRAW);
-    const at = gl.getAttribLocation(p, "a_pos");
-    gl.enableVertexAttribArray(at);
-    gl.vertexAttribPointer(at, 3, gl.FLOAT, false, 12, 0);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 12, 0);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
     return {
-      prog: p, vao, count: idx.length,
-      vp: gl.getUniformLocation(p, "u_vp"),
-      model: gl.getUniformLocation(p, "u_model"),
+      vao, count: idx.length, shader,
+      values: materials.values(shader, material),
+      original: material.$ === "Material" ? material : null,
       matrix: flat(Transform.flat(Scene.place(thing))),
     };
   }
@@ -107,8 +101,25 @@ export function createRenderer(canvas, opening, { skins = {}, redraw = () => {} 
     if (!g) return;
     const thing = Scene.at(scene, i);
     g.matrix = flat(Transform.flat(Scene.place(thing)));
-    gl.useProgram(g.prog);
-    setValues(g.prog, Material.values(Scene.material(Scene.look(thing))));
+    const material = Scene.material(Scene.look(thing));
+    g.values = materials.values(g.shader, material);
+    if (material.$ === "Material") g.original = material;
+  }
+
+  // Prepare the replacement before the editor commits it to the scene.
+  function bindMaterial(i, material) {
+    const object = shown.get(i);
+    if (!object) return false;
+    try {
+      const shader = materials.prepare(material);
+      const values = materials.values(shader, material);
+      object.shader = shader;
+      object.values = values;
+      return true;
+    } catch (error) {
+      materials.errors.set(Material.shader_id(material) || "Original graph", error.message);
+      return false;
+    }
   }
 
   // Characters (things with a figure): their bones as lines, in the same
@@ -231,6 +242,7 @@ export function createRenderer(canvas, opening, { skins = {}, redraw = () => {} 
   function draw(scene, cam) {
     const w = canvas.width, h = canvas.height;
     const frame = flat(Camera.frame(cam, w / Math.max(h, 1)));
+    const viewProjection = frame.slice(0, 16);
     gl.viewport(0, 0, w, h);
     gl.clearColor(skyR, skyG, skyB, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -246,9 +258,11 @@ export function createRenderer(canvas, opening, { skins = {}, redraw = () => {} 
     gl.enable(gl.POLYGON_OFFSET_FILL);
     gl.polygonOffset(offsetFactor, offsetUnits);
     for (const t of shown.values()) {
-      gl.useProgram(t.prog);
-      gl.uniformMatrix4fv(t.vp, false, frame.slice(0, 16));
-      gl.uniformMatrix4fv(t.model, false, t.matrix);
+      const { program, vp, model } = t.shader.mesh;
+      gl.useProgram(program);
+      gl.uniformMatrix4fv(vp, false, viewProjection);
+      gl.uniformMatrix4fv(model, false, t.matrix);
+      for (const apply of t.values.apply) apply();
       gl.bindVertexArray(t.vao);
       gl.drawElements(gl.TRIANGLES, t.count, gl.UNSIGNED_INT, 0);
     }
@@ -257,7 +271,7 @@ export function createRenderer(canvas, opening, { skins = {}, redraw = () => {} 
     // writes none of its own.
     gl.depthMask(false);
     gl.useProgram(prog);
-    gl.uniformMatrix4fv(u.vp, false, frame.slice(0, 16));
+    gl.uniformMatrix4fv(u.vp, false, viewProjection);
     gl.uniform3fv(u.eye, frame.slice(16, 19));
     gl.uniform2fv(u.fade, flat(World.fade(cam)));
     gl.bindVertexArray(vao);
@@ -274,5 +288,11 @@ export function createRenderer(canvas, opening, { skins = {}, redraw = () => {} 
     }
   }
 
-  return { draw, edited };
+  return {
+    draw, edited, bindMaterial,
+    inspectMaterial: (i) => shown.get(i),
+    updateMaterial: materials.update,
+    shaderAssets: materials.assets,
+    shaderErrors: materials.errors,
+  };
 }
