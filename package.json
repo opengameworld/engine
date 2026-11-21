@@ -1,0 +1,15 @@
+{
+  "name": "gameengine",
+  "type": "module",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "bun tools/dev.ts",
+    "build": "bend index.html -o dist",
+    "check": "bun tools/check.ts",
+    "test": "bun tools/test.ts"
+  },
+  "dependencies": {
+    "bend-ui": "github:isabellaherman/Bend-UI#433e547"
+  }
+}

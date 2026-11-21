@@ -1,0 +1,15 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "gameengine",
+      "dependencies": {
+        "bend-ui": "github:isabellaherman/Bend-UI#433e547",
+      },
+    },
+  },
+  "packages": {
+    "bend-ui": ["bend-ui@github:isabellaherman/Bend-UI#433e547", {}, "isabellaherman-Bend-UI-433e547"],
+  }
+}
