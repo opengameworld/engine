@@ -2,28 +2,35 @@
 // first one that fails.
 //
 // 1. Laws: `bend PROOF.bend` (and the editor's own) must print ALL PROOFS CHECK.
-// 2. Types: every engine, project and editor file compiles (--check-only).
+// 2. Types: every .bend file compiles (--check-only). They are found, not listed.
 // 3. Tests: the numerical tests in tests/*.bend (tools/test.ts).
 // 4. Reference characters in refs/, when present (local only).
 // 5. Fences: nothing outside refs/ imports from refs/, so third-party
 //    reference assets can never reach a build.
 //
 // Limits now:
-// - The file list below is written by hand: a new .bend file must be added.
+// - Types are checked in the root and in engine/, projects/, editor/ and
+//   tests/. A .bend file in a new top-level folder is not seen until the
+//   folder is added to FOLDERS below.
 
 import { $ } from "bun";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const typed = [
-  "engine/vec.bend", "engine/world.bend", "engine/camera.bend", "engine/gizmo.bend",
-  "engine/shader/glsl.bend", "engine/time.bend", "engine/mesh.bend", "engine/quat.bend",
-  "engine/transform.bend", "engine/shader/node.bend", "engine/shader/compile.bend",
-  "engine/material.bend", "engine/scene.bend", "engine/skeleton.bend", "engine/pose.bend", "engine/clip.bend", "engine/blend.bend", "engine/gait.bend", "engine/skin.bend", "engine/helpers.bend", "engine/ik.bend", "engine/hand.bend", "engine/figure.bend", "engine/locomotion.bend",
-  "projects/water/water.bend", "projects/water/scene.bend", "projects/character/scene.bend", "projects/character/arm.bend",
-  "PROJECT.bend", "editor/panels/panels.bend", "editor/panels/view.bend", "editor/defaults/view.bend",
-  "tests/quat.bend", "tests/transform.bend", "tests/pose.bend", "tests/clip.bend", "tests/locomotion.bend", "tests/ik.bend", "tests/panels.bend",
-];
+// Every .bend file of the engine: the ones at the root and all under these
+// folders. LAWS.bend and PROOF.bend files are left out: laws alone are
+// unproved statements, and step 1 checks them with their proofs.
+const FOLDERS = ["engine", "projects", "editor", "tests"];
+function bendFiles(dir: string, deep: boolean): string[] {
+  const out: string[] = [];
+  for (const name of readdirSync(dir).sort()) {
+    const p = dir === "." ? name : join(dir, name);
+    if (statSync(p).isDirectory()) { if (deep) out.push(...bendFiles(p, true)); }
+    else if (name.endsWith(".bend") && !/(LAWS|PROOF)\.bend$/.test(name)) out.push(p);
+  }
+  return out;
+}
+const typed = [...bendFiles(".", false), ...FOLDERS.flatMap((d) => bendFiles(d, true))];
 
 function step(title: string) { console.log(`\n== ${title}`); }
 

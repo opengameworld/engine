@@ -41,7 +41,8 @@ bun run build    # bundle to dist/
 | `editor/defaults/` | Editor Defaults: gizmo + info, accessibility (`ACCESSIBILITY.bend`). The info button is a page written in Bend (`view.bend`); the gizmo is a canvas (`defaults.js`) |
 | `editor/panels/` | The Scene and Details panels: what they hold (`panels.bend`) and what is drawn for it (`view.bend`, a page written in Bend). No JS of their own: Bend-UI's driver draws them |
 | `tools/gltf.ts` | The importer: a .glb + rig.json → skeleton, rules, weights (Bend) and skin.bin |
-| `tools/check.ts` | `bun run check`: laws, types, tests, reference laws, the refs/ fence |
+| `tools/check.ts` | `bun run check`: laws, types (every `.bend` file, found by itself), tests, reference laws, the refs/ fence |
+| `AGENTS.md` | The rules for agents working here; the game's vision is in the `opengame` repository |
 | `tests/` | Numerical tests (`checks()` lists), run by `tools/test.ts` |
 | `KEYS.bend` | The keymap: views 1–4, walking W/A/S/D |
 | `SPEC.bend`, `LAWS.bend`, `PROOF.bend` | The engine's laws and their proofs |

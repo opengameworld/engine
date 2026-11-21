@@ -12,9 +12,11 @@
 # Limits now:
 # - A vertex is only a position. No normal (needed for light), no UV
 #   (needed for textures), no color. Each comes when something needs it.
-# - Material meshes are drawn without the depth test (what is drawn last
-#   shows on top); only skinned characters and the grid use it
-#   (editor/app.js).
+# - Every material mesh is opaque: the mesh shader writes alpha 1
+#   (engine/shader/glsl.bend). When a graph can give an alpha, a material
+#   must say whether it is opaque or transparent, and transparent ones must
+#   be drawn after the opaque ones, far to near, tested against depth but
+#   not written to it (as three.js's WebGLRenderLists does).
 # - A mesh is built once, as Bend lists, and main.js copies it into a flat
 #   array for the GPU. Building it every frame would be slow, so moving
 #   vertices (waves) belongs in the vertex shader, not here.
@@ -22,6 +24,25 @@
 #   it out in full. Bigger planes run the same code.
 
 import Base
+
+# Depth
+# =====
+#
+# A mesh is drawn with the depth test and writes its depth, so what is
+# nearer hides what is farther, whatever the order of drawing.
+#
+# Two things on one plane have the same depth and would flicker (the ground
+# grid and a floor both lie on y = 0, engine/world.bend). So a filled
+# surface is pushed back by the smallest amount the GPU can tell apart:
+# lines on the same plane, and a character's feet standing on it, then win.
+#
+# The two numbers are OpenGL's polygon offset, [factor, units]: the depth
+# moves by factor × (the surface's depth slope) + units × (the smallest
+# difference the depth buffer resolves). 1 and 1 is one step of each: the
+# slope term keeps it enough on a surface seen at a low angle, the unit
+# term on one seen straight on.
+def depth_offset() -> List<F32>:
+  [1.0, 1.0]
 
 type Mesh is Data:
   Mesh{vertices: List<&2, F32>, indices: List<&2, U32>}

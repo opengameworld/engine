@@ -8,19 +8,18 @@
 // knows nothing of the editor (panels, gizmo, shortcuts).
 //
 // Limits now:
-// - Material things are drawn without the depth test, in the scene's order:
-//   the water lies on y = 0 with the grid, so two surfaces on one plane
-//   would fight. What is drawn last shows on top.
+// - Every material thing is drawn as opaque (engine/mesh.bend says why).
+//   Nothing is sorted: the depth test decides what shows.
 // - A shown thing is uploaded once, from the opening scene; a thing added
 //   later is not seen (an edit of place or values is: edited()).
 // - Bone lines and skinning matrices are copied from Bend lists every frame
 //   (gpu.js's flat), one number at a time.
-// - The order of drawing is written here, in JS. It should come from Bend.
 
 import World from "../../engine/world.bend";
 import Scene from "../../engine/scene.bend";
 import Camera from "../../engine/camera.bend";
 import Glsl from "../../engine/shader/glsl.bend";
+import Mesh from "../../engine/mesh.bend";
 import Material from "../../engine/material.bend";
 import Transform from "../../engine/transform.bend";
 import Figure from "../../engine/figure.bend";
@@ -226,6 +225,7 @@ export function createRenderer(canvas, opening, { skins = {}, redraw = () => {} 
   }
 
   const [skyR, skyG, skyB] = flat(World.sky());
+  const [offsetFactor, offsetUnits] = flat(Mesh.depth_offset());
 
   // One picture of `scene`, seen from `cam`.
   function draw(scene, cam) {
@@ -236,13 +236,15 @@ export function createRenderer(canvas, opening, { skins = {}, redraw = () => {} 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    // Characters first, with the depth test. Then the scene's material
-    // things, in order, without it: the water lies on y = 0 with the grid,
-    // so drawing order decides who shows. Then the grid, tested against the
-    // characters only.
+    // Characters and the scene's material things, with the depth test:
+    // the nearer one shows, whatever the order. A filled surface is pushed
+    // back a little (engine/mesh.bend's depth_offset), so the grid and a
+    // character's feet on the same plane show over it. Then the grid,
+    // tested against all of them.
     gl.enable(gl.DEPTH_TEST);
     drawSkins(scene, frame);
-    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.POLYGON_OFFSET_FILL);
+    gl.polygonOffset(offsetFactor, offsetUnits);
     for (const t of shown.values()) {
       gl.useProgram(t.prog);
       gl.uniformMatrix4fv(t.vp, false, frame.slice(0, 16));
@@ -250,9 +252,9 @@ export function createRenderer(canvas, opening, { skins = {}, redraw = () => {} 
       gl.bindVertexArray(t.vao);
       gl.drawElements(gl.TRIANGLES, t.count, gl.UNSIGNED_INT, 0);
     }
-    // The grid is tested against the characters' depth, so it hides behind
-    // them, but writes none of its own.
-    gl.enable(gl.DEPTH_TEST);
+    gl.disable(gl.POLYGON_OFFSET_FILL);
+    // The grid is tested against their depth, so it hides behind them, but
+    // writes none of its own.
     gl.depthMask(false);
     gl.useProgram(prog);
     gl.uniformMatrix4fv(u.vp, false, frame.slice(0, 16));
