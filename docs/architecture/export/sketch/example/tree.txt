@@ -1,0 +1,18 @@
+# What `bun run export web --project character` leaves on disk (illustrative sizes from today's dist/).
+
+out/web/character/
+  game.json                         the manifest (contract format 1), written last
+  site/
+    index.html                      Page    1.1 KB   Cache-Control: public, max-age=0, must-revalidate
+    _/game-7f3a9c1e.js              Code   38.0 KB   Cache-Control: public, max-age=31536000, immutable
+    _/game-2b81d04f.css             Code    0.3 KB   (no editor.css: the game page has no panels)
+
+out/host/vercel/character/          `bun run deploy vercel` (a translation; deletable at any time)
+  .vercel/project.json              {orgId, projectId} of Settings.vercel_project
+  .vercel/output/config.json        Hosts.vercel_config(manifest)
+  .vercel/output/static/**          copy of site/
+
+/srv/ogw/character/ (on the VPS)    `bun run deploy vps`
+  releases/3c9e0a71b2d4/            one build, immutable (+ .done)
+  releases/9a01ffe4c7b0/
+  live -> releases/3c9e0a71b2d4

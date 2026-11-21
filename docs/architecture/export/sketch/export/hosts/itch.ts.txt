@@ -1,0 +1,18 @@
+// export/hosts/itch.ts: the itch.io adapter (SKETCH). itch serves an HTML5 game from a zip and
+// has no previews or aliases: a push to a channel is what players get.
+//
+//   publish: zip site/ -> out/host/itch/<game>/game-<id>.zip; no upload (returns a local
+//            "preview" Deployment whose url is `bun run export serve`'s localhost link)
+//   promote: butler push <zip> <Settings.itch_target> --userversion <buildId>   (butler patches by content)
+//   history: butler status <target> (versions = our build ids)
+//
+// Limits now: 1,000 files, 200 MB a file, 500 MB in all (Hosts.limits). SharedArrayBuffer is an
+// itch page option, so a game with isolation on must also have it ticked on its itch page.
+
+import type { Adapter } from "../publish.ts";
+
+export const itch: Adapter = {
+  async publish(folder, s) { throw new Error("not implemented"); },
+  async promote(d, s) { throw new Error("not implemented"); },
+  async history(s) { throw new Error("not implemented"); },
+};

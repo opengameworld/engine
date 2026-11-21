@@ -1,0 +1,24 @@
+# Per-game export settings: what a host needs that is not in the folder itself. (SKETCH)
+#
+# No second list of projects: settings() matches on PROJECT.bend's `Project` type, so adding a
+# project makes the compiler point at this match too (PROJECT.bend's own rule). The project's id
+# and lookup live in PROJECT.bend (sketch/PROJECT.additions.bend), because they ship: the game
+# page finds its project by id, and export/ never enters a bundle.
+
+import Base
+import ../PROJECT.bend as P
+
+type Settings is Data:
+  Settings{
+    isolation: Bool,         # COOP/COEP (web threads later); False keeps embeds (itch, portals) working
+    vercel_project: String,  # Vercel project name ("" = not on Vercel)
+    vps_domain: String,      # "play.example.com" ("" = not on the VPS)
+    itch_target: String      # "user/game:web" ("" = not on itch)
+  }
+
+def settings(p: P.Project) -> Settings:
+  match p:
+    case P.Water{}:
+      Settings{False{}, "ogw-water", "", ""}
+    case P.Character{}:
+      Settings{False{}, "ogw-character", "", ""}

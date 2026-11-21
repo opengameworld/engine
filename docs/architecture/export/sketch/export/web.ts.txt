@@ -1,0 +1,84 @@
+// export/web.ts: project -> game folder (SKETCH). The thin shell around export/contract.bend:
+// it runs things and measures files (IO); every decision is a call into Bend.
+//
+//   exportWeb({ project })  -> { ok: true, folder } | { ok: false, reasons }
+//   verifyFolder(dir)       -> { ok: true, folder } | { ok: false, missing | reasons }
+//   serveFolder(dir, port)  -> a local server that sends contract.headers() per kind
+//
+// Crash- and rerun-safe: everything is written to out/web/.stage-<pid>/, game.json last, then
+// the stage is renamed over out/web/<game>/ in one step. A folder without game.json is
+// unfinished and every reader refuses it. Same sources -> same build id (contract.id_text), so
+// running it twice gives the same folder and every host sees nothing new.
+//
+// Limits now:
+// - Runs `bun run check` in full each time (tens of seconds is fine for a release; previews
+//   may later reuse a check result keyed by the work tree's hash).
+// - The bundle's inputs come from Bun.build's metafile [U: Bun.build `metafile: true` exists in
+//   the pinned Bun; if not, the inputs are found by walking imports from the page, as the fence
+//   does]. Either way LAYERS.bend decides.
+
+import bendPlugin from "../../bend/bend2/main.ts";   // the same loader bunfig.toml and tools/test.ts use
+import Contract from "./contract.bend";
+import Games from "./games.bend";
+import Project from "../PROJECT.bend";
+
+// The folder as the rest of export/ sees it: parsed once at the boundary (game.json -> Bend
+// Manifest value), never re-read as loose JSON by adapters.
+export type GameFolder = {
+  dir: string;           // out/web/<game>
+  site: string;          // out/web/<game>/site  (what is served)
+  buildId: string;       // 12 hex, from Contract.id_text
+  manifest: Manifest;    // the Bend value ({$:"Manifest", ...}), opaque outside Bend calls
+};
+type Manifest = { readonly $: "Manifest" };   // opaque: only Bend reads its fields
+
+export type Refusal = { ok: false; reasons: string[]; values: unknown[] };   // say() text + Bend values for --json
+
+export async function exportWeb(o: { project?: string; out?: string }): Promise<{ ok: true; folder: GameFolder } | Refusal> {
+  // TODO not implemented:
+  // 1. p = Project.by_id(o.project ?? Project.id(Project.open()))   (unknown id -> Refusal "no project <id>")
+  // 2. checks = (await $`bun run check`.nothrow()).exitCode === 0
+  // 3. engine = git rev-parse HEAD ; dirty = git status --porcelain is non-empty
+  // 4. stage = out/web/.stage-<pid>; rm -rf it first (a crashed run left it)
+  // 5. Bun.build({
+  //      entrypoints: ["platform/web/game.html"],             // the game page (runtime), not index.html
+  //      outdir: stage/site, target: "browser", minify: true, metafile: true,
+  //      naming: { entry: "[name].[ext]", chunk: "_/[name]-[hash].[ext]", asset: "a/[hash].[ext]" },
+  //      plugins: [bendPlugin, gamePlugin(id)],               // gamePlugin: the virtual "ogw:game" module
+  //    })
+  //    then rename site/game.html -> site/index.html and set <title> from Project.name(p) (HTMLRewriter)
+  // 6. files = walk(stage/site) -> Entry{path, kind: Contract.kind_of(path), bytes, gz: Bun.gzipSync(..).length, sha: sha256}
+  //    inputs = Object.keys(metafile.inputs) made repo-relative; skip the "ogw:" namespace
+  // 7. outcome = Contract.release(checks, Facts{id, name, engine, dirty, Games.settings(p).isolation, inputs, files})
+  //    Refused -> rm -rf stage; return { ok: false, reasons: map(Contract.say), values }
+  // 8. m = outcome.m ; buildId = sha256(Contract.id_text(m)).slice(0, 12)
+  // 9. write stage/game.json = Contract.json(m, buildId)   (LAST)
+  // 10. rename(stage, out/web/<id>) (replacing the old folder: rm old to out/web/.old-<pid>, rename, rm .old)
+  throw new Error("not implemented");
+}
+
+// The virtual module the game page imports. Three lines of glue, generated, inside the bundle:
+//   import P from "<root>/PROJECT.bend";
+//   const p = P.by_id("<id>");
+//   export default { id: "<id>", title: P.name(p), opening: P.start(p), camera: P.camera(p) };
+// It names only PROJECT.bend (Catalog, ships). export/ itself never enters the bundle: the
+// Forbidden law would refuse it.
+function gamePlugin(id: string): Bun.BunPlugin {
+  // TODO not implemented: onResolve /^ogw:game$/ -> namespace "ogw"; onLoad -> the text above
+  throw new Error("not implemented");
+}
+
+// Re-reads a folder: game.json present, parsed into a Manifest, every entry on disk with its
+// sha (Contract.missing), and no file on disk that the manifest does not list. Used by
+// `export verify`, by every adapter before upload, and safe to run any number of times.
+export async function verifyFolder(dir: string): Promise<{ ok: true; folder: GameFolder } | { ok: false; missing: string[] }> {
+  // TODO not implemented
+  throw new Error("not implemented");
+}
+
+// `bun run export serve`: Bun.serve over site/, headers from Contract.headers(isolation, kind_of(path)).
+// The local stand-in for every host: what plays here plays on Vercel and the VPS.
+export function serveFolder(dir: string, port = 3200): void {
+  // TODO not implemented
+  throw new Error("not implemented");
+}

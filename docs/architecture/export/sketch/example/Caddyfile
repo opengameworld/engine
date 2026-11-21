@@ -1,0 +1,26 @@
+# Written by Hosts.caddy_site (Bend); installed once by a person (`bun run deploy vps --setup` prints it).
+play.example.com {
+	root * /srv/ogw/character/live
+	encode zstd gzip
+	header /_/* Cache-Control "public, max-age=31536000, immutable"
+	header /a/* Cache-Control "public, max-age=31536000, immutable"
+	header / Cache-Control "public, max-age=0, must-revalidate"
+	header /index.html Cache-Control "public, max-age=0, must-revalidate"
+	header X-Content-Type-Options nosniff
+	file_server
+
+	# Later (persistent world): the server process beside the static game, same domain, same TLS.
+	# reverse_proxy /ws localhost:7000
+}
+
+# One origin per preview (<id>.preview.play.example.com): localStorage/IndexedDB are per origin,
+# so a preview never reads or writes live players' saves. Needs a wildcard DNS record and a
+# wildcard certificate (DNS challenge) or on-demand TLS.
+*.preview.play.example.com {
+	@id header_regexp id Host ^([0-9a-f]{12})\.preview\.
+	root * /srv/ogw/character/releases/{re.id.1}
+	encode zstd gzip
+	header Cache-Control "no-store"
+	header X-Robots-Tag "noindex"
+	file_server
+}
