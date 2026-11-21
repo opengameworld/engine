@@ -34,7 +34,10 @@ bun run build    # bundle to dist/
 | `engine/skin.bend` | Skinning matrices, and the weight laws (16-bit, sum 65535) |
 | `engine/figure.bend` | The character component: skeleton, skin, clips, helpers, parameters (time, speed, grip, bones) |
 | `engine/locomotion.bend` | Walking through the World: Run (keys held) and Step (one step per press, for reduce_motion) |
-| `editor/app.js` | The editor: reads input, draws what Bend returns (WebGL2), shared by every page |
+| `platform/web/draw.js`, `gpu.js` | Drawing a scene in the browser (WebGL2): draws what Bend returns. Runtime: a game without the editor uses it too |
+| `platform/web/input.js` | Reading the keyboard and the pointer in the browser. Runtime |
+| `platform/web/loop.js` | The browser's frames: dt, redraw, the canvas's size. Runtime |
+| `editor/app.js` | The editor: puts the pieces together (theme, panels, gizmo, shortcuts, camera), shared by every page |
 | `editor/defaults/` | Editor Defaults: gizmo + info, accessibility (`ACCESSIBILITY.bend`). The info button is a page written in Bend (`view.bend`); the gizmo is a canvas (`defaults.js`) |
 | `editor/panels/` | The Scene and Details panels: what they hold (`panels.bend`) and what is drawn for it (`view.bend`, a page written in Bend). No JS of their own: Bend-UI's driver draws them |
 | `tools/gltf.ts` | The importer: a .glb + rig.json → skeleton, rules, weights (Bend) and skin.bin |
