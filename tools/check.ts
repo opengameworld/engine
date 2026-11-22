@@ -17,6 +17,10 @@ import { $ } from "bun";
 import { existsSync, readdirSync } from "node:fs";
 import { codeFiles, imports, rules } from "./layers";
 
+// The shader catalog is written before the files are listed: editor/shaders/catalog_generated.bend
+// is Bend the editor imports, made from the projects' shader files, and a fresh clone has none.
+await $`bun tools/shaders/catalog.js`.quiet();
+
 // LAYERS.bend decides which .bend files are type-checked. LAWS.bend and PROOF.bend files are
 // left out: laws alone are unproved statements, and step 1 checks them with their proofs.
 const L = await rules();
@@ -24,10 +28,6 @@ const files = codeFiles();
 const typed = files.filter((f) => f.endsWith(".bend") && L.typed(f) && !/(LAWS|PROOF)\.bend$/.test(f));
 
 function step(title: string) { console.log(`\n== ${title}`); }
-
-// The shader catalog is written first: editor/shaders/catalog_generated.bend is Bend the editor
-// imports, made from the projects' shader files.
-await $`bun tools/shaders/catalog.js`.quiet();
 
 step("laws");
 await $`bend PROOF.bend`;
