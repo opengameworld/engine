@@ -20,7 +20,7 @@ import { join } from "node:path";
 // Every .bend file of the engine: the ones at the root and all under these
 // folders. LAWS.bend and PROOF.bend files are left out: laws alone are
 // unproved statements, and step 1 checks them with their proofs.
-const FOLDERS = ["engine", "projects", "mannequin", "library", "editor", "tests"];
+const FOLDERS = ["engine", "projects", "mannequin", "library", "editor", "tests", "export"];
 function bendFiles(dir: string, deep: boolean): string[] {
   const out: string[] = [];
   for (const name of readdirSync(dir).sort()) {

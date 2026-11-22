@@ -65,6 +65,8 @@ Open `http://localhost:3100/?project=water` and select **Water**. In the **Shade
 | `tools/check.ts` | `bun run check`: laws (the engine's, the editor's, the mannequin's), types (every `.bend` file, found by itself), tests, the refs/ fence |
 | `AGENTS.md` | The rules for agents working here; the game's vision is in the `opengame` repository |
 | `tests/` | Numerical tests (`checks()` lists), run by `tools/test.ts` |
+| `export/contract.bend` | Export's decisions about a game folder: what ships or is refused and why, cache, the code and asset budgets, the credits a game owes, the build machine it needs (laws in `LAWS.bend`, tests in `tests/export.bend`) |
+| `not-in-bend.txt` | What the engine's Bend (`../bend`) has that released Bend 2.0.40 does not, why, and how to set it up |
 | `KEYS.bend` | The keymap: views 1–4, walking W/A/S/D |
 | `SPEC.bend`, `LAWS.bend`, `PROOF.bend` | The engine's laws and their proofs |
 | `main.js`, `index.html` | The engine's page: opens the project PROJECT.bend names |
