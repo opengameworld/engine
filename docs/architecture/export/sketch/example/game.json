@@ -1,0 +1,26 @@
+{
+  "format": 1,
+  "build": "3c9e0a71b2d4",
+  "game": "character",
+  "title": "Character",
+  "target": "Web",
+  "source": { "commit": "a728de4…", "dirty": false, "checked": true },
+  "seed": "",
+  "isolation": false,
+  "load": { "code_gz": 28100, "code_raw": 190400, "asset_wire": 1275069 },
+  "clips": [],
+  "credits": [
+    { "work": "Sora (Kingdom Hearts Melody of Memory)", "author": "雨宮レン",
+      "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "url": "https://skfb.ly/pPNsQ", "notice": "The character is (c) Square Enix / Disney." },
+    { "work": "Bend-UI", "author": "Isabella Herman", "license": "", "url": "https://github.com/isabellaherman/Bend-UI", "notice": "" }
+  ],
+  "entries": [
+    { "path": "_/game-7f3a9c1e.js",      "role": "Code",  "bytes": 189100, "gz": 27500,  "sha": "7f3a9c1e…", "origin": "" },
+    { "path": "a/0b5e…d2.json",          "role": "Asset", "bytes": 601,    "gz": 330,    "sha": "0b5e…",     "origin": "mannequin/gen/skin.json" },
+    { "path": "a/4c1a…90.bin",           "role": "Asset", "bytes": 259248, "gz": 107518, "sha": "4c1a…",     "origin": "mannequin/gen/skin.bin" },
+    { "path": "a/9e07…31.png",           "role": "Asset", "bytes": 597989, "gz": 597700, "sha": "9e07…",     "origin": "mannequin/source/p_ism001_00.png" },
+    { "path": "a/d812…4f.png",           "role": "Asset", "bytes": 569562, "gz": 569300, "sha": "d812…",     "origin": "mannequin/source/p_ism001_01.png" },
+    { "path": "index.html",              "role": "Page",  "bytes": 1300,   "gz": 640,    "sha": "e04b77aa…", "origin": "" }
+  ]
+}

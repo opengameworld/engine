@@ -1,0 +1,17 @@
+// What tools/dev.ts gains (SKETCH, v2): the routes the editor's Publish tab talks to.
+//
+// Today dev.ts spawns `bun --port=3100 index.html` (Bun's HTML server, no routes of its own). It
+// becomes Bun.serve({ routes: { "/": index.html, "/_publish/*": publishRoutes } }) [MEM: Bun.serve
+// takes HTML imports in `routes`; verify on the pinned Bun], same port, same reload behavior.
+//
+// publishRoutes call publish/client.ts and nothing else (one client):
+//   POST /_publish/push       {game}                  -> {job}       push() runs in this process
+//   GET  /_publish/job/<id>                           -> {step, done, result}
+//   POST /_publish/promote    {to, id, confirm, secret} -> client.promote with a PresenceSource that
+//                                                       returns {confirm, secret} once (from this body)
+//   POST /_publish/rollback   {to, confirm, secret}
+//   GET  /_publish/history    {game}
+// Guards: Origin must be http://localhost:3100; every request carries the nonce dev.ts wrote into
+// the page at start (a header); the secret is passed through to one request and never kept.
+
+export {};

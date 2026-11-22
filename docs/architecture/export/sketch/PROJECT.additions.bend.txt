@@ -1,0 +1,18 @@
+# What PROJECT.bend gains (SKETCH, v2; appended, nothing in it changes).
+#
+# v1 added id()/all()/find()/by_id(). v2 keeps only what is missing: the game's id IS folder(p)
+# (already there, already the ?project= slug), and preview(slug) already maps a slug to a project
+# but falls back to open() for an unknown one, which export must not do (it would publish the wrong
+# game under the right name). So: an exact lookup, and the law that keeps it whole.
+
+def all() -> List<&2, Project>:
+  [Water{}, Character{}, Mannequin{}, Animation{}]
+
+# The project whose folder is s, or None: export refuses an unknown game before it builds.
+def find(+s: String) -> Maybe<&2, Project>:
+  # TODO not implemented: first p in all() with String.eq(folder(p), s) (R9: the test as a parameter)
+  TODO
+
+# LAW (LAWS.bend): every project is found by its own folder name. Splitting on p leaves closed terms
+# (literal names, the literal list) that reduce, so a project missing from all() fails the check:
+#   law every_project_is_findable: for p: Project {find(folder(p)) == Some{p} : Maybe<&2, Project>}

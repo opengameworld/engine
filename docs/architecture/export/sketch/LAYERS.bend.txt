@@ -1,0 +1,197 @@
+# The engine's layers, and which may import which. (SKETCH, revision 2: lives at the repo
+# root beside PROJECT.bend. Checked on EVERY `bun run check` (tools/check.ts fence step) and
+# on EVERY export (export/contract.bend: Forbidden, against what the bundler really read).)
+#
+# One table, places(), is the only list of folders in the engine. Everything else is derived
+# from it: layer_of(path) (the first place whose prefix matches), the folders check.ts
+# type-checks (typed_roots(), replacing check.ts's hand-written FOLDERS), and what ships.
+# A new top-level folder is ONE line here; forgetting it makes its files Outside, which the
+# fence refuses, so the folder cannot be silently unchecked.
+#
+#   places()            the table: prefix, layer, type-checked?
+#   layer_of(path)      which layer a repo path is in
+#   may_import(a, b)    may a file of layer a import a file of layer b?
+#   ships(l)            may a file of layer l be inside a published game?
+#   debts()             edges allowed for now although they break a rule, and why
+#
+# Paths are repo-relative. In a CREATOR's repo the engine is a dependency: a path under
+# node_modules/ogw-engine/ is judged as the same path in the engine (layer_of strips the
+# prefix), and the creator's own files (GAME.bend and its folders) are Project.
+#
+# Limits now:
+# - Edges are found by text (`import ./x.bend`, `from "x"`, `src="x"`), as the refs/ fence
+#   does today; export closes the gap with the bundler's real inputs.
+# - engine/world.bend and engine/gizmo.bend import Bend-UI: three named debts (moving gizmo
+#   is Isabella's call). Each debt that no longer exists fails the check (the list cannot rot).
+# - platform/web/materials.js re-validates shader values in JS (a known debt of the rule
+#   "decisions in Bend"); not an import edge, so not listed here.
+#
+# `TODO` marks a body not written yet (sketch).
+
+import Base
+
+type Layer is Data:
+  Engine{}            # engine/**                         pure Bend runtime rules
+  PlatWeb{}           # platform/web/**                    JS that reads input and draws
+  PlatNative{}        # platform/native/**                 later
+  PlatServer{}        # platform/server/**                 the world server's shell, later
+  Server{}            # server/**                          the world's rules on a server, later
+  Project{}           # projects/**  (and a creator's GAME.bend + folders)
+  Catalog{}           # PROJECT.bend                       the list of projects; the game entry resolves its project here
+  Mannequin{}         # mannequin/scene.bend, credit.bend, gen/{skeleton,rules}.bend, gen/skin.*, gen/*.png
+  MannequinLaws{}     # mannequin/LAWS.bend, PROOF.bend, gen/weights.bend (141 KB, laws only)
+  MannequinSource{}   # mannequin/source/, gltf/, rig.json, CREDITS.md (4.2 MB of originals)
+  Library{}           # library/<c>/gen/m/** (one motion a file), library/<c>/gen/index.bend
+  LibraryIndex{}      # library/catalog.bend, library/<c>/gen/all.bend, gen/thumbs.bend (the editor's)
+  LibrarySource{}     # library/<c>/source/, clips.json, CREDITS.md
+  GameGen{}           # out/gen/<game>/**                  written by export for one game
+  GameUi{}            # ui/**                              Bend-UI pages export renders to static text (credits)
+  UiKit{}             # node_modules/bend-ui/**
+  Editor{}            # editor/** (workspace/, publish/, shaders/ generated), index.html, main.js, KEYS.bend
+  Contract{}          # export/contract.bend, LAYERS.bend   the folder's rules (read by export, publish, editor)
+  Export{}            # export/**                          the build tool
+  Publish{}           # publish/**                         the publish machine's rules (pure Bend)
+  PlatPublish{}       # platform/publish/**                the publish server's shell (Bun), runs on the VPS
+  Tools{}             # tools/** (tools/shaders/ too)
+  Tests{}             # tests/**, LAWS.bend, PROOF.bend, SPEC.bend
+  Refs{}              # refs/**
+  Outside{}           # a path places() does not know: the fence refuses it
+
+type Place is Data:
+  Place{prefix: String, layer: Layer, typed: Bool}   # typed: check.ts runs --check-only on its .bend
+
+# THE list. Most specific prefixes first (layer_of takes the first match).
+def places() -> List<&2, Place>:
+  [Place{"mannequin/gen/weights.bend", MannequinLaws{}, True{}},
+   Place{"mannequin/LAWS.bend", MannequinLaws{}, False{}},
+   Place{"mannequin/PROOF.bend", MannequinLaws{}, False{}},
+   Place{"mannequin/source/", MannequinSource{}, False{}},
+   Place{"mannequin/gltf/", MannequinSource{}, False{}},
+   Place{"mannequin/", Mannequin{}, True{}},
+   Place{"library/catalog.bend", LibraryIndex{}, True{}},
+   # library/<c>/gen/m/, gen/all.bend, gen/thumbs.bend, source/: matched by library_place (below)
+   Place{"library/", Library{}, True{}},
+   Place{"engine/", Engine{}, True{}},
+   Place{"platform/web/", PlatWeb{}, False{}},
+   Place{"platform/publish/", PlatPublish{}, False{}},
+   Place{"platform/native/", PlatNative{}, True{}},
+   Place{"platform/server/", PlatServer{}, False{}},
+   Place{"server/", Server{}, True{}},
+   Place{"projects/", Project{}, True{}},
+   Place{"PROJECT.bend", Catalog{}, True{}},
+   Place{"out/gen/", GameGen{}, False{}},          # generated per export; export checks it itself
+   Place{"ui/", GameUi{}, True{}},
+   Place{"node_modules/bend-ui/", UiKit{}, False{}},
+   Place{"editor/", Editor{}, True{}},
+   Place{"index.html", Editor{}, False{}},
+   Place{"main.js", Editor{}, False{}},
+   Place{"KEYS.bend", Editor{}, True{}},
+   Place{"export/contract.bend", Contract{}, True{}},
+   Place{"LAYERS.bend", Contract{}, True{}},
+   Place{"export/", Export{}, True{}},
+   Place{"publish/", Publish{}, True{}},
+   Place{"tools/", Tools{}, False{}},
+   Place{"tests/", Tests{}, True{}},
+   Place{"LAWS.bend", Tests{}, False{}},
+   Place{"PROOF.bend", Tests{}, False{}},
+   Place{"SPEC.bend", Tests{}, True{}},
+   Place{"refs/", Refs{}, False{}}]
+
+# library/<c>/... -> Library for gen/m/ and gen/index.bend; LibraryIndex for gen/all.bend and
+# gen/thumbs.bend; LibrarySource for source/, clips.json, CREDITS.md. (A collection's name is
+# a path segment, so this is a split on segments, not a prefix in places().)
+def library_place(path: String) -> Layer:
+  # TODO not implemented
+  TODO
+
+def layer_of(path: String) -> Layer:
+  # TODO not implemented:
+  #   "node_modules/ogw-engine/" prefix -> layer_of(rest)      (a creator's repo)
+  #   first Place whose prefix starts path; Library -> library_place(path); none -> Outside
+  #   (CATCHES M1/R9: the walk takes each starts_with result as its own Bool parameter)
+  TODO
+
+# The folders `bun run check` type-checks: every typed place's top folder, once.
+def typed_roots() -> List<&2, String>:
+  # TODO not implemented
+  TODO
+
+def ships(l: Layer) -> Bool:
+  match l:
+    case Engine{}:          True{}
+    case PlatWeb{}:         True{}
+    case PlatNative{}:      True{}
+    case Project{}:         True{}
+    case Mannequin{}:       True{}     # with its credit (contract.bend credit gate)
+    case Library{}:         True{}     # only the motions a game imports: out/gen/<game>/clips.bend
+    case GameGen{}:         True{}
+    case GameUi{}:          False{}    # rendered by export to static text (site/credits.html); no script ships
+    case UiKit{}:           True{}     # through the named debts only; license unknown (export/credit.bend bend_ui)
+    case Catalog{}:         True{}     # ~28 KB gz for every project today; a creator's repo has one (GAME.bend, later)
+    case MannequinLaws{}:   False{}
+    case MannequinSource{}: False{}
+    case LibraryIndex{}:    False{}    # thumbs and the 42-clip index are the editor's
+    case LibrarySource{}:   False{}
+    case PlatServer{}:      False{}
+    case Server{}:          False{}
+    case Editor{}:          False{}
+    case Contract{}:        False{}
+    case Export{}:          False{}
+    case Publish{}:         False{}
+    case PlatPublish{}:     False{}    # runs on the publish server, never inside a game
+    case Tools{}:           False{}
+    case Tests{}:           False{}
+    case Refs{}:            False{}
+    case Outside{}:         False{}
+
+# The rule of the whole repo:
+#   Engine        -> Engine                                   (+ debts to UiKit)
+#   PlatWeb       -> PlatWeb, Engine
+#   Project       -> Project, Engine, Mannequin               (clips by name in export/games.bend: never Library)
+#   Mannequin     -> Mannequin, Engine
+#   Library       -> Library, Engine
+#   GameGen       -> GameGen, Engine, Project, Mannequin, Library, PlatWeb
+#   GameUi        -> GameUi, Engine, UiKit, Contract           (reads the manifest's credits)
+#   Catalog       -> Project, Engine, Mannequin
+#   LibraryIndex  -> Library, Engine
+#   Editor        -> Editor, Engine, PlatWeb, Catalog, Project, Mannequin, Library, LibraryIndex,
+#                    UiKit, Contract, Publish                 (the editor runs the publish machine)
+#   Contract      -> Contract, Engine, Mannequin, Library, Publish   (credits, slug grammar)
+#   Publish       -> Publish, Contract
+#   PlatPublish   -> PlatPublish, Publish, Contract
+#   Export        -> Export, Contract, Publish, Engine, Project, Mannequin, Library, GameUi, UiKit
+#   Server, PlatServer, PlatNative: as v1
+#   Tools, Tests  -> anything but Refs;  Refs -> anything;  Outside -> nothing
+def may_import(a: Layer, b: Layer) -> Bool:
+  # TODO not implemented: a match on `a`, each case a helper matching `b` (M1)
+  TODO
+
+type Debt is Data:
+  Debt{from: String, to: String, why: String}
+
+def debts() -> List<&2, Debt>:
+  [Debt{"engine/world.bend", "node_modules/bend-ui/TOKENS.bend",
+        "grid colors come from Bend-UI tokens; move them into engine/color.bend or pass them in"},
+   Debt{"engine/gizmo.bend", "node_modules/bend-ui/TOKENS.bend",
+        "the gizmo is the editor's; move engine/gizmo.bend to editor/ (Isabella's call)"},
+   Debt{"engine/gizmo.bend", "node_modules/bend-ui/MOTION.bend", "same move as above"}]
+
+type Edge is Data:
+  Fine{}
+  Owed{why: String}
+  Blocked{from: String, to: String, rule: String}
+
+def edge(from: String, to: String) -> Edge:
+  # TODO not implemented (v1)
+  TODO
+
+# LAWS (LAWS.bend; each a case split over a finite enum, proved by {==} per case):
+#   law only_refs_import_refs:          for a: Layer {may_import(a, Refs{}) == is_refs(a) : Bool}
+#   law shipped_never_imports_editor:   for a: Layer {Bool.and(ships(a), may_import(a, Editor{})) == False{} : Bool}
+#   law shipped_never_imports_tooling:  for a: Layer {Bool.and(ships(a), is_tooling_target(a)) == False{} : Bool}
+#     where is_tooling_target(a) = may_import(a, Export{}) || may_import(a, Publish{}) || may_import(a, Contract{})
+#   law sources_never_ship:             {Bool.or(ships(MannequinSource{}), ships(LibrarySource{})) == False{} : Bool}
+#   law laws_never_ship:                {ships(MannequinLaws{}) == False{} : Bool}
+#   law publish_rules_never_ship:       {Bool.or(ships(Publish{}), ships(PlatPublish{})) == False{} : Bool}
+# Numeric checks (tests/layers.bend): layer_of of one path per place; a node_modules/ogw-engine/
+# path is judged as the engine's; "mannequin/source/Sora.fbx" is MannequinSource.

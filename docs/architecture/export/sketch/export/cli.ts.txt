@@ -1,0 +1,26 @@
+// export/cli.ts: `bun run export <verb>` (SKETCH, v2). Unchanged from v1 except: the deploy verbs
+// left for publish/cli.ts (the protocol's client), and --game replaces --project (the folder name in
+// PROJECT.bend is the game's id in its address).
+//
+//   bun run export web [game] [--json]       check, walk, bundle, write out/web/<game>/ (or the reasons)
+//   bun run export verify [game]             re-read the folder: whole? recheck passes?
+//   bun run export serve [game] [--port N]   play it on localhost with the same headers the publish host sends
+//
+// package.json gains "export": "bun export/cli.ts". "build" stays the editor demo build.
+//
+// Printed on success (people) -- the build requirements are stated, not discovered:
+//   out/web/character/  build 3c9e0a71b2d4
+//   code    190 KB raw /  28 KB gz   (budget 2,000 KB / 300 KB)
+//   assets 1,280 KB on the wire      (budget 1,600 KB)
+//   credits: mannequin (CC BY 4.0, shown on the Credits page)
+//   warning: the mannequin's character is (c) Square Enix / Disney: not cleared for sale (owner's call)
+//   note: no HLSL shader in this game; dxc and spirv-cross were not needed
+
+import { exportWeb, verifyFolder, serveFolder } from "./web.ts";
+
+export async function main(argv: string[]): Promise<number> {
+  // TODO not implemented
+  throw new Error("not implemented");
+}
+
+if (import.meta.main) process.exit(await main(process.argv.slice(2)));

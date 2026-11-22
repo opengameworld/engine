@@ -1,0 +1,67 @@
+// export/web.ts: project -> game folder (SKETCH, v2). The hands around export/contract.bend and
+// export/needs.bend: run things, measure files, write what Bend returns. No choice is made here; if
+// one creeps in, it moves to Bend (Isabella's review).
+//
+//   exportWeb({ game })   -> { ok: true, folder } | { ok: false, reasons, values }
+//   verifyFolder(dir)     -> { ok: true, folder } | { ok: false, missing | reasons }
+//   serveFolder(dir)      -> localhost, with Contract.headers per role: the same headers Caddy sends
+//
+// Crash- and rerun-safe as in v1: out/web/.stage-<pid>/, game.json last, one rename into place.
+//
+// Limits now:
+// - Runs `bun run check` in full (it writes the shader catalog first: tools/shaders/catalog.js).
+// - Bun.build's metafile gives the inputs [U: pinned Bun]; otherwise the fence's import walk does.
+// - Tree-shaking of unnamed clips was measured with `bend -o x.js`; slice 4 measures it through the
+//   bundler too. If Bun keeps every def of motions.bend, needs.bend's picks move to one generated
+//   Bend file per picked clip (tools/clips.ts writes m/<i>.bend) and the budget law says so meanwhile.
+
+import bendPlugin from "../../bend/bend2/main.ts";
+import Contract from "./contract.bend";
+import Needs from "./needs.bend";
+import Games from "./games.bend";
+import Project from "../PROJECT.bend";
+
+export type GameFolder = {
+  dir: string;           // out/web/<game>
+  site: string;
+  buildId: string;       // 12 hex
+  manifest: Manifest;    // the Bend value, parsed once at the boundary
+  entries: { path: string; sha: string; bytes: number }[];   // for the publish client's have/blob steps
+  warnings: string[];    // Contract.warn of the Shipped warnings
+};
+type Manifest = { readonly $: "Manifest" };
+
+export type Refusal = { ok: false; reasons: string[]; values: unknown[] };
+
+export async function exportWeb(o: { game?: string; out?: string }): Promise<{ ok: true; folder: GameFolder } | Refusal> {
+  // TODO not implemented:
+  // 1. p = Project.preview(game) with an exact-match check (unknown -> refusal "no game <id>")
+  // 2. tools = Toolchain{ `bend version`, which dxc, which spirv-cross }   (measured, not judged)
+  // 3. checks = (await $`bun run check`.nothrow()).exitCode === 0
+  // 4. source = Source{git rev-parse HEAD, git status --porcelain non-empty, checks}
+  // 5. n = Needs.needs(p); g = Needs.glue(p, n)
+  //    shaders = catalog.generated.json entries for n.shaders -> ShaderFact{id, lang, built: has GLSL}
+  // 6. write out/gen/<game>/game.bend (title, opening, camera, clips: one import of library/<c>/gen/m/<slug>.bend per pick, credits)
+  //    and out/gen/<game>/game.js (one `import x from "path" with {type:"file"}` per FileImport; the
+  //    filtered shader catalog as JSON) -- printed 1:1 from Glue
+  // 7. write out/gen/<game>/index.html = Contract.page(title, "./game.js") (Bend's text, 1:1)
+  //    Bun.build({ entrypoints: ["out/gen/<game>/index.html"], naming: { chunk: "_/[name]-[hash].[ext]",
+  //    asset: "a/[hash].[ext]" }, metafile: true, plugins: [bendPlugin, genPlugin(game)] })   // "ogw:game" -> out/gen/<game>/game.js
+  // 8. files: walk stage/site -> Entry{path, role by path prefix, bytes, gz, sha256, origin from the
+  //    metafile's output->input map for assets}; inputs = metafile inputs, repo-relative
+  // 9. outcome = Contract.release(checks, Facts{...}); Refused -> rm stage; return say() lines + values
+  // 9b. write site/credits.html = Ui.text(Ui.page(title, m.credits)) (ui/credits.bend), before release()
+  //     measures the folder, so `credits_page` is what is really there
+  // 10. buildId = sha256(Contract.id_text(m)).slice(0, 12); write game.json LAST; rename into place
+  throw new Error("not implemented");
+}
+
+export async function verifyFolder(dir: string): Promise<{ ok: true; folder: GameFolder } | { ok: false; missing: string[]; reasons: string[] }> {
+  // TODO not implemented: parse game.json -> Manifest; re-measure every file; Contract.missing and Contract.recheck
+  throw new Error("not implemented");
+}
+
+export function serveFolder(dir: string, port = 3200): void {
+  // TODO not implemented: Bun.serve over site/; headers = Contract.headers(isolation, role of path)
+  throw new Error("not implemented");
+}

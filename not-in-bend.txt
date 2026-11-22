@@ -1,0 +1,49 @@
+What this engine runs that released Bend does not have
+======================================================
+
+The engine pins Bend 2.0.40. The clone of Bend beside this folder (../bend, the one bunfig.toml
+and tools/test.ts load, and the one export builds with) is NOT the released 2.0.40: it is 2.0.40
+plus the changes below. Everything here is proposed upstream; when Bend releases it and the
+engine moves to that release, the entry is deleted.
+
+
+1. Module-mode tree shaking (the .bend loader exports only a file's own defs)
+
+   What:     bend2/comp.ts, js_lib: in module mode a .bend file exports only its own defs; the
+             defs of the files it imports stay internal. One line:
+                 return done_live(t) && !t.b && t.x === 0 && io_base(FL.book, t.T) === null
+                   && !k.includes(":");
+   Where:    https://github.com/caiodomingues/bend, branch ogw/v2.0.40-treeshake
+             (commit d2862e06 = tag v2.0.40 + that line).
+   Upstream: https://github.com/bendlang/bend/pull/2224 (open).
+   Evidence: https://github.com/caiodomingues/poc-bend-treeshake (Bend's own test corpus with
+             0 differences, other bundlers, this engine's tests, browser timings).
+
+   Why the engine needs it: released Bend exports every def of every imported file, so a page
+   that uses one clip of library/ ships all 42 clips. Measured on this engine (one clip):
+       bundle         1,893 KB gzip  ->  33.5 KB gzip
+       dev compile    3.1 s          ->  0.76 s
+       page ready on an emulated phone (CPU 4x slower, 1.6 Mbit/s): 10.2 s -> 0.52 s
+
+   What changes in behavior (both checked; neither is used by this engine):
+     - JS can no longer read an imported def through a module's default object
+       (Module["lib:name"]). Re-export it from the importing file instead:
+           def name() -> U32: Lib.name()
+     - An imported file's JS effect that nothing reachable uses is no longer loaded, so its
+       top-level code no longer runs at page load. Bend's own effects only register handlers.
+
+   Who uses it:
+     - bun run dev (bunfig.toml loads ../bend/bend2/main.ts) and tools/test.ts: yes.
+     - bun run export: yes, and it refuses to build without it (see export/).
+     - bun run check: no. It calls the installed `bend` (~/.bend), which only checks; checking
+       does not depend on this change.
+     - bun run build (`bend index.html -o dist`): no. It also runs the installed `bend`, so the
+       editor demo build is made with released Bend.
+
+   Set up ../bend (once, on every machine that builds the engine):
+       git clone https://github.com/caiodomingues/bend.git ../bend
+       git -C ../bend switch ogw/v2.0.40-treeshake
+   Check it:
+       grep -n 'k.includes(":")' ../bend/bend2/comp.ts      # one line in js_lib
+   Never run `bend update` and never change ~/.bend: the installed `bend` stays 2.0.40 as
+   released.

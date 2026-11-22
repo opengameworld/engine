@@ -1,0 +1,14 @@
+// What tools/check.ts gains (SKETCH, v2). Nothing else in it changes.
+//
+// - FOLDERS: + "export", "publish", "player" (auto-discovery of .bend under them; out/gen is NOT
+//   type-checked by check: it is generated per export and checked by the export that writes it).
+// - laws: + `bend export/PROOF.bend`, `bend publish/PROOF.bend`, (root LAWS.bend
+//   gains LAYERS' three laws; their proofs sit in PROOF.bend like the rest).
+// - tests: tests/export.bend and tests/publish.bend are found by tools/test.ts like the others.
+// - fences: the refs/-only regex is replaced by LAYERS.bend: for each import edge found by text,
+//   Layers.edge(from, to): Blocked -> fail with "<from> (<layer>) imports <to> (<layer>)";
+//   Owed -> print the debt; a debt no edge uses -> fail "debt paid: remove it from LAYERS.bend".
+// - first step unchanged: `bun tools/shaders/catalog.js` (export relies on it: the catalog says
+//   which shaders were built and which only have diagnostics).
+
+export {};

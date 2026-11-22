@@ -1,0 +1,25 @@
+# One push and one promote, on the wire (protocol 1). Team mode (the VPS). Agent key, then a person.
+
+GET /v1                                   ogw-protocol: 1
+<- 200 {"protocol":1,"mode":"team","play":"PLAY","limits":{"files":20000,...,"isolation":false}}
+
+POST /v1/have      authorization: Bearer ogwa_…_1f2e3d
+   {"game":"character","shas":["7f3a…","0b5e…","4c1a…","9e07…","d812…","e04b…"]}
+<- 200 {"missing":["7f3a…","e04b…"]}                       (the mannequin's files were there from the last release)
+
+PUT /v1/blob/7f3a…   <189100 bytes>      <- 200 {"sha":"7f3a…"}
+PUT /v1/blob/e04b…   <1300 bytes>        <- 200 {"sha":"e04b…"}
+
+POST /v1/release   {"game":"character","manifest":"{\"format\":1,…}"}
+<- 201 {"id":"3c9e0a71b2d4","url":"https://3c9e0a71b2d4--character--ogw.PLAY","created":true}
+
+POST /v1/point     (same agent key) {"to":"ogw/character:live","id":"3c9e0a71b2d4","expect":"9a01ffe4c7b0"}
+<- 403 {"ok":false,"denied":[{"code":"NotAPerson","text":"an agent's key uploads releases; only a person makes one live"}]}
+
+POST /v1/point     authorization: Bearer ogwp_…_a0b1c2   (Caio's key, from his machine)
+   {"to":"ogw/character:live","id":"3c9e0a71b2d4","expect":"9a01ffe4c7b0",
+    "confirm":"ogw/character:live 3c9e0a","presence":{"secret":"<typed, not stored>"}}
+<- 200 {"to":"ogw/character:live","id":"3c9e0a71b2d4","url":"https://character--ogw.PLAY","previous":"9a01ffe4c7b0"}
+
+# Service mode, a creator with no secret on the box: the same point request without presence
+<- 202 {"approve_url":"https://SERVICE/approve/ap_51c0…","poll":"/v1/point/ap_51c0…"}

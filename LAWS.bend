@@ -23,6 +23,8 @@ import ./engine/figure.bend as Fig
 import ./engine/skin.bend as Skin
 import ./engine/helpers.bend as H
 import ./engine/locomotion.bend as Loco
+import ./export/contract.bend as Ex
+import ./LAYERS.bend as Ly
 
 # ---------- Shortcuts ----------
 
@@ -305,3 +307,78 @@ law no_key_no_step:
   for s: S.Scene
   for dt: F32
   {Loco.drive(s, Loco.still(), dt, True{}) == s : S.Scene}
+
+# ---------- Export (export/contract.bend) ----------
+
+# LAW: nothing ships when `bun run check` failed, whatever the build measured.
+law nothing_ships_when_checks_fail:
+  for f: Ex.Facts
+  {Ex.release(False{}, f) == Ex.Outcome.Refused{[Ex.Reason.ChecksFailed{}]} : Ex.Outcome}
+
+# LAW: a build with the mannequin and no credits page is refused for it, whatever else ships.
+law mannequin_needs_its_credit:
+  for ws: List<&2, Ex.Work>
+  {Ex.attribution(False{}, Ex.Work.Mannequin{} <> ws) == Ex.Reason.Uncredited{Ex.Work.Mannequin{}} <> Ex.attribution(False{}, ws) : List<&2, Ex.Reason>}
+
+# LAW: with a credits page in the folder, no credit is owed.
+law a_credits_page_owes_nothing:
+  for ws: List<&2, Ex.Work>
+  {Ex.attribution(True{}, ws) == [] : List<&2, Ex.Reason>}
+
+# LAW: CC0 asks for no credit (the animation library's clips).
+law cc0_asks_no_credit:
+  {Ex.must_show(Ex.Work.Quaternius{}) == False{} : Bool}
+
+# LAW: the page is fetched again on every load; code and assets, named by their hash, never change.
+law the_page_revalidates:
+  {Ex.cache(Ex.Role.Page{}) == Ex.Cache.Revalidate{} : Ex.Cache}
+
+law code_is_immutable:
+  {Ex.cache(Ex.Role.Code{}) == Ex.Cache.Immutable{} : Ex.Cache}
+
+law assets_are_immutable:
+  {Ex.cache(Ex.Role.Asset{}) == Ex.Cache.Immutable{} : Ex.Cache}
+
+# LAW: the budgets are the reach rule's numbers (1.6 Mbit/s: first frame in 1.5 s, playable in 10 s).
+law code_budget_is_300k:
+  {Ex.code_budget() == 300000 : U32}
+
+law asset_budget_is_2m:
+  {Ex.asset_budget() == 2000000 : U32}
+
+# LAW: the credits page is fetched again on every load too.
+law the_credits_page_revalidates:
+  {Ex.cache(Ex.Role.Doc{}) == Ex.Cache.Revalidate{} : Ex.Cache}
+
+# ---------- Layers (LAYERS.bend) ----------
+
+# LAW: nothing that ships in a game may import the editor.
+law shipped_never_imports_editor:
+  for a: Ly.Layer
+  {Bool.and(Ly.ships(a), Ly.may_import(a, Ly.Layer.Editor{})) == False{} : Bool}
+
+# LAW: nothing that ships may import export, tools or the layer rules.
+law shipped_never_imports_tooling:
+  for a: Ly.Layer
+  {Bool.and(Ly.ships(a), (Ly.may_import(a, Ly.Layer.Export{}) || Ly.may_import(a, Ly.Layer.Tools{}) || Ly.may_import(a, Ly.Layer.Rules{}))) == False{} : Bool}
+
+# LAW: nothing outside refs/ imports refs/.
+law only_refs_import_refs:
+  for a: Ly.Layer
+  {Bool.and(Bool.not(Ly.Layer.is_refs(a)), Ly.may_import(a, Ly.Layer.Refs{})) == False{} : Bool}
+
+# LAW: the editor, export, tools, the library's catalog and the mannequin's laws never ship.
+law the_editor_never_ships:
+  {Ly.ships(Ly.Layer.Editor{}) == False{} : Bool}
+
+law export_never_ships:
+  {Ly.ships(Ly.Layer.Export{}) == False{} : Bool}
+
+law tools_never_ship:
+  {Ly.ships(Ly.Layer.Tools{}) == False{} : Bool}
+
+law the_library_catalog_never_ships:
+  {Ly.ships(Ly.Layer.LibraryIndex{}) == False{} : Bool}
+
+law the_mannequin_laws_never_ship:
+  {Ly.ships(Ly.Layer.MannequinLaws{}) == False{} : Bool}

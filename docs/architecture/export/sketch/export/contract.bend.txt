@@ -1,0 +1,361 @@
+# The game folder: the one shape every export writes and every publish host stores. (SKETCH, v2)
+#
+# Revised from the approved v1. What survives unchanged: the fixed folder, `release(checks, facts)`
+# with `checks` matched first, Role (not Kind), Target, Source, seed, isolation, headers and cache
+# from Bend, the build id as sha256 of a canonical text. What v2 adds: Asset entries in format 1,
+# a budget that counts Code and Assets apart (numbers from a reach rule, measured sizes below),
+# credits of what ships with the mannequin's law, the build machine's toolchain, and the clips a
+# game takes.
+#
+#   out/web/<game>/
+#     game.json                    the manifest (format 1), written LAST: a folder without it is unfinished
+#     site/                        exactly what is served, rooted at /
+#       index.html                 the one page (Page): revalidated on every load
+#       _/<name>-<hash>.js|css     bundle (Code): immutable
+#       a/<hash>.<ext>             files the bundle loads (Asset: skin.bin, textures, shader catalog): immutable
+#
+#   release(checks, facts) -> Shipped{manifest} | Refused{reasons}
+#   recheck(m)                -> the reasons a manifest alone shows (the publish server runs it: it never trusts a client)
+#   cache(role), headers(isolation, role)
+#   id_text(m)                -> the text the shell hashes into the 12-hex build id (BendHub's own rule, below)
+#   json(m, id), missing(m, present), say(reason), warn(warning)
+#
+# Measured on 2026-11-22 with `bend <file> -o x.js` (Bend 2.0.40's own JS output, gzip -9; the
+# bundler path through bunfig's plugin may differ: slice 3 measures it again):
+#   runtime of the Character game (scene + locomotion.frame)   162 KB raw    20 KB gz
+#   every project in PROJECT.bend                               218 KB raw    28 KB gz
+#   platform/web/*.js                                            25 KB raw   (~8 KB gz, not measured)
+#   one library clip (Jog, m1 alone)                            658 KB raw    53 KB gz (above base)
+#   all 42 clips (motion(i) names every one)                 35,183 KB raw 2,527 KB gz
+#   mannequin assets: skin.bin 259 KB (107 KB gz) + 2 PNGs 1,168 KB  ->  ~1.28 MB on the wire
+# Bend's compiler drops defs nothing names: a module that names only Ual.m1() ships one clip even
+# though motions.bend is one 3.8 MB file. So a game takes clips by naming them (export/needs.bend),
+# never through motion(i).
+#
+# Limits now:
+# - Hashes and sizes are measured by the shell; Bend never reads files (CATCHES X6).
+# - Format 1 is web only (Target Web). Native (`app/` instead of `site/`) is format 2.
+# - Every Asset is loaded before the first frame: no lazy assets until format 2 (`when` field).
+# - Precompressed files never enter the folder: hosts compress (Caddy `encode`).
+# - isolation True is refused by the publish host until it can send COOP/COEP per game (publish/service.bend).
+#
+# `TODO` marks a body not written yet (sketch).
+
+import Base
+import ../LAYERS.bend as L
+import ../mannequin/credit.bend as Mc
+
+# ---------- What is in the folder ----------
+
+type Role is Data:
+  Page{}          # site/index.html
+  Code{}          # site/_/*: JS and CSS the bundler wrote, named by hash
+  Asset{}         # site/a/*: files the bundle loads by URL (skin.bin, textures, shaders.json), named by hash
+
+# One served file. `path` relative to site/; `gz` its gzip size; `origin` the repo path it was
+# copied from (Assets only; "" for Code and the Page): credits and layers are decided from it.
+type Entry is Data:
+  Entry{path: String, role: Role, bytes: U32, gz: U32, sha: String, origin: String}
+
+type Cache is Data:
+  Immutable{}     # public, max-age=31536000, immutable
+  Revalidate{}    # public, max-age=0, must-revalidate
+
+type Header is Data:
+  Header{name: String, value: String}
+
+type Target is Data:
+  Web{}
+  MacArm64{}
+  WinX64{}
+  WorldServer{}
+
+# Provenance: travels with the build, decides what may go live (publish/service.bend), is not in the id.
+type Source is Data:
+  Source{commit: String, dirty: Bool, checked: Bool}
+
+# ---------- The pages ----------
+
+# site/index.html is TEXT WRITTEN BY BEND, never a hand-written file (review: nothing a person
+# sees is hand-written HTML/JS/CSS). A canvas filling the window, the hashed script, the title,
+# and a "Credits" link to credits.html. The shell writes exactly this string. (Graft from
+# candidate 2.)
+def page(title: String, script: String) -> String:
+  # TODO not implemented: String.concat of a fixed template; title escaped
+  TODO
+
+# ---------- Credits ----------
+
+# Third-party work the engine can put inside a game. A closed list: a new collection or character
+# is a new case, and the compiler points at every match below.
+type Work is Data:
+  Mannequin{}     # mannequin/: CC BY 4.0, the credit must be shown (mannequin/credit.bend)
+  Quaternius{}    # library/quaternius/: CC0, credit given by courtesy
+  BendUi{}        # node_modules/bend-ui/: NO LICENSE FILE today (see RATIONALE, open questions)
+
+type Credit is Data:
+  Credit{work: String, author: String, license: String, url: String, notice: String}
+
+# How the game shows its credits: a static page, site/credits.html, written by Bend from
+# ui/credits.bend (no Bend-UI JavaScript ships for it). Its presence is MEASURED by the shell,
+# never declared: `credits_page` is True only when the file is in the folder. (Graft from
+# candidate 2; replaces a declared Shown{InMenu|Hidden}.)
+
+def credit(w: Work) -> Credit:
+  match w:
+    case Mannequin{}:
+      Credit{Mc.title(), Mc.author(), Mc.license(), Mc.url(), Mc.notice()}
+    case Quaternius{}:
+      Credit{"Universal Animation Library", "Quaternius", "CC0", "https://quaternius.com", ""}
+    case BendUi{}:
+      Credit{"Bend-UI", "Isabella Herman", "", "https://github.com/isabellaherman/Bend-UI", ""}
+
+# Whether the license requires the credit to be shown (CC BY does; CC0 does not).
+def must_show(w: Work) -> Bool:
+  match w:
+    case Mannequin{}:  True{}
+    case Quaternius{}: False{}
+    case BendUi{}:     False{}
+
+# The credits a manifest carries: one per work, in the order of `works`. Derived, never written by
+# hand, so a work that ships cannot lose its credit on the way to game.json.
+def credits(ws: List<&2, Work>) -> List<&2, Credit>:
+  match ws:
+    case []:
+      []
+    case w <> rest:
+      credit(w) <> credits(rest)
+
+# Which works ship, from the files the bundler read and copied: a path's layer says its work.
+# Deduplicated, in Work order.
+def works(inputs: List<&2, String>) -> List<&2, Work>:
+  # TODO not implemented: Mannequin when any L.layer_of(p) is L.Mannequin{}; Quaternius when any p
+  #   starts with "library/quaternius/"; BendUi when any layer is L.UiKit{}.
+  TODO
+
+# ---------- The build machine ----------
+
+type Lang is Data:
+  Glsl{}
+  Hlsl{}
+
+# One shader a game's materials use, as tools/shaders/catalog.js left it.
+type ShaderFact is Data:
+  ShaderFact{id: String, lang: Lang, built: Bool}    # built: the catalog has GLSL for it
+
+type Toolchain is Data:
+  Toolchain{bend: String, dxc: Bool, spirv_cross: Bool}
+
+def pinned_bend() -> String: "2.0.40"
+
+# ---------- What the shell measured ----------
+
+type Facts is Data:
+  Facts{
+    game: String,
+    title: String,
+    target: Target,
+    source: Source,
+    seed: String,
+    isolation: Bool,
+    credits_page: Bool,               # measured: site/credits.html is in the folder
+    clips: List<&2, String>,          # the clip names export/needs.bend picked (shown in game.json)
+    tools: Toolchain,
+    shaders: List<&2, ShaderFact>,    # only the shaders the game's materials use
+    unknown_clips: List<&2, String>,  # names in games.bend the library does not have
+    inputs: List<&2, String>,         # every repo file the bundler read or copied
+    files: List<&2, Entry>            # every file written under site/
+  }
+
+# ---------- Budgets: Code and Assets apart ----------
+
+# What a player waits for before the first frame. All three are measured from the entries.
+type Load is Data:
+  Load{code_gz: U32, code_raw: U32, asset_wire: U32}
+
+# The reach rule (AGENTS.md: playable by as many people as possible), as numbers:
+#   link   200,000 B/s   1.6 Mbit/s, the slow-4G profile of browser audits [MEM]
+#   parse  1,000,000 B/s raw JS on a low-end phone [MEM, U: measure on a real device]
+# Code must arrive in 2 s and parse in 2 s; Assets must arrive in 8 s.
+#   code_gz    300,000   first frame in 1.5 s at 1.6 Mbit/s; Character game today ~28 KB.
+#                        One clip through the real page path (Bend loader + Bun, minified, one file
+#                        per clip) is ~192 KB raw / ~39 KB gz (judge, measured): ~6 clips fit.
+#   code_raw 2,000,000   parse time on a low-end phone; PROVISIONAL, re-measured in slice 3 on the
+#                        real minified bundle (the old ~0.66-0.84 MB/clip was unminified `bend -o`):
+#                        two clips fit, a third does not (see RATIONALE: clips as data)
+#   asset_wire 2,000,000 playable in 10 s at 1.6 Mbit/s; the mannequin is ~1.28 MB (64%)
+def link_bytes_per_s() -> U32: 200000
+def parse_bytes_per_s() -> U32: 1000000
+def budget() -> Load:
+  Load{(link_bytes_per_s() * 2 : U32), (parse_bytes_per_s() * 2 : U32), (link_bytes_per_s() * 8 : U32)}
+
+# A file's bytes on the wire: the smaller of raw and gzip (PNG and KTX2 do not shrink; hosts
+# only compress what shrinks).
+def wire(e: Entry) -> U32:
+  # TODO not implemented: U32.min(bytes(e), gz(e))
+  TODO
+
+def load(files: List<&2, Entry>) -> Load:
+  # TODO not implemented: Page + Code -> code_gz += gz, code_raw += bytes; Asset -> asset_wire += wire(e)
+  TODO
+
+# ---------- The verdict ----------
+
+type Reason is Data:
+  ChecksFailed{}
+  WrongBend{have: String, want: String}           # export needs the pinned Bend
+  ToolMissing{tool: String, shader: String}       # an HLSL shader the game uses, without dxc / spirv-cross
+  ShaderNotBuilt{shader: String}                  # in the catalog with diagnostics only
+  NoSuchClip{name: String}                        # games.bend names a clip the library does not have
+  Forbidden{path: String}                         # an input from a layer that never ships
+  NoPage{}
+  TwoPages{}
+  Unhashed{path: String}
+  OverCode{gz: U32, raw: U32, budget: Load}       # Page + Code over budget().code_*
+  OverAssets{wire: U32, budget: Load}             # Assets over budget().asset_wire
+  Uncredited{work: Work}                          # a work whose license needs its credit shown, with no credits page in the folder
+
+# Printed, never refusing: the owner decides (RATIONALE: mannequin IP; Bend-UI license).
+type Warning is Data:
+  NotClearedForSale{work: Work, why: String}
+  NoLicense{work: Work}
+
+type Outcome is Data:
+  Shipped{m: Manifest, warnings: List<&2, Warning>}
+  Refused{reasons: List<&2, Reason>}
+
+type Manifest is Data:
+  Manifest{
+    format: U32,                    # 1
+    game: String,
+    title: String,
+    target: Target,
+    source: Source,
+    seed: String,
+    isolation: Bool,
+    load: Load,                     # measured first load (shown by history and by promote)
+    clips: List<&2, String>,
+    credits: List<&2, Credit>,      # credits(works(inputs)): derived
+    entries: List<&2, Entry>        # sorted by path
+  }
+
+# Every work that must be shown, when there is no credits page. Matched on `credits_page` FIRST, then on the
+# list's head, so the mannequin law below holds by reduction for any tail.
+def attribution.go(ws: List<&2, Work>) -> List<&2, Reason>:
+  match ws:
+    case []:
+      []
+    case w <> rest:
+      # TODO not implemented: must_show(w) True -> Uncredited{w} <> attribution.go(rest); else attribution.go(rest)
+      #   (the Bool matched in a helper taking it as a parameter, M1; Mannequin's case is a closed term)
+      TODO
+
+def attribution(credits_page: Bool, ws: List<&2, Work>) -> List<&2, Reason>:
+  match credits_page:
+    case True{}:
+      []
+    case False{}:
+      attribution.go(ws)
+
+# The toolchain: the pinned Bend, and for every HLSL shader the game uses, dxc and spirv-cross.
+# A GLSL-only game builds without them (said in the CLI's notes, not refused).
+def toolchain(t: Toolchain, shaders: List<&2, ShaderFact>) -> List<&2, Reason>:
+  # TODO not implemented: String.eq(bend, pinned_bend()) else WrongBend; each Hlsl shader with
+  #   dxc False -> ToolMissing{"dxc", id}, spirv_cross False -> ToolMissing{"spirv-cross", id};
+  #   each shader with built False and its tools present -> ShaderNotBuilt{id}
+  TODO
+
+def forbidden(inputs: List<&2, String>) -> List<&2, Reason>:
+  # TODO not implemented: for p in inputs: L.ships(L.layer_of(p)) False -> Forbidden{p}
+  TODO
+
+def shape(files: List<&2, Entry>) -> List<&2, Reason>:
+  # TODO not implemented: one Page; Code/Asset names carry a hash; load(files) within budget()
+  TODO
+
+def warnings(ws: List<&2, Work>) -> List<&2, Warning>:
+  # TODO not implemented: Mannequin -> NotClearedForSale{Mannequin{}, Mc.not_cleared_why()} when
+  #   Mc.cleared_for_sale() is False; BendUi -> NoLicense{BendUi{}} while Bend-UI has no license
+  TODO
+
+def manifest(f: Facts) -> Manifest:
+  # TODO not implemented: Manifest{1, game, title, target, source, seed, isolation, load(files),
+  #   clips, credits(works(inputs)), sort_by_path(files)}
+  TODO
+
+def decide(reasons: List<&2, Reason>, f: Facts) -> Outcome:
+  match reasons:
+    case []:
+      Shipped{manifest(f), warnings(works(inputs(f)))}
+    case r <> rest:
+      Refused{r <> rest}
+
+def release.go(f: Facts) -> Outcome:
+  # TODO not implemented, reasons in this order (each list empty when fine):
+  #   toolchain(tools, shaders) ++ map NoSuchClip unknown_clips ++ forbidden(inputs)
+  #   ++ shape(files) ++ attribution(credits_page, works(inputs))
+  TODO
+
+# Nothing ships if a law fails: `checks` matched first (law nothing_ships_when_checks_fail).
+def release(checks: Bool, f: Facts) -> Outcome:
+  match checks:
+    case False{}:
+      Refused{[ChecksFailed{}]}
+    case True{}:
+      release.go(f)
+
+# What a manifest alone shows wrong, for a reader that has only game.json and the files' bytes:
+# the publish server (it re-measures bytes, gz and sha from the blobs before calling this), and
+# `export verify`. Same rules as release, minus what needs the repo (inputs, toolchain).
+def recheck(m: Manifest) -> List<&2, Reason>:
+  # TODO not implemented: shape(entries(m))
+  TODO
+
+# ---------- Headers ----------
+
+def cache(r: Role) -> Cache:
+  match r:
+    case Page{}:  Revalidate{}
+    case Code{}:  Immutable{}
+    case Asset{}: Immutable{}
+
+# every role: Cache-Control from cache(role), X-Content-Type-Options: nosniff
+# Page, when isolation: COOP same-origin, COEP require-corp
+def headers(isolation: Bool, r: Role) -> List<&2, Header>:
+  # TODO not implemented
+  TODO
+
+# ---------- Identity ----------
+
+# BendHub's rule, read this session in ../bend/bend2/main.ts (cli_publish): a package's hash is
+# sha256 of one line per file, "<sha256 of the file> <path>\n", in path order. Same rule here, with
+# the manifest's own fields as a last line, so the same game folder has the same id here and on
+# any host. 12 hex (not BendHub's 32): ids are typed back by people (publish/protocol.bend).
+#   "<sha> <path>\n" for each entry, then "format game target seed isolation\n"
+# Not in the text: title (inside index.html already), source (provenance, not content), credits
+# and load (derived from the entries).
+def id_text(m: Manifest) -> String:
+  # TODO not implemented
+  TODO
+
+def json(m: Manifest, id: String) -> String:
+  # TODO not implemented: keys in a fixed order (example/game.json)
+  TODO
+
+def missing(m: Manifest, present: List<&2, Entry>) -> List<&2, String>:
+  # TODO not implemented
+  TODO
+
+# One line for a person per reason; --json prints the values. Godot's lesson: say the phase and
+# the exact remedy (export_plugin.cpp: "No export template found at the expected path").
+#   WrongBend{h, w}       -> "prepare: Bend " ++ h ++ " found, " ++ w ++ " needed (bend version)"
+#   ToolMissing{t, s}     -> "prepare: " ++ s ++ " is HLSL and needs " ++ t ++ " on PATH; install it or drop the shader from the game"
+#   OverCode{g, r, b}     -> "budget: code is <r> raw / <g> gz; the budget is ... (each library clip is ~39 KB gz / ~192 KB raw minified)"
+#   Uncredited{Mannequin} -> "credits: the mannequin is CC BY 4.0; its credit must be shown (the folder needs site/credits.html: ui/credits.bend)"
+def say(r: Reason) -> String:
+  # TODO not implemented
+  TODO
+
+def warn(w: Warning) -> String:
+  # TODO not implemented
+  TODO

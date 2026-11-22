@@ -37,3 +37,4 @@ editor/shaders/catalog_generated.bend*
 
 # study pages (artifacts), kept local
 tothinkabout/
+.export/

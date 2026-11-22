@@ -1,0 +1,29 @@
+# Printed by `bun out/publish-server.js caddyfile` from Sv.caddyfile (Bend); installed ONCE by a
+# person. It never changes when a creator, a game, a channel or a release is added: every link is
+# one label under the play domain, and sites/<label> is a symlink the publish server keeps.
+# PLAY = the play domain (games), SERVICE = the service domain (api, login pages). Isabella's.
+
+*.PLAY {
+	tls {
+		dns <provider> {env.DNS_API_TOKEN}      # one wildcard certificate, DNS-01 [MEM: needs a Caddy build with the provider module]
+	}
+	@site host_regexp site ^([a-z0-9-]{1,63})\.PLAY$
+	handle @site {
+		root * /srv/ogw/sites/{re.site.1}
+		encode zstd gzip
+		header /_/* Cache-Control "public, max-age=31536000, immutable"
+		header /a/* Cache-Control "public, max-age=31536000, immutable"
+		header / Cache-Control "public, max-age=0, must-revalidate"
+		header /index.html Cache-Control "public, max-age=0, must-revalidate"
+		header X-Content-Type-Options nosniff
+		file_server
+	}
+	handle {
+		respond 404
+	}
+	# Later (persistent world): reverse_proxy /ws to the world server, same certificate.
+}
+
+api.SERVICE {
+	reverse_proxy localhost:7400
+}

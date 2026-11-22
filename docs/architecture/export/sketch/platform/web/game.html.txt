@@ -1,0 +1,13 @@
+(No hand-written game.html: the game page is text written by Bend, export/contract.bend `page()`,
+and the credits page by ui/credits.bend. export/web.ts writes both strings as they are.)
+
+What page(title, script) returns, for the Character game:
+
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Character</title>
+<script type="module" src="./_/game-3f9a2c41.js"></script></head>
+<body><canvas id="game"></canvas><a href="./credits.html">Credits</a></body></html>
+
+(Styles come from Bend too, as a string from Bend-UI tokens; none are typed by hand.)
