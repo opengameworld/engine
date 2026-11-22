@@ -1,0 +1,184 @@
+# The publish protocol: the one language every publish host speaks. (SKETCH, new in v2)
+#
+# THE SPINE OF THE DESIGN. `bun run export web` makes a folder (export/contract.bend). Everything
+# after that is this protocol, spoken by a client (publish/client.ts: the CLI, CI, agents and the
+# editor's Publish tab all call it) to a server (publish/server.ts). The team's VPS is the smallest
+# server: one creator ("ogw"), person secrets set on the box. The multi-creator service is the same
+# server with accounts, a browser login and approvals turned on (publish/service.bend: Mode). No
+# verb, no address and no rule changes between the two: the service is the next adapter, not a
+# rewrite.
+#
+# Four steps, as BendHub does it (read this session in ../bend/bend2/main.ts: publish-check ->
+# POST the content, answered with its hash -> /link name@version to the hash) and as butler does it
+# (read per grounding: validate, upload, finalize; a channel points at a build):
+#
+#   1. have     which of these blob shas does the store lack?         (key: Upload)
+#   2. blob     PUT each missing file, by its sha256                  (key: Upload; idempotent)
+#   3. release  create the immutable release from game.json           (key: Upload; idempotent by id)
+#   4. point    move a channel's pointer to a release                 (Open channel: Upload key;
+#                                                                      Live: a person, present now)
+#   + history (read), keys (a person mints and revokes machine keys), login (service only)
+#
+# Wire (HTTP/1.1 + JSON, every request: `ogw-protocol: 1`, `authorization: Bearer <key>`):
+#   GET    /v1                                -> {protocol, mode, play_domain, limits}
+#   GET    /v1/me                             -> {creator, key: {id, holder, games, expires}}
+#   POST   /v1/have     {game, shas[]}        -> {missing[]}   (per CREATOR store: no cross-creator probing)
+#   PUT    /v1/blob/<sha>   <bytes>           -> {sha}            (server hashes the body; mismatch -> 400 BadBlob)
+#   POST   /v1/release  {game, manifest}      -> {id, url, created}  (manifest = game.json's text)
+#   POST   /v1/point    {to, id, expect, confirm, presence?}
+#                                             -> 200 {to, id, url, previous}
+#                                              | 202 {approve_url, poll}   (service: the person approves in a browser)
+#   GET    /v1/history?game=<creator>/<game>  -> {releases[], channels[{name, id, moves[]}]}
+#   POST   /v1/keys     {holder, games, days} -> {id, secret}     (the secret is shown once)
+#   DELETE /v1/keys/<id>                      -> {}
+#   POST   /v1/keys/revoke-all                -> {version}        (CapRover's tokenVersion)
+#   POST   /v1/login/start, /v1/login/poll    (service only: Bend's `bend login` device flow)
+# Refusals: 4xx {ok:false, denied:[{code, text}]}; `code` is the Denied constructor's name, `text`
+# is say(d). The wire is parsed into these types in the hands (client.ts, server.ts), never passed on.
+#
+# Limits now:
+# - Version 1 only. A server answers a protocol it does not speak with Upgrade{min, max}.
+# - No resumable single-blob upload: blobs are small (largest today: a 598 KB PNG); a blob is the
+#   unit of retry.
+# - Release ids are 12 hex (48 bits); a collision inside one game is refused (IdTaken), never
+#   overwritten.
+
+# Every request carries `Ogw-Rules: <rules()>`. A client on other rules is refused before
+# anything is decided ("update the engine"). The client runs the SAME Bend decisions
+# (service.bend, keys.bend) on the server's view before uploading, so a refusal comes before
+# any byte is sent and the editor can explain a disabled button. (Graft from candidate 2.)
+
+import Base
+
+def protocol() -> U32: 1
+
+# ---------- Names and addresses ----------
+
+# A channel: the live one, or a named one (butler's channels; pushes create them).
+type Channel is Data:
+  Live{}
+  Named{name: String}
+
+# Where a release is seen: butler's `creator/game:channel`. The creator is never in the game's
+# source: it is the key's (publish/keys.bend), so a fork publishes under its own creator.
+type Address is Data:
+  Address{creator: String, game: String, channel: Channel}
+
+# Who may move a channel's pointer.
+type Guard is Data:
+  Guarded{}       # a person, present now, who typed the confirmation
+  Open{}          # any key with Upload on the game (agents keep "beta" fresh)
+
+def guard(c: Channel) -> Guard:
+  match c:
+    case Live{}:     Guarded{}
+    case Named{_}:   Open{}
+
+# Name rules. Lowercase letters, digits and single '-' (never "--": it separates a link's parts),
+# no '-' first or last. Lengths keep every link label under DNS's 63:
+#   release label  <id 12>--<game ≤24>--<creator ≤20>   = 60
+#   channel label  <channel ≤11>--<game ≤24>--<creator ≤20> = 59 (≤11: a channel is never taken for an id)
+def creator_max() -> U32: 20
+def game_max() -> U32: 24
+def channel_max() -> U32: 11
+
+type BadName is Data:
+  Blank{}         # not `Empty`: a Base name (CATCHES N13)
+  TooLong{max: U32}
+  BadChar{at: U32}
+  DoubleDash{}
+  EdgeDash{}
+  Reserved{}      # creators: "api", "www", "admin", "ogw-*" except the team's own
+
+def check_name(s: String, max: U32) -> Maybe<&2, BadName>:
+  # TODO not implemented
+  TODO
+
+# ---------- Links ----------
+#
+# One origin per game channel and per release, all one label under the PLAY domain, which is a
+# different registrable domain from the service's (like github.io / github.com, vercel.app /
+# vercel.com) and is on the Public Suffix List: a creator's game can read no other game's
+# localStorage, IndexedDB, service worker or cookies, and no game can read the service's login
+# cookie. One wildcard certificate (*.<play domain>, DNS-01) covers every link; adding a creator or
+# a game changes no TLS and no Caddy config.
+#
+#   https://<game>--<creator>.<play>             live          character--ogw.<play>
+#   https://<channel>--<game>--<creator>.<play>  a channel     beta--character--ogw.<play>
+#   https://<id>--<game>--<creator>.<play>       one release   3c9e0a71b2d4--character--ogw.<play>
+#   https://<service>/                           the service's own pages (login, approvals: Bend pages)
+#   https://api.<service>/v1/...                 this protocol
+
+type Link is Data:
+  OfChannel{a: Address}
+  OfRelease{creator: String, game: String, id: String}
+
+def label(l: Link) -> String:
+  # TODO not implemented: the shapes above; Live has no channel part
+  TODO
+
+# The other way, for the server's Caddy view (publish/service.bend sites()) and for a client given
+# a link: 2 parts -> live; 3 parts and a 12-hex first part -> release; else a channel.
+def parse_label(s: String) -> Maybe<&2, Link>:
+  # TODO not implemented
+  TODO
+
+def url(play: String, l: Link) -> String:
+  # TODO not implemented: "https://" ++ label(l) ++ "." ++ play
+  TODO
+
+# "ogw/character:live", the address as people type it (and as butler prints it).
+def show(a: Address) -> String:
+  # TODO not implemented
+  TODO
+
+def parse_address(s: String) -> Maybe<&2, Address>:
+  # TODO not implemented: "<creator>/<game>" (channel Live) or "<creator>/<game>:<channel>"
+  TODO
+
+# ---------- Confirmation ----------
+
+# What a person types to move a guarded pointer: the address and the first 6 hex of the release,
+# e.g. "ogw/character:live 3c9e0a". The client shows it, the person types it, the SERVER compares it
+# (a client that skips the prompt still fails). Short enough to type, specific enough that a person
+# reads what they are making live.
+def confirm_text(a: Address, id: String) -> String:
+  # TODO not implemented: show(a) ++ " " ++ String.take(id, 6)
+  TODO
+
+# ---------- Releases and moves ----------
+
+type Source is Data:
+  Source{commit: String, dirty: Bool, checked: Bool}
+
+# One immutable release, as the server records it beside game.json.
+type Release is Data:
+  Release{
+    id: String,            # sha256(contract.id_text(manifest)), 12 hex: computed by the server, never taken from the client
+    game: String,
+    source: Source,        # from game.json: the client's attestation (see publish/service.bend Trust)
+    seed: String,          # from game.json
+    by: String,            # key id that created it
+    at: U32,               # server time, seconds since 2026-01-01 (no wall clock in Bend: passed in)
+    parent: Maybe<&2, String>  # the live release when it was made (butler's ParentBuild): history reads as a tree
+  }
+
+# One move of a channel pointer (not `Move`: a Base constructor, CATCHES N1). A channel's log of moves is append-only; the pointer IS the last
+# move (derived, never stored twice).
+type Shift is Data:
+  Shift{to: String, from: Maybe<&2, String>, by: String, at: U32}
+
+# Newest first. The pointer of a channel: the `to` of its last move.
+def pointer(moves: List<&2, Shift>) -> Maybe<&2, String>:
+  match moves:
+    case []:
+      None{}
+    case m <> _:
+      # TODO not implemented: Some{to(m)} (field read through a helper, M2)
+      TODO
+
+# The release a rollback returns to: the `from` of the newest move (what was live before). Rolling
+# back twice goes back and forth, as Vercel's and CapRover's rollbacks do; history shows the moves.
+def previous(moves: List<&2, Shift>) -> Maybe<&2, String>:
+  # TODO not implemented
+  TODO

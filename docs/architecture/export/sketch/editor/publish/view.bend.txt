@@ -1,0 +1,77 @@
+# editor/publish/view.bend: the editor's Publish action, in Bend (SKETCH, new in v2).
+#
+# Where it appears: a fourth tab, "Publish", after Scene | Animation | Shaders in the toolbar of
+# editor/workspace/view.bend (its `tabs`), with the same places as the other screens. The left
+# column is the game's address, e.g. "ogw/character", and its channels with what each points at.
+# The right column has the steps:
+#   [Upload release]  -> runs what `bun run publish push` runs; shows progress, then the release's link
+#   [Make live]       -> shows what changes (live id -> new id, both loads, credits, warnings),
+#                        a text field "Type ogw/character:live 3c9e0a to confirm", the point secret field
+#                        (VPS) or "Approve in your browser" (service), and the button, enabled only
+#                        when the typed text equals Pr.confirm_text (the server checks it again)
+#   [Roll back]       -> the same confirmation, for Pr.previous(moves)
+#   History           -> releases newest first, the live one marked, each with its link
+# No other control. Nothing here is invented: these are the CLI's verbs (Isabella's review: "a
+# Publish action in the editor, written in Bend, doing what the CLI does").
+#
+# How it talks to the publish host: it does not. The page sends commands to the dev server
+# (tools/dev.ts), on the same origin, and the dev server calls publish/client.ts, the same functions
+# the CLI calls. So the browser never holds a key, there is one client, and the confirmation rules
+# are the server's. The dev server refuses requests whose Origin is not its own page and that lack
+# the per-session nonce it wrote into the page (another local page cannot publish).
+#
+# BARRIER: Bend-UI's Web.bend has no command for the network (its own "Limits now", read this
+# session: Cmd is none | batch | delay | store_*). The tab needs one:
+#   Web.request{method: String, url: String, body: String, on_reply: @+wire: String -> Ev, on_fail: Ev}
+# This is a request to Bend-UI (Isabella's repository), not a workaround here: until it lands, the
+# tab renders and its laws are checked, but its buttons say "needs Bend-UI request support".
+#
+# Limits now:
+# - One game per editor (the open project): its address is the key's creator + PROJECT.folder(open()).
+# - Progress is polled every 500 ms (Web.delay) from the dev server's job, not streamed.
+
+import Base
+import ../../node_modules/bend-ui/Web.bend as Web
+import ../../node_modules/bend-ui/UI.bend as Ui
+import ../../publish/protocol.bend as Pr
+
+type Phase is Data:
+  Idle{}
+  Pushing{job: String, step: String}            # "check", "bundle", "upload 12/31", "release"
+  Pushed{id: String, url: String, warnings: List<&2, String>}
+  Confirming{id: String, typed: String, secret: String}
+  Waiting{approve_url: String}                  # service: the person approves in the browser tab it opened
+  Moved{id: String, url: String}
+  Failed{lines: List<&2, String>}               # Contract.say / Sv.say lines, as the CLI prints them
+
+type St is Data:
+  St{address: Pr.Address, phase: Phase, history: List<&2, Pr.Release>, live: Maybe<&2, String>}
+
+type Ev is Data:
+  PushClicked{}
+  Progress{wire: String}
+  PromoteClicked{id: String}
+  Typed{value: String}
+  SecretTyped{value: String}
+  ConfirmClicked{}
+  RollbackClicked{}
+  Replied{wire: String}
+  Unreachable{}
+
+# The Make live button is enabled only when the person typed the confirmation exactly.
+def can_confirm(a: Pr.Address, id: String, typed: String) -> Bool:
+  # TODO not implemented: String.eq(typed, Pr.confirm_text(a, id))
+  TODO
+
+def render(+st: St) -> Web.HTML<Ev>:
+  # TODO not implemented (Bend-UI: Ui.box, Ui.disclosure, fields with Web.on{Web.input{Typed{""}}})
+  TODO
+
+def on_event(+ev: Ev, +st: St) -> Web.Update<St, Ev>:
+  # TODO not implemented:
+  #   PushClicked    -> Pushing; Web.request{"POST", "/_publish/push", game, Progress, Unreachable}
+  #   Progress{w}    -> parse the job's step (hands give a typed value); done -> Pushed; else delay 500 -> poll
+  #   PromoteClicked -> Confirming{id, "", ""}
+  #   ConfirmClicked -> only when can_confirm: Web.request{"POST", "/_publish/promote", {to, id, confirm, secret}}
+  #   Replied{w}     -> Moved | Waiting{approve_url} | Failed{lines}
+  TODO

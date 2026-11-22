@@ -1,0 +1,42 @@
+// publish/cli.ts: `bun run publish <verb>` (SKETCH, new in v2). Parses argv, calls publish/client.ts,
+// prints. --json prints one JSON object per command (agents, CI, and later an MCP server over the
+// same client functions: no second path).
+//
+//   bun run publish push [game] [--channel beta] [--json]     export + upload a release; prints its link
+//   bun run publish promote <creator>/<game>[:channel] <id>   a person: shows the change, asks the typed
+//                                                             confirmation and the point secret (VPS) or
+//                                                             opens the approval page (service)
+//   bun run publish rollback <creator>/<game>[:channel]       promote what was live before
+//   bun run publish history [game] [--json]
+//   bun run publish keys new --for agent|ci [--games a,b] [--days 30]
+//   bun run publish keys revoke <id> | keys revoke-all
+//   bun run publish login                                     (service only)
+//
+// package.json gains "publish": "bun publish/cli.ts". v1's deploy/promote/rollback/deploys scripts
+// are not added: one entry, one verb list.
+//
+// Exit codes: 0 done (including NoChange), 1 refused (laws, Denied), 2 usage, network or server error.
+//
+// Presence on a terminal: promote/rollback of a guarded channel need process.stdin.isTTY; with
+// --json or no TTY they print the NotAPerson / NeedsPresence refusal the server would give, without
+// sending the request. The secret is read with echo off and never written anywhere.
+
+import { push, promote, rollback, history, keys, login, type PresenceSource } from "./client.ts";
+
+const tty: PresenceSource = {
+  async typed(want) {
+    // TODO not implemented: print `Type "${want}" to make it live:`; read a line; then "Point secret:" (no echo)
+    throw new Error("not implemented");
+  },
+  async approve(url) {
+    // TODO not implemented: print the URL and open it (open / xdg-open), as `bend login` does
+    throw new Error("not implemented");
+  },
+};
+
+export async function main(argv: string[]): Promise<number> {
+  // TODO not implemented: dispatch on argv[0]; print human lines (Contract.say / Sv.say / Contract.warn) or JSON
+  throw new Error("not implemented");
+}
+
+if (import.meta.main) process.exit(await main(process.argv.slice(2)));

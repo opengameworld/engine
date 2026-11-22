@@ -1,24 +1,40 @@
-# Per-game export settings: what a host needs that is not in the folder itself. (SKETCH)
+# Per-game export declaration: what a game takes that its scene does not name. (SKETCH, v2)
 #
-# No second list of projects: settings() matches on PROJECT.bend's `Project` type, so adding a
-# project makes the compiler point at this match too (PROJECT.bend's own rule). The project's id
-# and lookup live in PROJECT.bend (sketch/PROJECT.additions.bend), because they ship: the game
-# page finds its project by id, and export/ never enters a bundle.
+# Godot's export preset, read in editor/export/editor_export_platform.cpp (per grounding): a
+# committed per-game config picks ROOTS, and a dependency walk from the roots pulls what they use.
+# Here the roots are the project's start scene (PROJECT.bend) and this declaration; the walk is
+# export/needs.bend. No second list of projects: settings() matches on PROJECT.bend's Project, so a
+# new project makes the compiler point here.
+#
+# What is NOT here any more (v1 had it): host names and project ids per host. Where a game is
+# published is not the game's business: the address is <creator>/<game>, the creator comes from
+# the publish key (publish/keys.bend), and <game> is PROJECT.bend's folder(p).
+#
+# Limits now:
+# - A scene does not name library clips yet (the editor adds them while the page is open), so the
+#   clips a game takes are listed here by name. When scenes name clips, the walk finds them and
+#   this list keeps only extras.
+# - Clip names are the library's display names ("Jog"); a rename in clips.json breaks the name,
+#   and export refuses it (NoSuchClip) instead of shipping without it.
 
 import Base
 import ../PROJECT.bend as P
+import ./contract.bend as C
 
 type Settings is Data:
   Settings{
-    isolation: Bool,         # COOP/COEP (web threads later); False keeps embeds (itch, portals) working
-    vercel_project: String,  # Vercel project name ("" = not on Vercel)
-    vps_domain: String,      # "play.example.com" ("" = not on the VPS)
-    itch_target: String      # "user/game:web" ("" = not on itch)
+    clips: List<&2, String>,   # library clips this game ships, by name (export/needs.bend resolves them)
+    shown: C.Shown,            # where credits are shown; InMenu unless the game ships nothing to credit
+    isolation: Bool            # COOP/COEP; False keeps embeds working (and the publish host refuses True for now)
   }
 
 def settings(p: P.Project) -> Settings:
   match p:
     case P.Water{}:
-      Settings{False{}, "ogw-water", "", ""}
+      Settings{[], C.InMenu{}, False{}}
     case P.Character{}:
-      Settings{False{}, "ogw-character", "", ""}
+      Settings{[], C.InMenu{}, False{}}               # idle and walk are code (engine/gait.bend): no library clip
+    case P.Mannequin{}:
+      Settings{[], C.InMenu{}, False{}}
+    case P.Animation{}:
+      Settings{["Jog", "Jump"], C.InMenu{}, False{}}  # two clips: ~1.3 MB raw JS, inside the 2 MB code budget

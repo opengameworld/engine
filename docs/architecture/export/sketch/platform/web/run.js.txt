@@ -1,23 +1,29 @@
-// platform/web/run.js: a game running without the editor (SKETCH, runtime: ships in every game).
-// The counterpart of editor/app.js's startEditor, for players. Export needs only this signature;
-// the body is where Isabella's upcoming work lands, so it is hers to fill (or a minimal
-// draw-only loop until engine/tick.bend and engine/play.bend exist):
+// platform/web/run.js: a game running without the editor (SKETCH, v2: the MINIMAL body Caio lands;
+// Isabella replaces the body when engine/input/, tick.bend and play.bend arrive -- the signature stays).
 //
-//   createLoop (loop.js)  -> fixed 60/s steps through engine/tick.bend        (Isabella)
-//   createInput (input.js)-> a list of Bend Event values per tick, engine/input/ (Isabella)
-//   engine/play.bend      -> starts in Play, never Edit (no editor here)       (Isabella)
-//   createRenderer (draw.js) -> draws what Bend returns; order and depth from material.bend (Vini, Isabella)
+// Minimal means exactly two things (Isabella's review): draw the scene, and advance it with the
+// editor's own frame rule, engine/locomotion.bend:
+//   each animation frame:  if Lo.runs(scene, reduce) then scene = Lo.frame(scene, Lo.input(fwd, turn), dt, reduce)
+//                          renderer.draw(scene)
+// `reduce` comes from editor/defaults/ACCESSIBILITY.bend's reading of prefers-reduced-motion, the same
+// value the editor uses (nothing moves by itself while reduce motion is on: a key press is one step).
+// No pause, no menus, no saves, no loading screen.
 //
-// It imports engine/ and platform/web/ only (LAYERS: PlatWeb -> PlatWeb, Engine). The game comes
-// in as a value, so this file never names a project, the catalog, the editor or Bend-UI.
+// Imports engine/ and platform/web/ only (LAYERS: PlatWeb -> PlatWeb, Engine). The game arrives as a
+// value from the per-game module (out/gen/<game>/game.js, via game.js), so this file names no
+// project, no catalog, no editor and no Bend-UI.
 //
 // Limits now:
-// - No loading screen: the page is ~48 KB and has no assets to wait for yet. When assets arrive
-//   (format 2), it reads their URLs from the manifest the page is given, never from paths.
+// - Keys only (input.js's W/A/S/D and arrows); no touch, no gamepad: Isabella's engine/input/.
+// - The library clips a game ships (game.clips) are not played yet: the scene does not name them.
+// - Every Asset loads before the first frame (format 1).
 
-// `game` is { id, title, opening, camera } (the virtual "ogw:game" module export builds).
+// game = { title, opening, camera, clips, skins: {[name]: {info, bin, textures}}, shaders, credits }
 export function runGame(canvas, game) {
-  // TODO not implemented: fitCanvas; renderer = createRenderer(canvas, game.opening);
-  //   input = createInput(...); loop = createLoop({ draw, tick }) with tick -> Tick/Play (Bend); loop.start()
+  // TODO not implemented:
+  //   renderer = createRenderer(canvas, game.opening, { skins: game.skins, shaders: game.shaders, redraw })
+  //   input = createInput(window) -> { forward, turn } codes
+  //   reduce = Defaults.reduce_motion(matchMedia("(prefers-reduced-motion: reduce)").matches)
+  //   createLoop({ frame(dt) { if (Lo.runs(scene, reduce)) scene = Lo.frame(scene, Lo.input(f, t), dt, reduce); renderer.draw(scene) } }).start()
   throw new Error("not implemented");
 }

@@ -1,0 +1,46 @@
+# publish/LAWS.bend: the laws of the publish protocol. Proved in publish/PROOF.bend; tools/check.ts
+# runs `bend publish/PROOF.bend` in step "laws". (SKETCH)
+#
+# Each holds by reduction because the decisive value is the first thing matched (keys.bend
+# may.holder, presence; service.bend point.source; protocol.bend guard).
+
+import Base
+import ./protocol.bend as Pr
+import ./keys.bend as K
+import ./service.bend as Sv
+
+# An agent's or CI's key never moves a guarded pointer, never mints, never revokes: whatever the act's game.
+law agents_never_go_live:  for g: String {K.may.holder(K.Agent{}, K.MoveGuarded{g}) == K.No{K.NotAPerson{}} : K.Verdict}
+law robots_never_go_live:  for g: String {K.may.holder(K.Robot{}, K.MoveGuarded{g}) == K.No{K.NotAPerson{}} : K.Verdict}
+law machines_never_mint:   for h: K.Holder {K.may.holder(K.Agent{}, K.Mint{h}) == K.No{K.NotAPerson{}} : K.Verdict}
+
+# A machine key uploads (the agent's whole job).
+law agents_upload:         for g: String {K.may.holder(K.Agent{}, K.Upload{g}) == K.Allowed{} : K.Verdict}
+
+# A guarded move with nobody present is refused, whatever the confirmation wanted.
+law nobody_present_nothing_moves: for w: String {K.presence(K.Absent{}, w) == K.No{K.NeedsPresence{}} : K.Verdict}
+
+# Live is guarded; every named channel is open.
+law live_is_guarded:       {Pr.guard(Pr.Live{}) == Pr.Guarded{} : Pr.Guard}
+law named_are_open:        for n: String {Pr.guard(Pr.Named{n}) == Pr.Open{} : Pr.Guard}
+
+# What may go live: never an unchecked build, never a dirty one.
+law unchecked_never_goes_live: for d: Bool {Sv.point.source(False{}, d) == Some{Sv.Unchecked{}} : Maybe<&2, Sv.Denial>}
+law dirty_never_goes_live:     {Sv.point.source(True{}, True{}) == Some{Sv.Dirty{}} : Maybe<&2, Sv.Denial>}
+
+# Rollback reads the log: with no move, there is nothing to go back to.
+law nothing_to_roll_back:  {Pr.previous([]) == None{} : Maybe<&2, String>}
+
+# Numeric checks (tests/publish.bend):
+#   - parse_label(label(l)) == Some{l} for live, channel and release links of 3 sample games
+#   - parse_label("character--ogw") is live; "3c9e0a71b2d4--character--ogw" is a release;
+#     "beta--character--ogw" is a channel; "a--b--c--d", "x---y", "Character--ogw" are None
+#   - every label of names at their max lengths is <= 63 chars
+#   - confirm_text(ogw/character:live, "3c9e0a71b2d4") == "ogw/character:live 3c9e0a"
+#   - may(): an expired, paused, other-creator, other-game and old-version key each get their Denied
+#   - point on an Open channel with expect != pointer -> Stale; the same id twice -> NoChange
+#   - point Guarded with the live release's seed "a" and the new "b" -> SeedChanged
+#   - point Guarded in Service mode with Absent -> Approve{}; in Team mode -> NeedsPresence
+#   - release twice with the same content -> NoChange; same id, other content -> IdTaken
+#   - a manifest whose blobs include the mannequin's skin.bin sha but no mannequin credit -> Uncredited
+#   - previous([Shift{b, Some{a}, ..}, Shift{a, None, ..}]) == Some{a}
