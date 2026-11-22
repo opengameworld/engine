@@ -1,46 +1,25 @@
-// export/cli.ts: the one door into export/ (SKETCH). A person and an agent type the same
-// commands; --json prints one JSON object per command for an agent (and, later, for the MCP
-// server, export/mcp.ts, which calls the same four functions below and nothing else).
+// export/cli.ts: `bun run export <verb>` (SKETCH, v2). Unchanged from v1 except: the deploy verbs
+// left for publish/cli.ts (the protocol's client), and --game replaces --project (the folder name in
+// PROJECT.bend is the game's id in its address).
 //
-//   bun run export web [--project character]          check, bundle, write out/web/<game>/
-//   bun run export verify [out/web/character]         re-read a folder: whole? laws hold?
-//   bun run export serve  [out/web/character]         serve it locally with the contract's headers
-//   bun run deploy vercel|vps|itch [--project x]      export, then publish a PREVIEW; prints its link
-//   bun run promote vercel|vps|itch <build-id>        make that build live (a person, in a terminal)
-//   bun run rollback vercel|vps|itch                  promote the build before the live one
-//   bun run deploys vercel|vps|itch                   list builds, newest first, the live one marked
+//   bun run export web [game] [--json]       check, walk, bundle, write out/web/<game>/ (or the reasons)
+//   bun run export verify [game]             re-read the folder: whole? recheck passes?
+//   bun run export serve [game] [--port N]   play it on localhost with the same headers the publish host sends
 //
-// package.json:
-//   "export":   "bun export/cli.ts export",
-//   "deploy":   "bun export/cli.ts deploy",
-//   "promote":  "bun export/cli.ts promote",
-//   "rollback": "bun export/cli.ts rollback",
-//   "deploys":  "bun export/cli.ts deploys"
-//   ("build": "bend index.html -o dist" stays as the editor demo build (shared script, not ours to remove);
-//    `export web` is the one way to build a GAME.)
+// package.json gains "export": "bun export/cli.ts". "build" stays the editor demo build.
 //
-// Limits now:
-// - Who is a person: promote asks for the build id to be typed back on an interactive terminal
-//   (process.stdin.isTTY). An agent with a pty could still type it; the real wall is the host's
-//   token scope (see RATIONALE: open questions).
+// Printed on success (people) -- the build requirements are stated, not discovered:
+//   out/web/character/  build 3c9e0a71b2d4
+//   code    190 KB raw /  28 KB gz   (budget 2,000 KB / 300 KB)
+//   assets 1,280 KB on the wire      (budget 1,600 KB)
+//   credits: mannequin (CC BY 4.0, shown on the Credits page)
+//   warning: the mannequin's character is (c) Square Enix / Disney: not cleared for sale (owner's call)
+//   note: no HLSL shader in this game; dxc and spirv-cross were not needed
 
 import { exportWeb, verifyFolder, serveFolder } from "./web.ts";
-import { deploy, promote, rollback, deploys } from "./publish.ts";
 
-type Out = { json: boolean };
-
-// Parses argv into one of the commands above and prints its result. Exit code 0 on success,
-// 1 when refused (laws, misfit, gate), 2 on a usage or host error.
 export async function main(argv: string[]): Promise<number> {
-  // TODO not implemented:
-  //   const [cmd, sub, ...rest] = argv; const o = { json: rest.includes("--json") }
-  //   switch cmd:
-  //     "export":  sub "web" -> print(await exportWeb({ project })) ; "verify" -> verifyFolder ; "serve" -> serveFolder
-  //     "deploy":  print(await deploy(host(sub), { project, actor: "agent-or-person-irrelevant" }))
-  //     "promote": confirm on a TTY (type the id back) -> print(await promote(host(sub), id, { actor }))
-  //     "rollback": same confirm -> rollback(host(sub), { actor })
-  //     "deploys": print(await deploys(host(sub), { project }))
-  //   print(): o.json ? JSON.stringify(result) : human lines (reasons via Bend's Contract.say)
+  // TODO not implemented
   throw new Error("not implemented");
 }
 

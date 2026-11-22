@@ -1,27 +1,18 @@
-# What PROJECT.bend gains (SKETCH; appended to the existing file, nothing in it changes).
+# What PROJECT.bend gains (SKETCH, v2; appended, nothing in it changes).
 #
-# A project's id is runtime identity (the page finds its project by it; saves and the world
-# server will key on it later), so it lives in the Catalog, which ships, not in export/.
-
-# The id the CLI, the page and the hosts use: lowercase, no spaces.
-def id(p: Project) -> String:
-  match p:
-    case Water{}:     "water"
-    case Character{}: "character"
+# v1 added id()/all()/find()/by_id(). v2 keeps only what is missing: the game's id IS folder(p)
+# (already there, already the ?project= slug), and preview(slug) already maps a slug to a project
+# but falls back to open() for an unknown one, which export must not do (it would publish the wrong
+# game under the right name). So: an exact lookup, and the law that keeps it whole.
 
 def all() -> List<&2, Project>:
-  [Water{}, Character{}]
+  [Water{}, Character{}, Mannequin{}, Animation{}]
 
-# The project with this id; open() when none (export refuses unknown ids before it builds, with
-# find(), so the page never reaches the fallback).
-def find(s: String) -> Maybe<&2, Project>:
-  # TODO not implemented: first p in all() with String.eq(id(p), s)
+# The project whose folder is s, or None: export refuses an unknown game before it builds.
+def find(+s: String) -> Maybe<&2, Project>:
+  # TODO not implemented: first p in all() with String.eq(folder(p), s) (R9: the test as a parameter)
   TODO
 
-def by_id(s: String) -> Project:
-  # TODO not implemented: match find(s) through a helper (M1): Some{p} -> p, None -> open()
-  TODO
-
-# LAW (LAWS.bend): every project can be found by its id. Splitting on p leaves closed terms
-# (literal ids, the literal list) that reduce, so a project missing from all() fails the check:
-#   law every_project_is_findable: for p: Project {find(id(p)) == Some{p} : Maybe<&2, Project>}
+# LAW (LAWS.bend): every project is found by its own folder name. Splitting on p leaves closed terms
+# (literal names, the literal list) that reduce, so a project missing from all() fails the check:
+#   law every_project_is_findable: for p: Project {find(folder(p)) == Some{p} : Maybe<&2, Project>}

@@ -1,0 +1,146 @@
+# Who a creator is to a publish host, and what each credential may do. (SKETCH, new in v2)
+#
+# Two credentials, split by type, so the review's rule is a shape and not a check someone forgets:
+#
+#   a KEY (bearer, in env or a 0600 file): read, upload releases, move OPEN channels; a person's key
+#     also mints and revokes machine keys. No key, of anyone, moves a guarded pointer by itself.
+#   PRESENCE (proof a person is here now): needed, with the typed confirmation, to move a guarded
+#     pointer (live). On the VPS: the person's point secret, typed at the prompt, never stored by the
+#     client. On the service: an approval the person gives on the service's page in their browser
+#     (logged in there), the same flow as Bend's own `bend login` (start -> verify_url -> poll, read
+#     this session in ../bend/bend2/main.ts cli_login).
+#
+# From Coolify (read per grounding: PersonalAccessToken, ApiAbility): keys are scoped to a team
+# (here: a creator) and to some games, expire, can be paused and rotated; the secret carries a
+# checksum so a typo is told apart from a revoked key; only its hash is stored. From CapRover: a
+# creator's key version, bumped by revoke-all. From butler: env beats file, and CI never logs in.
+#
+# Limits now:
+# - No per-channel scopes: a machine key moves every Open channel of its games.
+# - Expiry is in whole days; a key expires at the start of that day, server time.
+
+import Base
+import ./protocol.bend as Pr
+
+type Holder is Data:
+  Person{name: String}
+  Agent{}         # an AI agent: made by a person for one task
+  Robot{}         # CI
+
+# Which games a key reaches, inside its creator.
+type Reach is Data:
+  AllGames{}
+  Only{games: List<&2, String>}
+
+type PubKey is Data:          # not `Key`: a Base constructor (CATCHES N1)
+  PubKey{
+    id: String,          # "k_" ++ 8 hex, public, shown in history
+    creator: String,
+    holder: Holder,
+    reach: Reach,
+    expires: U32,        # day number (days since 2026-01-01); 0 = never (person keys on the VPS only)
+    paused: Bool,
+    version: U32         # must equal the creator's version (revoke-all bumps it)
+  }
+
+type Presence is Data:
+  Absent{}
+  Typed{secret_ok: Bool, confirm: String}       # VPS: the hands compared the typed secret's hash
+  Approved{person: String, confirm: String}     # service: approved on the service's page
+
+# What a request wants to do.
+type Act is Data:
+  Read{}
+  Upload{game: String}
+  MoveOpen{game: String}
+  MoveGuarded{game: String}
+  Mint{holder: Holder}
+  Revoke{}
+
+type Denied is Data:
+  NotAPerson{}            # a machine key asked for a person's act
+  NeedsPresence{}         # a guarded move without a person present
+  BadSecret{}
+  BadConfirm{want: String}
+  Expired{}
+  Paused{}
+  Revoked{}               # key version behind the creator's
+  OtherCreator{}
+  NotThisGame{game: String}
+  NoPersonsMintPersons{}  # person keys come only from login (service) or the box (VPS)
+
+type Verdict is Data:
+  Allowed{}
+  No{why: Denied}
+
+def may.machine(act: Act) -> Verdict:
+  match act:
+    case MoveGuarded{_}:
+      No{NotAPerson{}}
+    case Mint{_}:
+      No{NotAPerson{}}
+    case Revoke{}:
+      No{NotAPerson{}}
+    case _:
+      Allowed{}
+
+def may.person(act: Act) -> Verdict:
+  match act:
+    case Mint{h}:
+      # TODO not implemented: Person{_} -> No{NoPersonsMintPersons{}}; Agent/Robot -> Allowed
+      TODO
+    case _:
+      Allowed{}
+
+# The machine/person split, matched FIRST: the laws below hold by reduction, whatever the key's
+# other fields, the game or the presence.
+def may.holder(h: Holder, act: Act) -> Verdict:
+  match h:
+    case Agent{}:
+      may.machine(act)
+    case Robot{}:
+      may.machine(act)
+    case Person{_}:
+      may.person(act)
+
+# Everything about one key and one act, in this order: holder, presence (guarded moves only),
+# validity (paused, revoked, expired), creator, game. `now` is the server's day number.
+def may(k: PubKey, act: Act, p: Presence, creator: String, creator_version: U32, now: U32, confirm_want: String) -> Verdict:
+  # TODO not implemented: may.holder(holder(k), act) first; then for MoveGuarded: presence(p, confirm_want);
+  #   then paused, version, expires, String.eq(creator(k), creator), reach(k) has the game.
+  TODO
+
+# Presence for a guarded move: matched on the presence first.
+def presence(p: Presence, want: String) -> Verdict:
+  match p:
+    case Absent{}:
+      No{NeedsPresence{}}
+    case Typed{ok, c}:
+      # TODO not implemented: ok False -> No{BadSecret{}}; String.eq(c, want) False -> No{BadConfirm{want}}
+      TODO
+    case Approved{_, c}:
+      # TODO not implemented: String.eq(c, want) False -> No{BadConfirm{want}}
+      TODO
+
+# ---------- Secrets ----------
+#
+# "ogw" ++ kind ++ "_" ++ 40 random [a-zA-Z0-9] ++ "_" ++ 6 hex of crc32(the 40):
+#   kind "p" person, "a" agent, "r" robot   ->  ogwa_x9...Q_1f2e3d
+# The prefix lets secret scanners and people see what leaked; the checksum tells a typo (BadFormat,
+# answered without a lookup) from a dead key. Randomness and hashing are the hands'; the format and
+# its parse are here.
+type SecretError is Data:
+  BadFormat{}
+  BadChecksum{}
+
+def secret_kind(h: Holder) -> String:
+  match h:
+    case Person{_}: "p"
+    case Agent{}:   "a"
+    case Robot{}:   "r"
+
+def check_secret(s: String, crc_hex: String) -> Maybe<&2, SecretError>:
+  # TODO not implemented: shape check; crc_hex is the hands' crc32 of the 40 chars, compared here
+  TODO
+
+# LAWS (publish/LAWS.bend): see that file.

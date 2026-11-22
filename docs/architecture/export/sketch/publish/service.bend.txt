@@ -1,0 +1,186 @@
+# The publish server's decisions: every verb of the protocol as a pure function from what the
+# server read for this request to what it must do. (SKETCH, new in v2)
+#
+# publish/server.ts is the hands: HTTP, disk, hashes, symlinks, the log. For each request it reads
+# what Bend asks for (a Seen value), calls one function here, and carries out the Plan it gets back,
+# step by step, in order (effects as data, CATCHES X6). The same file decides for the team's VPS and
+# for the multi-creator service; Mode is the only difference, and it is a value in the server's
+# config, not a second code path.
+#
+# Storage (one owner: the server; every path below comes from a def here, the hands never build one):
+#   /srv/ogw/blobs/<sha[0..2]>/<sha>                       content-addressed files, written tmp+rename, never changed
+#   /srv/ogw/games/<creator>/<game>/releases/<id>.json     game.json + the Release record
+#   /srv/ogw/games/<creator>/<game>/releases/<id>/site/    hard links into blobs/: the served tree, made once
+#   /srv/ogw/games/<creator>/<game>/channels/<name>.log    append-only moves; the pointer is the last line
+#   /srv/ogw/sites/<label> -> ../games/.../releases/<id>/site   Caddy's view: one symlink per link label,
+#                                                          rebuilt from the logs at start (a cache, never the truth)
+#   /srv/ogw/keys/<id>.json                                Key + sha256(secret)
+#   /srv/ogw/creators/<creator>.json                       plan, key version, people (+ point secret hashes on the VPS)
+#   /srv/ogw/log/<yyyy-mm>.jsonl                           every accepted write: who, what, when (from Coolify's
+#                                                          deployment rows and the set-aside "log of steps")
+#
+# Shared state, and what happens when two writers race (separate-before-serializing):
+#   blobs     content-addressed: two identical writes write the same bytes; nothing to merge.
+#   releases  id = hash of content: creating one twice returns the first (created: false).
+#   channels  the only shared mutable thing. A move carries `expect` (the pointer the client saw);
+#             the hands hold the channel's lock (flock on the .log) across read-decide-append, so the
+#             second of two racing moves gets Stale{now} instead of silently winning.
+#   sites/    derived from channels/ and releases/; a crash between appending a move and swapping the
+#             symlink is repaired by the next start (reconcile) or the next move.
+#
+# Limits now:
+# - One machine. No replication; the backup is a copy of /srv/ogw (blobs are immutable: rsync is enough).
+# - Blobs are never collected (disk is cheap next to a lost release). retain() comes with quotas.
+# - isolation (COOP/COEP) is refused: Caddy's config is the same for every site (Limits.isolation).
+
+import Base
+import ../export/contract.bend as C
+import ./protocol.bend as Pr
+import ./keys.bend as K
+
+type Mode is Data:
+  Team{creator: String}        # the VPS: one creator, person secrets set on the box, no login, no approvals
+  Service{}                    # many creators: accounts, browser login, approvals for guarded moves
+
+type Plan is Data:
+  TeamPlan{}
+  Free{}
+
+type Limits is Data:
+  Limits{files: U32, file_bytes: U32, release_bytes: U32, store_bytes: U32, releases_a_day: U32, isolation: Bool}
+
+def limits(p: Plan) -> Limits:
+  match p:
+    case TeamPlan{}:
+      Limits{20000, 104857600, 1073741824, 4294967295, 1000, False{}}
+    case Free{}:
+      # TODO numbers with the VPS's real disk and transfer (Isabella's server): placeholders below
+      Limits{2000, 26214400, 104857600, 524288000, 50, False{}}
+
+# ---------- What the hands read, per verb ----------
+
+type Caller is Data:
+  Caller{key: K.PubKey, creator_version: U32, plan: Plan, today: U32, now: U32}
+
+# A blob as the server measured it on receipt (never as the client said).
+type Blob is Data:
+  Blob{sha: String, bytes: U32, gz: U32}
+
+type SeenRelease is Data:
+  SeenRelease{
+    game: String,
+    manifest: C.Manifest,          # parsed from game.json by the hands, entries' sizes REPLACED by blob facts
+    id: String,                    # sha256(C.id_text(manifest)) computed by the hands on the server
+    missing: List<&2, String>,     # entry shas the store lacks
+    existing: Maybe<&2, Pr.Release>,  # a release with this id already
+    known: List<&2, C.Work>,       # works the store recognises by blob sha (known_works below)
+    live: Maybe<&2, String>,       # the game's live pointer, for Release.parent
+    used_bytes: U32,               # the creator's store use, for quotas
+    made_today: U32
+  }
+
+type SeenMove is Data:
+  SeenMove{
+    to: Pr.Address,
+    id: String,
+    release: Maybe<&2, Pr.Release>,
+    moves: List<&2, Pr.Shift>,      # the channel's log, newest first
+    expect: Maybe<&2, String>,     # what the client saw as the pointer
+    presence: K.Presence
+  }
+
+# ---------- What the server answers and does ----------
+
+type Denial is Data:
+  ByKey{why: K.Denied}
+  Upgrade{min: U32, max: U32}
+  BadBlob{sha: String}             # body's sha256 is not the sha in the path
+  MissingBlobs{shas: List<&2, String>}
+  Contract{reasons: List<&2, C.Reason>}   # C.recheck(manifest) on the server's own measurements
+  Uncredited{work: C.Work}         # a known work's blob ships and the manifest lacks its credit
+  OverQuota{what: String}
+  IdTaken{id: String}              # same 12 hex, different content: refused, never overwritten
+  NoSuchRelease{id: String}
+  Unchecked{}                      # source.checked False: never on a guarded channel
+  Dirty{}                          # source.dirty True: never on a guarded channel
+  SeedChanged{live: String, new: String}  # AGENTS.md: the world's seed never changes once live
+  Stale{now: Maybe<&2, String>}    # the pointer moved since the client looked
+  IsolationNotServed{}
+
+type Step is Data:
+  WriteRelease{release: Pr.Release}          # releases/<id>.json, then the site/ link farm
+  AppendMove{to: Pr.Address, shift: Pr.Shift}  # channels/<name>.log
+  PointSite{label: String, id: String}       # sites/<label> -> that release's site/ (atomic: ln -s tmp + rename)
+  Log{line: String}
+
+type Answer is Data:
+  Apply{steps: List<&2, Step>}               # not `Done`: a Base constructor (CATCHES N1)
+  NoChange{}                                 # idempotent repeat: 200 with what is already there
+  Approve{}                                  # service, guarded move, no presence yet: hands open an approval (202)
+  Refuse{why: List<&2, Denial>}
+
+# What a client may trust about a manifest, and what it may not. The server re-measures every byte
+# and recomputes the id; it cannot re-run `bun run check`, so `source` is an attestation: honest
+# clients cannot ship unchecked or dirty builds live (laws below), a dishonest one could lie. On the
+# service, that is why each game has its own origin on a separate domain: a lying creator hurts only
+# their own game.
+def release(c: Caller, s: SeenRelease) -> Answer:
+  # TODO not implemented, in order:
+  #   K.may(key, Upload{game}, Absent, ...) ; missing non-empty -> MissingBlobs ;
+  #   existing Some with the same content -> NoChange ; existing Some, other content -> IdTaken ;
+  #   C.recheck(manifest) ; required(known) credits not in manifest -> Uncredited ;
+  #   isolation True and not limits(plan).isolation -> IsolationNotServed ; quotas -> OverQuota ;
+  #   else Apply{[WriteRelease{Release{id, game, source, seed, key id, now, live}},
+  #             PointSite{label(OfRelease{creator, game, id}), id}, Log{...}]}
+  TODO
+
+# Moving a pointer. Matched on the channel's guard first: an Open channel never asks for presence.
+def point.go(g: Pr.Guard, c: Caller, s: SeenMove) -> Answer:
+  # TODO not implemented:
+  #   Open    -> K.may(key, MoveOpen{game}) ; release exists ; expect == pointer(moves) else Stale ;
+  #              pointer == id -> NoChange ; else Apply{[AppendMove, PointSite, Log]}
+  #   Guarded -> K.may(key, MoveGuarded{game}, presence, ..., Pr.confirm_text(to, id)) ;
+  #              release exists ; source: checked else Unchecked, clean else Dirty (point.source) ;
+  #              seed equals the live release's seed else SeedChanged ; expect == pointer else Stale ;
+  #              pointer == id -> NoChange ; else Apply{...}
+  TODO
+
+# Provenance on a guarded channel, matched on `checked` then `dirty` (laws below).
+def point.source(checked: Bool, dirty: Bool) -> Maybe<&2, Denial>:
+  match checked:
+    case False{}:
+      Some{Unchecked{}}
+    case True{}:
+      # TODO not implemented: dirty True -> Some{Dirty{}}; False -> None{}
+      TODO
+
+def point(m: Mode, c: Caller, s: SeenMove) -> Answer:
+  # TODO not implemented: Service with a guarded channel and presence Absent -> Approve{} (the
+  #   hands create the approval page and answer 202); otherwise point.go(Pr.guard(channel(to)), c, s).
+  #   Team never answers Approve: Absent is NeedsPresence there.
+  TODO
+
+# ---------- Caddy's view ----------
+
+# The labels a game's state must have in sites/: one per release, one per channel pointer.
+# reconcile compares it with what is on disk; the hands make the difference.
+def sites(creator: String, game: String, releases: List<&2, String>, channels: List<&2, Pr.Channel>, pointers: List<&2, String>) -> List<&2, Step>:
+  # TODO not implemented
+  TODO
+
+# The one Caddyfile for every creator and game (printed by `bun publish/server.ts caddyfile`; a
+# person installs it once). Headers per Role from C.headers, the same rules `export serve` sends.
+def caddyfile(play: String, api: String, root: String, port: U32) -> String:
+  # TODO not implemented: see sketch/example/Caddyfile
+  TODO
+
+# Works the store recognises by content: the shas of the engine's own shipped assets (mannequin's
+# skin.bin and textures), from a list the engine's release writes beside the server. A manifest that
+# ships one of those blobs ships that work, whatever the client claimed.
+def required(known: List<&2, C.Work>) -> List<&2, C.Credit>:
+  # TODO not implemented: C.credit(w) for each w with C.must_show(w)
+  TODO
+
+def say(d: Denial) -> String:
+  # TODO not implemented
+  TODO

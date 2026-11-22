@@ -1,0 +1,102 @@
+// publish/client.ts: the one client of the publish protocol (SKETCH, new in v2). HANDS ONLY: it
+// reads keys, hashes files, sends requests and prints; every rule is a call into Bend
+// (publish/protocol.bend, keys.bend, export/contract.bend). Its callers: publish/cli.ts (people,
+// agents, CI) and tools/dev.ts's /_publish routes (the editor's Publish tab). There is no second
+// path to a host: a new host is a new server speaking the protocol, never a new client.
+//
+//   push({ game, channel? })        export, then have -> blob -> release [-> point an Open channel]
+//   promote({ to, id }, presence)   point a channel; Live needs a person (presence) and the typed confirmation
+//   rollback({ to }, presence)      promote(Pr.previous(moves of `to`))
+//   history({ game })               releases and every channel's moves, newest first
+//   keys.mint / keys.revoke / keys.revokeAll / login
+//
+// Where the key comes from (butler's rule, read per grounding: mansion/authenticate.go):
+//   OGW_PUBLISH_KEY in the environment, else ~/.ogw/publish.json (0600, written by `login` or by a
+//   person pasting a key once). Never a flag (shell history), never the repo. With no key and no TTY
+//   (CI, agents) it refuses instead of starting a login.
+// Where the server is: OGW_PUBLISH_URL, else Pr's default service URL (TODO: Isabella's domain).
+//
+// Idempotent end to end: the build id is the content's; `have` skips what the store holds; a
+// release that exists comes back with created:false; a move to the current pointer is NoChange.
+// A crash anywhere leaves at most uploaded blobs, which the next push reuses.
+//
+// Limits now:
+// - Blobs upload 4 at a time, each retried 3 times; no partial-blob resume.
+// - The editor path runs this in the dev server process, so the browser never holds a key.
+
+import Contract from "../export/contract.bend";
+import Pr from "./protocol.bend";
+import K from "./keys.bend";
+import { exportWeb, type GameFolder, type Refusal } from "../export/web.ts";
+
+export type Released = {
+  address: string;   // "ogw/character"
+  id: string;        // 12 hex
+  url: string;       // https://<id>--<game>--<creator>.<play>   (this release, forever)
+  created: boolean;  // false: the server had it already
+  channel?: { name: string; url: string };   // when --channel moved an Open channel
+  warnings: string[];                        // Contract.warn(...): e.g. the mannequin is not cleared for sale
+};
+
+export type Moved = { to: string; id: string; url: string; previous: string | null; changed: boolean };
+
+// Where the person's presence comes from: the CLI asks on a TTY, the editor asks in its Bend page.
+// On the service the server answers 202 and the person approves in the browser; this callback then
+// only opens the URL and the client polls.
+export type PresenceSource = {
+  typed(confirmWant: string): Promise<{ secret: string; confirm: string } | null>;   // null = cancelled
+  approve(url: string): Promise<void>;
+};
+
+export type Denied = { ok: false; denied: { code: string; text: string }[] };
+
+export async function push(o: { game?: string; channel?: string }): Promise<{ ok: true; released: Released } | Refusal | Denied> {
+  // TODO not implemented:
+  // 1. key = keyFrom(); server = urlFrom(); hello = GET /v1 -> protocol === Pr.protocol() else Upgrade
+  // 2. r = await exportWeb({ game }); if !r.ok return r                     (laws refuse here)
+  // 3. shas = r.folder.entries' sha; missing = POST /v1/have {game, shas}
+  // 4. PUT /v1/blob/<sha> for each missing (body = the file under site/)
+  // 5. rel = POST /v1/release {game, manifest: text of game.json}
+  // 6. o.channel ? POST /v1/point {to: `${me.creator}/${game}:${channel}`, id, expect: current} (Open: no presence)
+  // 7. return { ok, released: {..., warnings: r.folder.warnings} }
+  throw new Error("not implemented");
+}
+
+export async function promote(o: { to: string; id: string }, p: PresenceSource): Promise<{ ok: true; moved: Moved } | Denied> {
+  // TODO not implemented:
+  // 1. a = Pr.parse_address(o.to) (refuse "not an address" locally); h = history(game); expect = Pr.pointer(moves)
+  // 2. show the person what changes: current -> new id, both loads (Contract.Load), credits, warnings
+  // 3. Pr.guard(channel) Open -> POST /v1/point {to, id, expect}
+  //    Guarded -> want = Pr.confirm_text(a, id); t = await p.typed(want) (null -> cancelled, exit 1)
+  //               POST /v1/point {to, id, expect, confirm: t.confirm, presence: {secret: t.secret}}
+  //               202 {approve_url, poll} -> await p.approve(approve_url); poll until moved or expired
+  // 4. the server re-checks everything; this side only shows and asks
+  throw new Error("not implemented");
+}
+
+export async function rollback(o: { to: string }, p: PresenceSource): Promise<{ ok: true; moved: Moved } | Denied> {
+  // TODO not implemented: moves = history(to).channel(to).moves; prev = Pr.previous(moves) (None -> "nothing to roll back to");
+  //   promote({ to, id: prev }, p)
+  throw new Error("not implemented");
+}
+
+export async function history(o: { game: string }): Promise<unknown> {
+  // TODO not implemented: GET /v1/history?game=<creator>/<game>, parsed into Pr.Release / Pr.Shift values
+  throw new Error("not implemented");
+}
+
+export const keys = {
+  // A person mints a machine key for an agent or CI: holder "agent" | "robot", the games it reaches, days.
+  async mint(o: { holder: "agent" | "robot"; games: string[] | "all"; days: number }): Promise<{ id: string; secret: string }> {
+    throw new Error("not implemented");
+  },
+  async revoke(id: string): Promise<void> { throw new Error("not implemented"); },
+  async revokeAll(): Promise<void> { throw new Error("not implemented"); },
+};
+
+// Service only (GET /v1 says mode "service"): Bend's own device flow, as `bend login` does it:
+// POST /v1/login/start -> open verify_url -> poll -> write ~/.ogw/publish.json (0600). The person's
+// key it writes uploads and mints; it never moves Live by itself (keys.bend).
+export async function login(): Promise<{ creator: string }> {
+  throw new Error("not implemented");
+}

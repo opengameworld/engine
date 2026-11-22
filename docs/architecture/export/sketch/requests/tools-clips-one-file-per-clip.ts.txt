@@ -1,0 +1,24 @@
+// tools/clips.ts: what changes in its OUTPUT (SKETCH). The reading of .glb files does not change.
+//
+// Today it writes one file, library/<c>/gen/motions.bend: 3,841,604 B, 13,974 lines, 42 motions
+// plus names, seconds, categories, loops and thumbs as `match i` functions. A Bend import is a
+// whole file and `motion(i)` is a 42-case match, so anything that names one motion compiles all
+// 42 (855,720 B gzip: 2.85x the code budget). It will write, from the same data:
+//
+//   library/<c>/gen/index.bend     collection(), credit(), license(), count(), categories(),
+//                                  name(i), slug(i), seconds(i), category(i), loops(i)   (Library: ships, small)
+//   library/<c>/gen/thumbs.bend    thumb(i)                                               (LibraryIndex: editor only)
+//   library/<c>/gen/m/<slug>.bend  def motion() -> M.Motion, with its own chunk defs       (Library: one file a clip)
+//   library/<c>/gen/all.bend       imports index, thumbs and the 42 m/ files; motion(i) as today (LibraryIndex: editor only)
+//
+// library/catalog.bend imports all.bend in place of motions.bend: the editor's Animation screen
+// sees exactly what it sees today (measured before/after with ui-verify, as AGENTS.md asks).
+// A slug is the clip's name in lowercase with hyphens ("Walk Formal" -> "walk-formal"); the
+// importer refuses two clips with one slug.
+//
+// The chunking stays (m<i>_t<k>_<n>, 32 keys a list: CATCHES L1 keeps list literals short).
+
+export function writeCollection(outDir: string, clips: unknown[]): void {
+  // TODO not implemented
+  throw new Error("not implemented");
+}

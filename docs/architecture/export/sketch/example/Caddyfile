@@ -1,26 +1,29 @@
-# Written by Hosts.caddy_site (Bend); installed once by a person (`bun run deploy vps --setup` prints it).
-play.example.com {
-	root * /srv/ogw/character/live
-	encode zstd gzip
-	header /_/* Cache-Control "public, max-age=31536000, immutable"
-	header /a/* Cache-Control "public, max-age=31536000, immutable"
-	header / Cache-Control "public, max-age=0, must-revalidate"
-	header /index.html Cache-Control "public, max-age=0, must-revalidate"
-	header X-Content-Type-Options nosniff
-	file_server
+# Printed by `bun out/publish-server.js caddyfile` from Sv.caddyfile (Bend); installed ONCE by a
+# person. It never changes when a creator, a game, a channel or a release is added: every link is
+# one label under the play domain, and sites/<label> is a symlink the publish server keeps.
+# PLAY = the play domain (games), SERVICE = the service domain (api, login pages). Isabella's.
 
-	# Later (persistent world): the server process beside the static game, same domain, same TLS.
-	# reverse_proxy /ws localhost:7000
+*.PLAY {
+	tls {
+		dns <provider> {env.DNS_API_TOKEN}      # one wildcard certificate, DNS-01 [MEM: needs a Caddy build with the provider module]
+	}
+	@site host_regexp site ^([a-z0-9-]{1,63})\.PLAY$
+	handle @site {
+		root * /srv/ogw/sites/{re.site.1}
+		encode zstd gzip
+		header /_/* Cache-Control "public, max-age=31536000, immutable"
+		header /a/* Cache-Control "public, max-age=31536000, immutable"
+		header / Cache-Control "public, max-age=0, must-revalidate"
+		header /index.html Cache-Control "public, max-age=0, must-revalidate"
+		header X-Content-Type-Options nosniff
+		file_server
+	}
+	handle {
+		respond 404
+	}
+	# Later (persistent world): reverse_proxy /ws to the world server, same certificate.
 }
 
-# One origin per preview (<id>.preview.play.example.com): localStorage/IndexedDB are per origin,
-# so a preview never reads or writes live players' saves. Needs a wildcard DNS record and a
-# wildcard certificate (DNS challenge) or on-demand TLS.
-*.preview.play.example.com {
-	@id header_regexp id Host ^([0-9a-f]{12})\.preview\.
-	root * /srv/ogw/character/releases/{re.id.1}
-	encode zstd gzip
-	header Cache-Control "no-store"
-	header X-Robots-Tag "noindex"
-	file_server
+api.SERVICE {
+	reverse_proxy localhost:7400
 }

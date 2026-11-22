@@ -1,240 +1,295 @@
-# Export and deploy: output contract first (synthesized design)
+# Export and publish, revision 2: the release protocol is the spine
 
-> **Status: proposal for review. No code yet.** Nothing here runs or is imported. Implementation starts only after Isabella reviews this design.
+> **Status: proposal for review. No code yet.** Revision 2 of the export design, after Isabella's review of revision 1 (PR #2, 2026-11-22). Revision 1 is in this file's git history.
 
-Sketch files are under `sketch/`. Each path inside `sketch/` is the path the file would have in the engine repo, with `.txt` appended so that `bun run check` (and its upcoming auto-discovery of `.bend` files) never compiles a sketch. Bend bodies are `TODO` and TS bodies `throw new Error("not implemented")`, with the logic written as pseudocode in comments.
+It revises the approved revision 1 and keeps what survives. How it was made: two structurally different designs, scored by an independent judge who also re-measured the sizes; this one is the base, with four ideas grafted from the other (see "Synthesis decision"). Sketch files are under `sketch/`, at the paths they would have in the engine repo, with `.txt` appended. Bend bodies are `TODO` and TS bodies `throw new Error("not implemented")`. Nothing here runs.
 
-How this design was made (AGENTS.md workflow): three read-only explorations (the web build and EXPORT.html, the native track in bend-engine/bend-gpu/bend-win, and external research on Unreal, Unity, Gregory and the hosts). Then two structurally different designs: "output contract first" (this one) and "own the publish platform" (content-addressed store, a publish daemon, channel pointers). An independent judge scored them, and this one was taken as the base with four ideas grafted in from the other. See "Synthesis decision".
-
-Unverified claims are marked [U].
+Marks: **[R]** = read this session by me. **[G]** = read this session by the grounding pass (`grounding.md`), not re-read by me. **[MEM]** = remembered, not read. **[U]** = unverified, and a slice verifies it. **[M]** = measured this session (by a design runner or by the judge, who re-measured on the real page path).
 
 ## Problem
 
-Caio owns export and deployment, and the goal is "an experience similar to Vercel": one command, a link that is safe to share, going live on purpose, and easy rollback. The engine already makes a static web bundle (`bend index.html -o dist`, about 48 KB gzip), so putting it on a host is easy. The hard part is that nothing currently says what a game *is* once it leaves the repo. Five facts make the shape non-obvious:
+Part 1 of Caio's work is the engine's `next build`: a command that turns a project into a game folder that any host can serve. It now has to fit a larger product, in the words of Isabella's binding review: *anyone* who makes a game with this engine publishes it and gets a link under our domain, with no Vercel account, no server and no token of their own. The service is not built yet. It has to be designed now, so that it becomes the next adapter and not a rewrite. The first slice stays as approved: `export/contract.bend`, its laws, `tests/export.bend`, `bun run export web` and `bun run export serve`.
 
-1. The only page is the editor (`main.js` calls `startEditor`). `dist/` ships `editor/` code today.
-2. "Runtime never imports editor" is a convention. Only `refs/` is fenced. `engine/world.bend` and `engine/gizmo.bend` already import Bend-UI tokens.
-3. The team rule says every rule, number and decision lives in `.bend`, and JS only reads input and draws. Cache policy, budgets, "may this ship?" and "who may go live?" are decisions, so they have to be Bend, with laws in `LAWS.bend`/`PROOF.bend`.
-4. Bend 2.0.40 does no IO in pure code (CATCHES X6). Proofs are structural (F1, F6), `match` only works on parameters (M1), and there are no forward references (R1). Export laws have to be shaped so they reduce.
-5. The other owners have work coming: Isabella's `engine/input/`, `tick.bend`, `play.bend`, depth and draw order, and `check.ts` auto-discovery. Vini owns shaders, post and `draw.js`. Export must plug in around that work, not over it.
+These constraints make the shape non-obvious:
 
-The building has to happen on our machine or our CI, because it needs `bend` 2.0.40 plus the sibling `../bend` clone. That rules out "let the host build it".
+1. **Bend decides, TS only does the work.** Every rule, number and decision lives in `.bend` with laws. TS measures, bundles, hashes, writes and uploads. Nothing a person sees is hand-written HTML, CSS or JS. The game page is a canvas, and anything around it is a Bend-UI page.
+2. **VPS first, and the game is commercial.** Nothing may depend on Vercel Hobby.
+3. **Going live needs split credentials and a typed confirmation.** An agent's or CI's key writes releases. Only a person moves the live pointer, and only after typing a confirmation.
+4. **The real sizes break v1's budget numbers** [M]. The Character game's Bend compiles to 162 KB raw / 20 KB gzip. The mannequin's assets are about 1.28 MB on the wire. `motions.bend` is one 3.8 MB file holding all 42 clips. With plain `bend x.bend -o x.js`, Bend drops defs nothing names (one named clip: 606 KB raw / 51 KB gzip; all 42: 34.5 MB / 2.53 MB). **But on the path a page really takes (Bend's loader plugin + Bun's bundler), the loader exports every def, so naming one clip still ships all 42: 9.5 MB raw / 1.93 MB gzip** [M, judge]. A file holding only one clip's defs costs ~192 KB raw / ~39 KB gzip on that path [M]. So a game can only take the clips it uses if the library is **one file per clip**, a change to `tools/clips.ts`, which is Isabella's area (see Slice plan: a request to her).
+5. **Credits are a legal duty.** The mannequin is CC BY 4.0 and its credit must travel with it. The character itself is © Square Enix / Disney, and CC BY does not clear that.
+6. **Bend's own limits** [R, CATCHES]:
+   - no IO in pure code;
+   - `match` only on parameters;
+   - no forward references and no mutual recursion;
+   - laws only where they reduce structurally;
+   - Base reserves constructor names (`Key`, `Move`, `Done`, `Text`, `Empty` …). I checked every name in these sketches against `base.bend`.
+7. **Bend-UI's `Web.bend` has no network command** [R: its own "Limits now"]. So the editor's Publish action cannot talk to anything yet.
+8. **Build requirements are real.** The build needs `bend` 2.0.40 and the `../bend` loader. HLSL needs `dxc` and `spirv-cross`. Today `check` passes silently when they are missing.
 
 ## Usage (caller's view)
 
-### Quickstart (README section "Publish")
+### README, "Publish a game"
 
 ```sh
-bun run export web --project character    # check -> bundle -> out/web/character/ (or the refusal reasons)
-bun run export serve                      # play it on localhost with the same headers every host sends
-bun run deploy vercel                     # export + publish a PREVIEW; prints its own permanent link
-bun run deploys vercel                    # history, newest first, live one marked
-bun run promote vercel 3c9e0a71b2d4       # a person makes that build live (asks you to type the id back)
-bun run rollback vercel                   # the build before the live one goes live again
-bun run deploy vps                        # same five verbs on a VPS (Caddy) and on itch
+bun run export web character          # check -> walk -> bundle -> out/web/character/  (or the reasons, with the remedy)
+bun run export serve character        # play it on localhost with the exact headers the publish host sends
+
+bun run publish push character        # export + upload a RELEASE; prints its permanent link
+#   release 3c9e0a71b2d4  https://3c9e0a71b2d4--character--ogw.PLAY
+#   code 190 KB raw / 28 KB gz · assets 1.28 MB · credits: mannequin (CC BY 4.0)
+#   warning: the mannequin's character is (c) Square Enix / Disney: not cleared for sale
+bun run publish promote ogw/character:live 3c9e0a71b2d4
+#   live: 9a01ffe4c7b0 -> 3c9e0a71b2d4   (code +2 KB, assets same, credits same)
+#   Type "ogw/character:live 3c9e0a" to make it live: ▌      Point secret: ▌
+#   live  https://character--ogw.PLAY
+bun run publish rollback ogw/character:live     # the same confirmation; back to what was live before
+bun run publish history character
+bun run publish keys new --for agent --games character --days 7   # a person mints an upload-only key
 ```
 
-What comes out is always the same folder, whatever the host (`sketch/example/tree.txt`, `game.json`):
+The output is always the same shape. You get one folder (`sketch/example/tree.txt`, `game.json`), one release per distinct content, and three kinds of link, each its own origin under the **play domain**:
 
-```
-out/web/character/
-  game.json            manifest: format, build id, game, engine commit, dirty, isolation, entries[path, kind, bytes, gz, sha]
-  site/index.html      the only Page            -> revalidated on every load
-  site/_/*-<hash>.js   Code (bundle)            -> immutable, cached for a year
-  site/a/<hash>.*      Asset (format 2, later)  -> immutable
-```
+| Link | Shape | Notes |
+|---|---|---|
+| Live | `https://<game>--<creator>.PLAY` | |
+| A channel | `https://<channel>--<game>--<creator>.PLAY` | e.g. `beta--character--ogw` |
+| One release | `https://<id>--<game>--<creator>.PLAY` | forever |
 
-A refused export writes no folder and prints the reasons:
-
-```
-$ bun run export web
-refused: editor code reached the game: editor/app.js
-refused: first load 412 KB gzip is over the 300 KB budget
-```
+The creator is never written in the game's source. It comes from the key, so a fork publishes under its own name.
 
 ### Call sites
 
-1. **A person shipping a fix.** `bun run deploy vercel` prints `preview https://ogw-character-k2j3.vercel.app (build 3c9e0a71b2d4)`. They play it and then run `bun run promote vercel 3c9e0a71b2d4`. If a player reports a bug, `bun run rollback vercel` puts the old build back.
-2. **An agent asked to "publish the game".** It runs `bun run deploy vercel --json` and gets `{"ok":true,"deployment":{"buildId":"3c9e…","url":"https://…","live":false}}`, then reports the link. If it tries `bun run promote … --json`, the result is `{"ok":false,"reasons":["only a person makes a build live"]}`, because `Hosts.may_promote(Agent{}, m) == NotAPerson{}` is a law. The future MCP server (`export/mcp.ts`) wraps these same four functions, so there is no second path.
-3. **CI on every push (later).** The job checks out `engine/` and `bend@v2.0.40` side by side, installs `bend`, and runs `bun run deploy vercel --json`. It comments the preview link on the PR. Promotion stays manual.
+1. **A person on the team's VPS (Caio, today).** The commands above. `promote` shows what changes, asks for the typed confirmation and the person's *point secret*, and sends both. The server checks both again. The point secret is typed at the prompt with echo off and never stored by the client.
+2. **An agent or CI.** It runs `OGW_PUBLISH_KEY=ogwa_… bun run publish push character --channel beta --json` and gets `{"ok":true,"released":{"id":"3c9e…","url":"https://3c9e…--character--ogw.PLAY","channel":{"name":"beta","url":"https://beta--character--ogw.PLAY"},"warnings":[…]}}`. Named channels are open, so the agent keeps `beta` fresh by itself. If it tries `promote … :live`, it gets `{"ok":false,"denied":[{"code":"NotAPerson"}]}`. That refusal comes from the server (`sketch/example/wire.txt`), and the law `agents_never_go_live` proves it. With no key and no TTY, the client refuses instead of starting a login (butler's rule [G]).
+3. **The editor's Publish tab (`sketch/editor/publish/view.bend.txt`).** It is a fourth tab after Scene | Animation | Shaders, written in Bend with Bend-UI, and it offers exactly the CLI's verbs:
+   - **Upload release** shows progress and then the link.
+   - **Make live** shows the change, a field to type the confirmation (the button is enabled only when `Pr.confirm_text` matches), and the secret field.
+   - **Roll back** uses the same confirmation.
+   - **History** lists the releases.
 
-In code, the CLI is the only importer of export (`sketch/export/cli.ts.txt`):
+   The page sends commands to the dev server, which calls `publish/client.ts`, the same functions the CLI calls. So the browser never holds a key and there is one client. It waits on Bend-UI's missing network command (Open questions).
+
+4. **A creator on the future service (Ana).** She runs `bun run publish login`. This is Bend's own device flow, as `bend login` does it [R]: a browser page, then polling, then a 0600 key file. Then `bun run publish push forest` returns `https://3c9e…--forest--ana.PLAY`. `promote ana/forest:live …` opens an approval page on the service, where she types the confirmation while logged in. Her commands are the same as Caio's.
+
+The TS API is what the CLI and the dev server import (`sketch/publish/client.ts.txt`):
 
 ```ts
-const r = await exportWeb({ project: "character" });       // { ok, folder: { dir, site, buildId, manifest } } | { ok:false, reasons }
-const d = await deploy("vercel", { project: "character" }); // { ok, deployment: { buildId, url, live:false, at } }
-await promote("vercel", d.deployment.buildId, { actor: "person" });
+const r = await push({ game: "character", channel: "beta" });   // {ok, released:{address,id,url,created,channel?,warnings}} | Refusal | Denied
+await promote({ to: "ogw/character:live", id: r.released.id }, presence); // presence: TTY prompt, editor fields, or browser approval
 ```
 
 ## Shape
 
-### Engine-wide layer map (`sketch/LAYERS.bend.txt`)
+### 1. One spine: a protocol, spoken by every host (`sketch/publish/protocol.bend.txt`)
 
-```
-                ships in a game                                         never ships
-  ┌──────────────────────────────────────────────┐      ┌────────────────────────────────────────┐
-  │ projects/ (Project) ─┐   PROJECT.bend (Catalog)│      │ editor/, index.html, main.js (Editor)  │
-  │                      ▼          │              │      │ export/   (Export: reads Catalog)      │
-  │ engine/ (Engine: pure Bend) ◄───┘              │◄─────│ tools/, tests/ (Tools, Tests)          │
-  │   input/ tick play  ◄ Isabella                 │      │ refs/  (Refs: dead end, nothing in)    │
-  │   shader/ material  ◄ Vini                     │      └────────────────────────────────────────┘
-  │   place world scene …                          │      later, ships to a SERVER, not the client:
-  │        ▲                ▲                      │        server/ (pure Bend rules of the world)
-  │ platform/web (PlatWeb)  platform/native        │        platform/server/ (Bun WebSocket shell)
-  │  draw gpu input loop run game.html             │        both import engine/: same rules client & server
-  │ node_modules/bend-ui (UiKit)                   │
-  └──────────────────────────────────────────────┘
-```
+`export` makes a folder, and everything after that is one versioned protocol. It has four write steps and a read. They are the same steps BendHub uses for `bend --publish` [R: `bend2/main.ts`: publish-check, then POST content answered by its hash, then `/link name@version → hash`], and the same steps butler uses [G]: validate, upload, finalize, and a channel that points at a build.
 
-The rules are in one Bend file, `LAYERS.bend`: `layer_of(path)`, `may_import(a, b)` and `ships(l)`. Three laws come with it: only refs imports refs, nothing that ships imports the editor, and only tools, tests and export import export. Each is a case split over a finite enum, so it can be proved with `{==}`.
-
-The rules are enforced in two places, not left as convention:
-
-- **Every `bun run check`.** The fence step (`sketch/tools/fence.ts.txt`) replaces today's refs-only fence. It walks the files Isabella's auto-discovery finds, extracts import edges, and asks `LAYERS.bend` about each one. A new rule is one line in Bend.
-- **Every export.** `Contract.release` gets the files the bundler actually read (Bun.build `metafile`) and refuses any input from a layer that doesn't ship (`Forbidden{path}`). This catches edges the text scan misses.
-
-Where the other owners plug in, with nothing about their design changed:
-
-- Isabella's `engine/input/`, `tick.bend` and `play.bend` are layer Engine.
-- `input.js` delivering events stays PlatWeb.
-- Her work also fills the body of the new `platform/web/run.js` `runGame(canvas, game)`. That is the player's counterpart of `startEditor`. Export depends only on its signature.
-- Vini's `engine/shader/` and `material.bend` are Engine, and `draw.js` is PlatWeb. Shaders are strings written at runtime, so there is nothing for export to condition yet. Precompiled shader variants would later become manifest entries of a new `Kind`.
-- Draw order from Bend has no export impact.
-- The Bend-UI token import from `engine/` is allowed explicitly as named debt (Engine -> UiKit). Whether `gizmo.bend` moves to `editor/` is Isabella's call.
-
-### The contract (`sketch/export/contract.bend.txt`): data first
-
-- `Entry{path, kind: Page|Code|Asset, bytes, gz, sha}`: one served file.
-- `Manifest{format, game, title, engine, dirty, isolation, entries}`. It has no timestamps and no machine names, so the same sources give the same manifest.
-- `Facts{game, title, engine, dirty, isolation, inputs, files}`: everything the shell *measured*, with no decisions in it.
-- `release(checks: Bool, f: Facts) -> Shipped{Manifest} | Refused{List<Reason>}`. `Reason` is ChecksFailed, Forbidden, NoPage, TwoPages, Unhashed or OverBudget.
-- `cache(kind)` and `headers(isolation, kind)` set Cache-Control, nosniff, and COOP/COEP only when isolation is on. `id_text(m)` is the canonical text the shell hashes into the 12-hex build id. `json(m, id)` produces game.json. `missing(m, present)` is used by verify.
-
-How the main access patterns go through it:
-
-- **Export:** the shell measures `Facts`, `release` decides, and the shell writes `site/` and then `game.json` last into `.stage-<pid>/`, renamed into place in one step. A crash leaves a stage with no game.json, which every reader refuses.
-- **Deploy:** `verifyFolder` parses game.json into a Bend `Manifest` once, at the boundary. `Hosts.fits(host, m)` is checked before any upload. The adapter translates (`Hosts.vercel_config`, `Hosts.caddy_site`) and uploads.
-- **Promote:** `Hosts.may_promote(actor, m)` must return `Allowed`. `Hosts.previous(history, live)` picks the rollback target.
-
-Where invariants live:
-
-- **"Nothing ships if a law fails"** is encoded in the order of `release`'s match. `checks` is matched first, so `release(False{}, f) == Refused{[ChecksFailed{}]}` holds by reduction for every `f` and is a provable law, not a test. The same trick makes `may_promote(Agent{}, m) == NotAPerson{}` a law.
-- **"Every manifest entry exists"** holds by construction, because the manifest is *derived* from the files on disk, never written separately. `missing()` re-establishes it after copies and uploads. It is a numeric test in `tests/export.bend`, because list walks over Strings don't reduce in proofs (F6-like).
-- **"No editor/refs code inside"** is enforced by LAYERS plus `Forbidden`, as above.
-- **Single source of truth for history:** the host. That means Vercel's deployment list tagged with `--meta ogwBuild=<id>`, the VPS's `releases/` folder plus the `live` symlink, or itch's butler channel. There is no local ledger to drift.
-
-Idempotence: the build id is content-derived. Running export twice gives the same folder. Publishing a build id the host already has returns that deployment. Promoting the live build does nothing.
-
-### The hosts (`sketch/export/hosts.bend.txt`, `publish.ts`, `hosts/*.ts`)
-
-The TS `Adapter` interface has three methods: `publish` (preview, idempotent), `promote` and `history`. Only `publish.ts` uses it. Hosts *translate*: header policy is decided once in `contract.bend` and written into each host's dialect by `hosts.bend`. Host limits are numbers in Bend (`limits(h)`), so a misfit is refused before upload.
-
-| | Vercel | VPS (Caddy) | itch |
+| Step | Wire | Credential | Idempotence |
 |---|---|---|---|
-| Upload | `vercel deploy --prebuilt` of `.vercel/output/` (config.json + static/) | `rsync --link-dest` into `releases/<id>.part`, then rename and `.done` | zip, `butler push --userversion <id>` |
-| Content-hash dedup | Vercel's own | hard links to unchanged files | butler patches |
-| Preview link | each deployment's URL | `<id>.preview.<domain>` (own origin) | none (local `export serve`) |
-| Live = pointer | `vercel promote` | `ln -sfn` + `mv -T` (atomic) | a push is live |
-| Rollback | promote previous | swap symlink back | push previous zip |
+| have | `POST /v1/have {game, shas}` → `{missing}` | Upload | pure read; blobs are stored **per creator**, so no creator can probe for another's files |
+| blob | `PUT /v1/blob/<sha>` | Upload | content-addressed; the server hashes the body |
+| release | `POST /v1/release {game, manifest}` → `{id, url}` | Upload | id is the server's hash of the content; a repeat returns `created:false` |
+| point | `POST /v1/point {to, id, expect, confirm, presence}` | Open channel: Upload. Live: a person present | `expect` is compare-and-swap; the same id is `NoChange` |
+| history | `GET /v1/history` | Read | — |
 
-Interface depth: the public surface is four functions (`exportWeb`, `deploy`, `promote`, `rollback`, plus `deploys` to read). Behind it sit the check run, the bundling and naming, hashing, the verdict, the atomic write, layer enforcement, host translation, limits, idempotent upload and the promotion gate. Callers never see stages, config formats, symlinks or CLI flags of a host. Adding a host means one `hosts/x.ts` with three methods, plus Bend `limits`/translation cases that the compiler forces through exhaustive matches.
+**The VPS is the smallest server for this protocol, and the service is the same server.** `publish/server.ts` runs in one of two modes, read from its config file:
 
-What it deliberately does not do: build on the host, precompress (`.br`/`.gz` never enter the folder), keep a local deployment log, edit server config remotely (the Caddyfile is printed and a person installs it once), or touch `editor/`.
+- **`Team{creator:"ogw"}`:** person secrets are set on the box, and there is no login.
+- **`Service{}`:** adds browser login, approvals and quotas.
 
-### The game page (prerequisite)
+No verb, address or rule differs between the modes. The client never learns which one it is talking to, apart from handling a `202 {approve_url}` that only the service sends. That is how the service becomes the next adapter rather than a rewrite. The editor's Publish tab and the CLI are both just callers of `client.ts`.
 
-`platform/web/game.html` plus a two-line `game.js` import the virtual module `ogw:game`. Export generates that module as three lines: `import P from PROJECT.bend; p = P.by_id("character"); export {id, title, opening, camera}`. The game page then calls `runGame`.
+**One set of rules on both sides.** Every request carries `Ogw-Rules: <n>`, and a client on other rules is refused before anything is decided ("update the engine"). The client runs the same Bend decisions (`service.bend`, `keys.bend`) on the server's view before uploading, so a refusal comes before any byte is sent, and the editor can say why a button is disabled. (Graft from candidate 2.)
 
-Project ids and lookup (`id`, `all`, `find`, `by_id`) go into PROJECT.bend (`sketch/PROJECT.additions.bend.txt`), because they ship. The law `every_project_is_findable` keeps `all()` honest. Per-game host settings sit in `export/games.bend`, with an exhaustive match over `Project`, so there is no second list.
+### 2. Data first: the types that carry the invariants
 
-## Is deploying to Vercel or a VPS feasible? (evidence-based answer)
+**`Contract.Manifest`, format 1 (`sketch/export/contract.bend.txt`).** It is v1's manifest plus four things:
 
-**Vercel: yes, today, for the game as it is.** The output is static, about 48 KB gzip, with no WASM and no server code.
+- `Asset` entries with their `origin` repo path;
+- `load: Load{code_gz, code_raw, asset_wire}`;
+- `clips`;
+- `credits`, derived as `credits(works(inputs))` and never written by hand.
 
-What is needed:
+The build id follows BendHub's own rule [R]: sha256 over `"<sha> <path>\n"` lines, plus the manifest's content fields, cut to 12 hex because people type it back.
 
-- A Vercel account and project.
-- `VERCEL_TOKEN` for agents and CI.
-- Our build on our machine or CI, because the build needs `bend` 2.0.40 and `../bend`.
-- The adapter writes the Build Output API folder (`.vercel/output/config.json` v3 plus `static/`), and `vercel deploy --prebuilt` uploads it. Previews, immutable deployments, `vercel promote` and rollback are all native Vercel features. That is the "Vercel experience" with no engine-side service at all.
+**`Pr.Address{creator, game, channel: Live | Named}`, `Pr.Release`, `Pr.Shift`.** A channel's history is an append-only log of shifts. **The pointer is the last shift** (`pointer(moves)`), and **rollback is `previous(moves)`**, the `from` of the newest shift. The pointer is derived, not stored twice. This follows CapRover's `versions[]` + `deployedVersion` [G] and Coolify's "rollback = re-activate an older deployment" [G], minus the second copy.
 
-Constraints:
+**`K.PubKey{creator, holder: Person|Agent|Robot, reach, expires, paused, version}` and `K.Presence = Absent | Typed{secret_ok, confirm} | Approved{person, confirm}`.** These two types are where the review's split lives:
 
-- **Hobby plan:** non-commercial use only. It allows 100 GB of transfer a month, 100 deploys a day, 100 MB per CLI upload (Pro: 1 GB) and 15,000 files.
-- **Header rules count as routes** (2,048 maximum), so we write one rule per Kind, never one per file.
-- **Previews are behind Vercel login by default** under Deployment Protection [U]. Turn that off for previews or use share links if players should open them.
-- **Transfer becomes the cost once assets arrive.** At 50 MB of assets per new player, 100 GB is about 2,000 cold sessions a month. Format 2 therefore gives assets their own base URL, so big files can move to R2 (no egress fees) or another CDN while the page stays on Vercel.
+- A **key** is a bearer credential in env or a 0600 file. It reads, uploads and moves *open* channels. A person's key also mints and revokes machine keys.
+- **No key moves a guarded pointer by itself**, not even a person's. A guarded move also needs `Presence`:
+  - on the VPS, a secret typed now and never stored by the client;
+  - on the service, an approval in the browser, where the person is logged in.
 
-What Vercel cannot do: host the persistent world. Functions can now hold WebSockets, but each connection ends at the function's maximum duration (300 s on Hobby, up to 800 s on Pro). Instances also share no memory and scale to zero. That is fine for presence or chat, and wrong for an authoritative simulation.
+Without this split, an agent running in a person's shell could simply read the person's key file and promote.
 
-**VPS: yes.** It needs a Linux box, a domain, Caddy (automatic TLS), an SSH key and rsync. The adapter itself is the release convention (`releases/<id>/`, the `live` symlink, path previews). A VPS gives up the global CDN, so put Cloudflare in front when players are far away. In return it can also run the future world server on the same domain and certificate (`reverse_proxy /ws`).
+`may.holder` matches the holder first, so `agents_never_go_live`, `robots_never_go_live` and `machines_never_mint` hold by reduction (`sketch/publish/LAWS.bend.txt`). Keys borrow from Coolify [G]: they expire, can be paused, are scoped to a creator and to some games, carry a checksum in the secret, and are stored only as a hash. From CapRover [G] comes a per-creator `version` for revoke-all.
 
-**Not possible or not viable:**
+**`Pr.Guard`.** `guard(Live{}) = Guarded`, and every `Named` channel is `Open`. I remembered rather than read that Steam's `setlive` from steamcmd works for beta branches but making the default branch live is done by a person in the web UI [MEM]. Same idea.
 
-- Raw UDP from a browser. Browsers offer WebSocket, WebTransport or WebRTC.
-- Pixel Streaming at scale, because each session needs its own GPU instance.
-- Web threads without COOP/COEP on every page. The contract has an `isolation` flag for that, off by default, because turning it on breaks third-party embeds.
-- Native builds through this pipeline today. There is no packaging, no signing or notarization, and Mac arm64 only.
+### 3. Links, origins and the two domains
 
-**The persistent multiplayer world later.** Two deploy units:
+Every link is one DNS label under the play domain: `<a>--<b>[--<c>]`. Names never contain `--`. Lengths are capped so that every label stays ≤ 63 characters (`creator ≤ 20`, `game ≤ 24`, `channel ≤ 11`, so a channel is never mistaken for a 12-hex id). This gives four properties:
 
-1. The static client, through this same contract, on Vercel or the VPS.
-2. A long-lived server: `server/` holds pure Bend rules that import `engine/` (the same rules the client predicts with), and `platform/server/` is a Bun WebSocket shell, or later native Bend→C on Linux (Base has TCP). It runs on a VPS or any container host, never on Vercel Functions.
+- **One origin per game channel and per release.** localStorage, IndexedDB, service workers and cookies of one creator's game are unreadable by another's, and a release preview never touches live players' saves (v1's graft, generalized).
+- **One wildcard certificate.** `*.PLAY` via DNS-01 [MEM] covers every link, and adding a creator or a game changes no TLS.
+- **One Caddyfile that never changes** (`sketch/example/Caddyfile`). `root /srv/ogw/sites/{label}` serves a symlink the publish server keeps. Players' requests never touch the publish process.
+- **The play domain is a separate registrable domain** from the service's (`api.SERVICE`, login pages), and it goes on the Public Suffix List. This follows github.io/github.com and vercel.app/vercel.com [MEM]. A creator's script can then never read the service's login cookie. This matters because the service runs JS that strangers wrote.
 
-The contract grows one field in format 2, `server: {protocol}`, plus a Bend law `compatible(client, server)`. Deploy then refuses a client whose protocol the live server doesn't speak. Server releases reuse the VPS convention (`releases/<id>`, `live`) with a process restart instead of a symlink swap.
+### 4. The server's decisions are Bend (`sketch/publish/service.bend.txt`)
+
+For each request, `server.ts` reads exactly what Bend asks for (a `Seen…` value), calls one pure function (`release`, `point`), and runs the returned `Apply{steps}` in order: `WriteRelease`, `AppendMove`, `PointSite`, `Log`. Effects are data (CATCHES X6). One owner writes `/srv/ogw`, and every path comes from a Bend def. Shared state and what happens on races:
+
+- **Blobs** are content-addressed. Two identical writes write the same bytes.
+- **Releases** have content ids, so a repeat is a no-op, and the same id with other content is refused (`IdTaken`).
+- **Channels** are the only shared mutable state. The hands hold a flock across read-decide-append, and `expect` turns a lost race into `Stale{now}`.
+- **`sites/`** is a cache derived from the logs. `reconcile` rebuilds it, so a crash between appending a shift and swapping the symlink is harmless.
+
+**Trust.** The server never trusts the client's sizes or id. It re-measures every blob, recomputes `id_text`, and re-runs `Contract.recheck`. It also recognizes the engine's own assets by sha (`known` works). So a manifest that ships the mannequin's `skin.bin` without its credit is refused even if the client lied. `source.checked` and `source.dirty` are attestations that the server cannot re-derive. The laws `unchecked_never_goes_live` and `dirty_never_goes_live` stop honest clients. A dishonest creator hurts only their own game's origin.
+
+On a guarded move, the server also refuses `SeedChanged` (AGENTS.md: the world's seed never changes once set).
+
+### 5. Export: the walk, per-game clips, budgets, credits, toolchain
+
+- **Selection uses roots plus a dependency walk** (Godot's export filter and dependency walk [G]). The roots are `PROJECT.start(p)` and the per-game declaration `export/games.bend`, an exhaustive match over `Project`, so there is no second list. `export/needs.bend` walks the scene as data:
+  - rigged figures give skins, which become Asset entries;
+  - imported materials give shader ids, so only those catalog entries ship;
+  - declared clip names are resolved to indices.
+
+  Export then writes **a per-game Bend module**, `out/gen/<game>/game.bend`, that imports one file per picked clip (`library/<c>/gen/m/<slug>.bend`). Naming one def of today's `motions.bend` is not enough: on the page path the loader exports every def, so all 42 clips would ship [M, judge]. The split into one file per clip is a change to `tools/clips.ts`, so it goes to Isabella as a request (`sketch/requests/tools-clips-one-file-per-clip.ts.txt`, from candidate 2). Until it lands, a game with library clips is refused `OverCode`, honestly, and games with the code-made idle and walk export fine. Bend decides what is in the module (`Glue`), and TS prints it 1:1, as `tools/clips.ts` prints `motions.bend` today. `out/gen/` is a new layer, `GameGen`, and it ships.
+- **Budgets count Code and Assets apart.** The numbers come from one reach rule in Bend: a 1.6 Mbit/s phone link [MEM]. Code blocks the first frame, so it gets 1.5 s; assets do not, so a game is playable within 10 s.
+
+  | Budget | Limit | Character game today | One library clip (page path, minified) [M] |
+  |---|---|---|---|
+  | `code_gz` | 300 KB | ~28 KB | ~39 KB, so ~6 clips fit |
+  | `code_raw` | 2 MB (provisional) | ~190 KB | ~192 KB |
+  | `asset_wire` | 2 MB | ~1.28 MB (the mannequin: 64%) | — |
+
+  `code_raw` stands for parse time on a low-end phone. Its number is provisional and is re-measured in slice 3 on the real minified bundle. Each budget number is a law, so changing one is a visible decision. Clips compiled as code are a visible, measured cost instead of a surprise on a phone.
+- **Credits.**
+  - `Work = Mannequin | Quaternius | BendUi` is a closed list, so a new work makes the compiler point at every match.
+  - `credits(works(inputs))` is derived.
+  - `attribution(credits_page, works)` matches `credits_page` first. `credits_page` is **measured**: it is true only when `site/credits.html` is really in the folder, never declared by hand (graft from candidate 2). The law **`mannequin_needs_its_credit`** proves that a build with the mannequin and no credits page is refused, whatever else it ships. **`mannequin_credit_travels`** proves the credit is in the manifest.
+  - The credit is *shown* on `credits.html`, a page written by Bend from a Bend-UI tree (`sketch/ui/credits.bend.txt`) and turned into static text at export time, so no Bend-UI JavaScript ships for it. The game page itself (`index.html`) is also text written by Bend (`Contract.page`), never a hand-written file.
+  - The strings live in `mannequin/credit.bend`, and a test keeps `CREDITS.md` in agreement.
+  - The IP question is a `Warning` (`NotClearedForSale`), not a refusal, because the owner chose the mannequin.
+- **Toolchain.** `Facts.tools = Toolchain{bend, dxc, spirv_cross}` is measured by TS. Bend refuses `WrongBend` when the version is not the pinned 2.0.40. It refuses `ToolMissing{"dxc", shader}` only for an HLSL shader the game uses, and `ShaderNotBuilt` when the catalog has only diagnostics. A GLSL-only game builds without `dxc` and the CLI says so. Messages name the phase and the remedy, as Godot's missing-template error does [G].
+- **Minimal `runGame`** (`sketch/platform/web/run.js.txt`). It does what the review asked for and nothing more: draw the scene, and when `Lo.runs(scene, reduce)` is true, `scene = Lo.frame(scene, input, dt, reduce)`. Isabella replaces the body later, and the signature stays.
+
+### 6. Layers (`sketch/LAYERS.bend.txt`)
+
+These rules are checked on every `check` and on every export, against the bundler's real inputs. **One table, `places()`, is the only list of folders in the engine** (graft from candidate 2): `layer_of(path)`, what ships, and the folders `check` type-checks (`typed_roots()`, which replaces `check.ts`'s hand-written `FOLDERS`) are all derived from it. A folder missing from the table is `Outside`, which the fence refuses, so a new folder cannot stay silently unchecked.
+
+New layers:
+- ship: `Mannequin` (with its credit), `Library` (only the clip files a game imports), `GameGen` (`out/gen/<game>/`);
+- never ship: `MannequinLaws` (incl. `gen/weights.bend`, 141 KB), `MannequinSource` (`source/`, `gltf/`), `LibraryIndex` (the editor's 42-clip catalog and thumbs), `LibrarySource`, `GameUi` (rendered to static text by export), `Contract`, `Export`, `Publish`, `PlatPublish`.
+
+`editor/workspace/` and `editor/shaders/` are Editor, and `tools/shaders/` is Tools. `engine/gizmo.bend` and `engine/world.bend` stay as named debts; a debt that no longer exists fails the check. Laws: `shipped_never_imports_editor`, `shipped_never_imports_tooling`, `sources_never_ship`, `laws_never_ship`, `publish_rules_never_ship`.
+
+Note: `main.js` (the editor) loads the mannequin's textures from `mannequin/source/`, which never ships. The game's export takes them from there by path, as the bundler does; moving them to `gen/` would be cleaner, but that is the mannequin's owner's call, not export's.
+
+### Interface depth
+
+Callers learn four verbs (`push`, `promote`, `rollback`, `history`), plus `keys`, and one address grammar (`creator/game:channel`). Behind them:
+
+- the check run, toolchain verdict, walk, per-game module, bundling, measuring, budgets and credits;
+- content-addressed dedupe, resumable uploads, protocol versioning, key lookup, presence prompts and approvals, compare-and-swap on pointers;
+- storage, symlinks, the audit log and reconciliation.
+
+All policy is in four Bend files: `contract`, `protocol`, `keys`, `service`. Adding a host means writing a server that speaks the protocol. The client does not change.
+
+**Red-flag screen:**
+
+- **Two ways to do one task:** the CLI and the editor share `client.ts`. v1's `deploy`/`deploys` scripts are not added, and `build` stays the editor demo build.
+- **Hand-synced lists:** the Caddyfile is printed from Bend, `CREDITS.md` is held to `credit.bend` by a test, games are an exhaustive match, and works are derived from layers.
+- **Split ownership:** one server owns `/srv/ogw`, the pointer is derived from the log, and `sites/` is a cache.
+- **Leakage:** wire JSON is parsed into Bend types in the hands and is never passed on.
+- **Importable internals:** a LAYERS law; `server.ts` exports only `serve`.
 
 ## AGENTS.md decision workflow, applied
 
-| Source | Taken | Rejected |
-|---|---|---|
-| **Unreal** (cook -> stage -> package -> archive; pak/IoStore; ChunkDownloader; Server target) | A staged, archived build as its own artifact separate from the editor (our `out/web/<game>/`). A manifest beside the files (ChunkDownloader). A separate server target (`server/` + `platform/server/`). | Pak/IoStore containers on the web: browsers and CDNs cache per file, and one big archive defeats incremental updates. Pixel Streaming: cost per player. No first-party web target to copy. |
-| **Unity** (Build Profiles; WebGL `Build/` folder; Addressables catalog + hash + remote load path; dedicated server build) | Per-target settings as data (`export/games.bend` `Settings`). A catalog with hashes (game.json). Remote load path, which becomes format 2's asset base URL for an object store. | The WASM runtime (2–10 MB vs our 48 KB). Precompressed `.br` builds that need exact Content-Encoding headers or a slow JS fallback: hosts compress instead. |
-| **Gregory**, *Resources and the File System* [U] | The runtime/tools split, so export is a tool that never ships (a LAYERS law). Deterministic, hashed builds with a manifest. Content hash as the resource identity. An offline conditioning pipeline as a separate step (format 2 Asset entries, incremental by source hash). | Packing everything into a few archives: right for discs and consoles, wrong for HTTP/2 CDNs. |
-| **Bend conventions** (2.0.40, CATCHES) | Decisions in `.bend`, IO in the shell (effects as data, X6). Laws only where they reduce structurally (match order makes `release`/`may_promote` laws provable). List walks go to `tests/*.bend` `checks()` (F1, F6). Exhaustive matches over `Project` instead of second lists. No forward refs or mutual recursion in the sketches. Helpers for computed matches (M1). | Bend producing files or calling hosts (no IO in pure code). Runtime `~` templates keyed on project ids (Q13). |
-| **Vercel** (the requested experience) | Build Output API: literally our Vercel target, and the model for our own contract. Immutable deployments, previews, promote and rollback as pointer moves. Agents deploy previews and only people promote. CLI, then MCP over the same functions. | Building on the host's machines. Using Functions for the world. |
-| **Performance and reach** | A first-load budget law: 300 KB gzip before the first frame, about 6× today's page and about 7× smaller than a tuned empty Unity build. Immutable caching for everything but the page. WebGL2 (~98% reach). Isolation off by default so embeds on itch and portals keep working. | Anything that adds a runtime download to the critical path (WASM loaders, decompression fallbacks). |
+| Step | Source (status) | Taken | Rejected |
+|---|---|---|---|
+| 1 Unreal | [MEM] Cook → stage → package. BuildPatchTool uploads a chunked, content-addressed binary, then *labels* it (e.g. Live) for a platform. Server target. | Immutable upload, then a separate label move: our release, then point. A staged folder separate from the editor. | Pak archives on the web: CDNs cache per file. |
+| 1 Unity | [MEM] Build Profiles. Addressables catalog with hashes. **Cloud Content Delivery**: buckets, content-addressed entries, immutable *releases*, *badges* as named pointers. **Unity Play**: creators upload WebGL and get a link. | CCD is almost exactly our store, releases and channels. Unity Play is the product Isabella describes. | WASM runtime size. Precompressed builds that need exact headers. |
+| 1 Roblox | [MEM] Studio's "Publish" creates a place version; version history restores an older one; collaborator permissions. | The editor publishes like Studio. Restore = pointer move. Per-creator permissions. | Its closed, server-built pipeline. |
+| 2 Map | Every one of these separates **immutable content** from **a movable name**. They differ in who may move the name. Steam [MEM]: beta branches by tool, default branch by a person on the web. | Open vs Guarded channels. | Host-built pipelines (we must build: `bend` 2.0.40, `../bend`, dxc). |
+| 3 Gregory | [MEM] *Game Engine Architecture*: resource GUIDs, an offline conditioning pipeline, an asset dependency graph that the build walks, the runtime/tools split. | Content hash as identity. The needs walk is his dependency graph. Export and publish are tools that never ship (LAYERS law). Clips as conditioned data later. | Packing into few archives (disc-era). |
+| 4 Open source | [G] Godot export (presets committed, secrets apart, filter + dependency walk, toolchain errors by phase). Coolify (deployment rows + snapshot hash, abilities, scoped/expiring/rotatable checksummed tokens). CapRover (versions[] + one pointer, tokenVersion). Dokku (SSH keys are all-or-nothing). butler (`user/game:channel`, env > file key, CI never logs in, validate → upload → finalize, ParentBuild). Vercel BOA (the service accepts finished output, never builds). [R] BendHub client in `../bend/bend2/main.ts`: content hash = sha256 of "sha path" lines, then name → hash linking, device login, a key that is refused is forgotten. | All of the above, as cited in Shape. Dokku's lesson is why the VPS gets a protocol server instead of v1's rsync over SSH: SSH cannot tell "upload" from "go live". | Wharf patches (dedupe instead). Docker per app. Git-push building. |
+| 5 Bend | [R] CHANGELOG 2.0.40 (`bend --publish`, hub). `main.ts` publish and login. `Web.bend`: Cmd has no network. Base effects include TCP listen/accept/send. CATCHES N1/N13 (I checked names against `base.bend`), M1, R1, X6, F1/F6. | Our id rule = BendHub's. Our login = `bend login`'s. Laws shaped to reduce. Effects as data in the server. Barrier filed, not worked around. Later, the server's hands could be Bend on Base TCP. | JS doing what Bend-UI should do. |
+| 6 Performance | [M] Sizes above. Reach rule as numbers. | Code/asset budgets. Clips by name (dead-def removal). Immutable caching. The player path never touches the publish process (Caddy serves files). | Lazy code splitting before measuring the bundler. |
 
 ## Synthesis decision
 
-**Base: candidate 1 ("output contract first").** It won independently twice: my rubric reading and an opus cross-judge (24/30 vs 22/30). It answers today's question with the least to build and run: one folder contract, thin host adapters, Vercel's own previews/promote, no service to operate. It respects ownership best (`runGame` is a signature Isabella fills; nothing touches Vini's draw/shader code) and its first slice is small and visible. Candidate 2's publish platform stays reachable later as one more adapter that reads the same folder.
+**Base: candidate 1, "the release protocol is the spine".** Two designs were made for this revision. Candidate 1 centers on one versioned publish protocol that every host speaks. Candidate 2 centers on the game as a Bend value (`GAME.bend`) plus one publish state machine run identically by the CLI, the editor and the server. An independent judge scored them 23 to 19 and picked candidate 1, and so did my own reading, for three reasons:
+- it stays in Caio's lane: candidate 2 needs a new field in `engine/figure.bend`, a new `engine/game.bend`, a rewrite of `tools/clips.ts` and `library/catalog.bend`, and moves in `mannequin/` and `main.js`, all Isabella's areas;
+- its credential split is stronger: a key alone never moves live; live also needs a person present (a secret typed now on the VPS, a browser approval on the service), so an agent that reads a person's key file still cannot promote;
+- its evidence was measured; candidate 2 priced clips by gzipped Bend source, which understates the real cost about 2x.
 
-**Grafts from candidate 2 (folded in by hand):**
-1. **Layer debts + closure check** (`sketch/LAYERS.bend.txt`): no blanket Engine→UiKit allowance; the three real token imports are named `debts()`, a paid debt fails the check, and `stowaways()` checks the whole import closure of `game.html`.
-2. **Actor from the credential + provenance that travels** (`contract.bend` `Source{commit, dirty, checked}`, `hosts.bend` `Robot{}`, `UncheckedBuild{}`): agent and CI tokens are preview-only at the host; laws `robots_never_promote`, `dirty_never_goes_live`, `unchecked_never_goes_live`. game.json is also served at `site/game.json`, which fixes the base's gap (promote/rollback could only check the last local export).
-3. **`target` and `seed` in the manifest from format 1** (`Target = Web | MacArm64 | WinX64 | WorldServer`): native builds and the world server need no format change; the seed is checked on promote (AGENTS.md: it never changes). Protocol/schema fields come with the server (format 2).
-4. **Previews on their own origin on the VPS** (`<id>.preview.<domain>`, not a path): localStorage/IndexedDB are per origin, so a preview never touches live players' saves. (Vercel previews already have their own origins.)
+**Grafts from candidate 2, folded in by hand:**
+1. **One file per clip** (`sketch/requests/`): required, because the judge measured that on the page path naming one clip ships all 42. It is a request to Isabella, not part of an export slice.
+2. **`LAYERS.places()`, the only list of folders**, deriving what `check` type-checks and what ships.
+3. **A measured credit gate and Bend-written pages**: credits are shown on a static `credits.html` written by Bend, its presence is measured, and `index.html` is Bend's text too. No Bend-UI JavaScript ships for credits.
+4. **One set of rules on both sides**: an `Ogw-Rules` version on every request, the client pre-deciding with the same Bend rules, and blobs stored per creator.
 
-**Fixes the judge found in the base:** `type Kind` is a Bend keyword (CATCHES N4), renamed `Role`; `bun run build` is NOT removed (shared script; it stays the editor demo build).
+**Fixes found by the judge:** `publish/keys.bend` had a forward reference (CATCHES R1), now reordered; the dead-def-removal claim did not hold through the loader (now one file per clip); budgets re-measured on the real page path.
 
-**Rejected from candidate 2, for now:** `shipd` daemon with tokens and passkeys, the append-only log, sweep/pin, `<base href>` doors and wildcard on-demand TLS. Too much to run for a team this size before there is a game; and doors depend on an unverified Bun assumption. Its `fits_world` law was also false as stated (seed checked before schema).
+**Rejected from candidate 2, for now:** `GAME.bend` as a second source of a project's start and camera (it comes back when creators publish from their own repos, as one file that replaces `PROJECT.bend` there, not beside it); refusing commercial builds for the mannequin's IP and Bend-UI's license (kept as warnings: those are the owner's decisions); admin, join and quotas in the machine from day one.
 
 ## Tradeoffs accepted
 
-- **One more file for `export web` to write, in exchange for "if it plays locally it plays everywhere".** The game folder plus game.json is a contract we must version (`format`), and it buys host independence: three adapters with three methods each.
-- **Every project is compiled into every game until projects get their own entry files, in exchange for no generated per-project Bend.** Today that means a few KB.
-- **The build always happens on our side, in exchange for one toolchain everywhere.** Pinned Bend, and the bundle that passed the laws is exactly the bundle served. Vercel's "push and it builds" convenience comes back only through CI.
-- **No local deploy history, in exchange for no split ownership.** `deploys` costs a host call, and history is only as rich as the host keeps it.
-- **The promotion gate is ours, not the host's, in exchange for one rule across hosts.** It stops a well-behaved agent. It does not stop a token holder who bypasses the CLI.
-- **Two build commands live side by side: `bun run build` (the editor demo, shared script, unchanged) and `bun run export web` (a game).** Only the second may be deployed by `deploy`.
-- **Bend writes JSON and Caddyfile text by string concatenation, in exchange for keeping every policy in Bend.** It is a little verbose.
+- **We accept running a small server on the VPS in exchange for one protocol on every host.** v1's VPS adapter needed no process, but SSH and rsync cannot split "upload" from "go live" (Dokku [G]). The multi-creator service needs this server anyway.
+- **We accept that `checked` and `dirty` are client attestations in exchange for a server that never builds.** On the service, origin isolation and the separate play domain limit the damage a lying creator can do to their own game.
+- **We accept typing a point secret on every promote (VPS) in exchange for a wall an agent in the same shell cannot climb.** The service replaces typing with browser approval.
+- **We accept that a game fits about six library clips, and none until the library is split into one file per clip, in exchange for honest budgets.** The real fix (clips as data) is named below, not hidden.
+- **We accept dropping v1's Vercel and itch adapters in exchange for no Vercel dependency.** A bridge that reads the same folder stays possible.
+- **We accept 12-hex ids (48 bits) in exchange for typeable confirmations.** A collision is refused, never overwritten.
+- **We accept Bend-UI's tokens shipping through the three named debts until they are paid.** The credits page ships no Bend-UI code (static text), but Bend-UI still has no license, so the question stays open.
+- **We accept that `isolation` (COOP/COEP) is refused on the publish host in exchange for one static Caddyfile.**
 
 ## Alternatives considered
 
-- **Host-first (a "deploy" command per host, each building its own way).** It has the smallest initial code and the shallowest interface: every host repeats bundling, header policy and the laws. Each new host is a new chance for editor code or a wrong cache rule to ship, and the laws would have to be re-proved per host. Rejected because of information leakage across adapters.
-- **Our own publish service (EXPORT.html step 4 taken literally): a store keyed by content hash, a deployments database, an alias API, our own CDN.** It has the deepest interface and is fully Vercel-like on any machine, but it hides a whole service we would have to run and secure before there is a game to ship. The contract-first shape keeps that option open: such a service would be just one more adapter reading the same folder.
-- **Pack the game into one archive (pak-style) with a JS loader.** It gives atomic versions, but it loses per-file CDN caching and incremental updates, and adds a loader to the critical path. It is right for native and console later, wrong for the web.
+- **v1's host adapters (rsync + symlink over SSH, Vercel prebuilt, butler).** Each adapter reimplements the confirmation and the rules. SSH keys cannot express "upload only". The service would be a fourth adapter with its own semantics, which is a rewrite in all but name. It exposes host quirks to the publish layer.
+- **Server-side builds (git push, as in Dokku and CapRover).** This has the simplest client. But the builder needs Bend 2.0.40, `../bend`, dxc and spirv-cross, and it would run strangers' build code on our box. Vercel's own prebuilt path exists for the same reason.
+- **Path links on one origin (`PLAY/<creator>/<game>/`).** No wildcard certificate is needed. But every creator's game shares storage, service workers and cookies, and Bun's relative URLs are [U].
+- **Object store + CDN as the blob store from day one (R2 or S3).** It scales transfer, but it is an extra account and an extra bill before there is traffic. The protocol hides it: `blob` and `have` can move behind the server later with no client change.
 
 ## Open questions and risks
 
-- Should `runGame`'s body be Isabella's from the start, or should export land a minimal draw-only version that she replaces when `tick.bend` and `play.bend` arrive?
-- Is a person typing the build id back on a TTY enough of a promotion gate, or should we also split host credentials (a preview-only token for agents and CI, the promote token only on a person's machine)? The latter is the real wall.
-- Does `vercel promote` of a preview move a pointer, or rebuild? The pointer-only path may be `deploy --prebuilt --prod --skip-domain` then `promote`. [U] Test before relying on it.
-- Does Bun's HTML bundling honor `naming.chunk`/`naming.asset` (`_/`, `a/`), emit relative URLs (needed for path previews on the VPS), and offer `metafile` in the pinned Bun? [U] If not, path rules move to a post-build rename, and inputs come from a walk of the import graph.
-- Is the game going to be commercial before a Pro plan? Vercel Hobby forbids commercial use.
-- Should `gizmo.bend` (and the Bend-UI token import) leave `engine/`? LAYERS allows it today as named debt.
-- What does Vercel's Deployment Protection default to on the team's account? It decides whether preview links are playable by outsiders.
-- Native (format 2, `app/` instead of `site/`) needs executable-relative asset paths in bend-engine, which loads relative to the working directory today. Should that become a barrier in `docs/barriers.md` now?
+1. **Mannequin IP.** The mannequin's model is CC BY 4.0, but `mannequin/CREDITS.md` says the character it depicts is (c) Square Enix / Disney. The credit satisfies the model's license; it does not give the right to use the character in a commercial game. Is a game that ships it allowed to be sold, or published on a public service? Today the design warns and does not refuse. One line in `service.bend` would refuse it on public `live` if the owner decides. Another option keeps the rig and swaps the mesh.
+2. **Bend-UI has no license** (no LICENSE file, no `license` field). Its tokens reach every game through the three named debts, and creators on the service would ship them too. Can a LICENSE be added to Bend-UI before the first public link?
+3. **Bend-UI network command.** Will Bend-UI take `Web.request{method, url, headers, body, on_reply, on_fail}`? The editor's Publish tab waits on it.
+4. **Domains.** Can we have two registrable domains (play and service) and submit the play domain to the Public Suffix List? With one domain, would `*.play.DOMAIN` with a PSL private entry plus host-only service cookies be acceptable?
+5. **Clips as data.** Should the library store motions as binary Assets (like `skin.bin`), decoded by Bend? That would remove most of the ~192 KB of JS per clip. Like the one-file-per-clip split, it is a change to `tools/clips.ts`, Isabella's area.
+6. **Unverified [U] items, each checked in its slice:**
+   - `metafile` in the pinned Bun;
+   - `Bun.serve` routes with HTML imports;
+   - Caddy's `host_regexp` placeholder and the DNS provider module;
+   - the parse rate of a low-end phone.
+7. **Service policy (before Service mode).** Quotas and price, takedown and abuse reporting for strangers' pages on our domain, and account recovery.
+8. **The editor's Publish tab: where it goes.** The sketch makes it a fourth workspace tab after Scene, Animation and Shaders. It is new UI, so its placement needs a yes before it is built.
+9. **The mannequin's credit strings** (`mannequin/credit.bend`) are a small new file in `mannequin/`, which is Isabella's folder. OK to add it there, or should the credit stay only in `export/`?
+10. **Where creators' games live.** For creators outside the engine repo, `export/games.bend`'s exhaustive match becomes a `GAME.bend` in their repo. The protocol does not care. When?
+
+## Slice plan (one PR each, each passing `bun run check` and saying what was not tested)
+
+| PR | What | Verified by |
+|---|---|---|
+| 0 | This design (revision 2), docs only, in PR #2; then ready and merged | review |
+| 1 | `export/contract.bend`, `export/LAWS.bend` + `PROOF.bend`, `mannequin/credit.bend`, `tests/export.bend` (+ CREDITS.md agreement test) | laws prove; the numeric checks listed in `export/LAWS` pass |
+| 2 | `LAYERS.bend` + laws; the fence step uses it; FOLDERS += export | `check` passes on main; a planted editor import fails |
+| 3 | `PROJECT.find` + law, `export/needs.bend` + `games.bend`, game page + minimal `runGame`, `export/web.ts`, `bun run export web` + `serve` (Character, no clips) | `out/web/character/` plays under `export serve`; a canvas picture matches the editor's at the same camera; real sizes printed |
+| 4 | `ui/credits.bend` written as static `credits.html`, and `index.html` from `Contract.page` | the page and credits read from `export serve`; `ui-verify` |
+| — | **Request to Isabella:** `tools/clips.ts` writes one file per clip plus an index (sketch in `requests/`) | her PR, in her area |
+| 5 | Per-game clips through the generated module (Animation: Jog + Jump), after the request lands | measured bundle; all 42 clips refused by `OverCode` |
+| 6 | `publish/protocol.bend`, `keys.bend`, `service.bend` + laws + `tests/publish.bend` (no IO) | laws prove; numeric checks |
+| 7 | `publish/server.ts`, `client.ts`, `cli.ts` against a local server in a temp root | push, idempotent re-push, agent refused on live, person promote, rollback, kill mid-upload then re-push |
+| 8 | VPS: Caddy, wildcard certificate, systemd, `person caio`, first live link (Isabella's server and domain) | the live link from a phone |
+| 9 | Bend-UI request command (in Bend-UI), then the editor Publish tab + dev.ts routes | `ui-verify`; publish from the editor |
+| 10+ | Service mode: login, approval pages (Bend), quotas, PSL | per feature |
+
+PRs 1–3 are the approved first slice. PR 4 is needed before any link is public, because of the CC BY credit.
 
 ## Next implementation step
 
-Write `export/contract.bend` (`release`, `cache`, `headers`, `id_text`, `json`) with its two laws and `tests/export.bend`. Then `export/web.ts` `exportWeb` on `platform/web/game.html`, so that `bun run export web` produces `out/web/character/` with a valid game.json, which `bun run export serve` plays.
+Write `export/contract.bend` with its laws (`nothing_ships_when_checks_fail`, `mannequin_needs_its_credit`, `mannequin_credit_travels`, the cache laws), `mannequin/credit.bend` and `tests/export.bend`, so that `bun run check` proves them.

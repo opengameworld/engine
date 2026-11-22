@@ -1,0 +1,26 @@
+# The mannequin's credit, as values: what game.json carries and what the player's Credits page
+# shows wherever the mannequin goes. (SKETCH)
+#
+# mannequin/CREDITS.md stays the prose for people reading the repo. One source of truth: the
+# strings live HERE; tests/export.bend's companion (tools/test.ts step) fails when CREDITS.md's
+# first paragraph does not contain credit()'s author, license and url, so the two cannot drift.
+#
+# Limits now:
+# - The credit covers the model's author (CC BY 4.0). It does NOT clear the character itself,
+#   which is (c) Square Enix / Disney: cleared_for_sale() is False and every export that ships the
+#   mannequin prints that as a warning. Not a refusal: the mannequin was chosen by the project's
+#   owner, and clearing it (or replacing the mesh while keeping the rig) is the owner's call.
+
+import Base
+
+# Not importing export/contract.bend (mannequin ships; export never does): the record is built by
+# contract.bend's credit(Mannequin{}) from these four strings.
+def title() -> String: "Sora (Kingdom Hearts Melody of Memory)"
+def author() -> String: "雨宮レン"
+def license() -> String: "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)"
+def url() -> String: "https://skfb.ly/pPNsQ"
+def notice() -> String: "The character is (c) Square Enix / Disney."
+
+def cleared_for_sale() -> Bool: False{}
+def not_cleared_why() -> String:
+  "CC BY credits the model's author; the character's own rights (Square Enix / Disney) are not licensed"

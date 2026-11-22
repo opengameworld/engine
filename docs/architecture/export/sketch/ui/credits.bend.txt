@@ -1,0 +1,34 @@
+# The credits page, as a Bend-UI tree. (SKETCH: ui/credits.bend, layer GameUi: run by export, never bundled.)
+#
+# The game's first Bend page outside the editor. Export turns the tree into static text
+# (render_text below) and writes it as site/credits.html, so the page needs no script and
+# ships none of Bend-UI's JavaScript. Its look comes from Bend-UI's components and tokens,
+# like every page of this engine.
+#
+# Limits now:
+# - Bend-UI has no "tree to text" (its driver, web.js, draws a tree in a live page). Until it
+#   has one (a request for Bend-UI), render_text is ours, here, about 40 lines.
+# - Text only: no thumbnails, no links but each work's URL and its license's URL.
+
+import Base
+import ../node_modules/bend-ui/Web.bend as Web
+import ../node_modules/bend-ui/UI.bend as Ui
+import ../export/contract.bend as C   # the manifest's derived credits (C.Credit)
+
+def license_url(license: String) -> String:
+  # TODO not implemented: "CC BY 4.0" -> "https://creativecommons.org/licenses/by/4.0/", "CC0" -> ".../publicdomain/zero/1.0/", ...
+  TODO
+
+# One work: its title, author, link, license, and "The character is (c) <owner>." when it has one.
+def work_view(w: C.Credit) -> Web.HTML<Unit>:
+  # TODO not implemented (Ui components, Bend-UI tokens)
+  TODO
+
+def page(title: String, ws: List<&2, C.Credit>) -> Web.HTML<Unit>:
+  # TODO not implemented
+  TODO
+
+# A Web.HTML tree as HTML text (escaped); attributes in order; no events (a static page).
+def render_text(h: Web.HTML<Unit>) -> String:
+  # TODO not implemented
+  TODO

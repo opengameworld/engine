@@ -1,0 +1,57 @@
+// publish/server.ts: the publish protocol's server (SKETCH, new in v2). HANDS ONLY: HTTP, disk,
+// sha256, gzip sizes, symlinks, the flock and the log. Every answer comes from publish/service.bend.
+//
+// One program, two modes, chosen by its config file (/srv/ogw/server.json), never by code:
+//   { "mode": { "Team": { "creator": "ogw" } }, "play": "<play domain>", "api": "api.<service domain>", "port": 7400 }
+//   { "mode": "Service", ... }   (adds /v1/login/*, approvals and the service's Bend pages)
+//
+// It runs on the VPS behind Caddy (sketch/example/Caddyfile): Caddy serves the games' files straight
+// from /srv/ogw/sites/ (this process is never on the path of a player's request) and proxies
+// api.<service> to this process. A process crash stops publishing, never playing.
+//
+// Deployed as ONE file: `bun build publish/server.ts --target bun --outfile out/publish-server.js`
+// compiles the Bend modules in through the same loader as everything else, so the VPS needs bun and
+// nothing from the repo, no `bend`, no ../bend.
+//
+//   bun out/publish-server.js serve                  answer the protocol
+//   bun out/publish-server.js caddyfile              print Sv.caddyfile(...) for a person to install once
+//   bun out/publish-server.js person <name>          (Team) add a person: prints their key once and
+//                                                    asks for their point secret twice (stored hashed)
+//   bun out/publish-server.js reconcile              rebuild sites/ from releases/ and channels/
+//
+// Limits now:
+// - Approvals (Service mode) need the service's own Bend pages (login, approve): built in the
+//   service slice, from Bend-UI's Web.bend like the editor's. Team mode has none.
+// - Requests are checked for the protocol header and a key before anything is read from disk.
+
+import Sv from "./service.bend";
+import Pr from "./protocol.bend";
+import K from "./keys.bend";
+import Contract from "../export/contract.bend";
+
+// Each route: read what Bend needs (Seen), ask Bend, run the Plan's steps in order, answer.
+export function serve(config: unknown): void {
+  // TODO not implemented:
+  //   Bun.serve({ port, routes: {
+  //     "GET /v1":            hello (Pr.protocol(), mode, play, Sv.limits(plan)),
+  //     "POST /v1/have":      caller -> shas not under blobs/,
+  //     "PUT /v1/blob/:sha":  caller (Upload) -> stream body to blobs/tmp, sha256 it; != :sha -> BadBlob; else rename,
+  //     "POST /v1/release":   caller -> parse game.json into a Contract.Manifest (boundary), replace sizes from
+  //                           blob facts, id = sha256(Contract.id_text(m)).slice(0,12), known works by sha ->
+  //                           Sv.release(caller, seen) -> run steps,
+  //     "POST /v1/point":     caller -> flock(channels/<name>.log) { seen = read log; Sv.point(mode, caller, seen) -> run steps },
+  //     "GET /v1/history":    caller (Read) -> releases/*.json + channels/*.log,
+  //     "POST /v1/keys" ...:  caller -> K.may(key, Mint{holder}) -> write keys/<id>.json (hash of a fresh secret) },
+  //   })
+  throw new Error("not implemented");
+}
+
+// Runs one Plan step. The only place that writes under /srv/ogw.
+async function run(step: unknown): Promise<void> {
+  // TODO not implemented:
+  //   WriteRelease -> releases/<id>.json.tmp -> rename; then site/<path> hard links to blobs/<sha> for each entry
+  //   AppendMove   -> append one JSON line + fsync (under the channel's flock, held by the caller)
+  //   PointSite    -> symlink sites/.<label>.tmp -> rename over sites/<label> (atomic for Caddy)
+  //   Log          -> append to log/<yyyy-mm>.jsonl
+  throw new Error("not implemented");
+}
