@@ -62,7 +62,8 @@ Open `http://localhost:3100/?project=water` and select **Water**. In the **Shade
 | `engine/shader/asset.bend` | An imported shader's parameters, what each may be worth, and editing one on a material |
 | `editor/panels/` | The Scene and Details panels: what they hold (`panels.bend`) and what is drawn for it (`view.bend`, a page written in Bend). No JS of their own: Bend-UI's driver draws them |
 | `tools/gltf.ts` | The importer: a .glb + rig.json → skeleton, rules, weights (Bend) and skin.bin |
-| `tools/check.ts` | `bun run check`: laws (the engine's, the editor's, the mannequin's), types (every `.bend` file, found by itself), tests, the refs/ fence |
+| `tools/check.ts` | `bun run check`: laws (the engine's, the editor's, the mannequin's), types (the `.bend` files `LAYERS.bend` says to check), tests, and the layers: every file in a layer, every import allowed or a named debt, no debt left unused |
+| `LAYERS.bend`, `tools/layers.ts` | The engine's layers: the only list of its folders, which may import which, what ships in a game, and the named debts (laws in `LAWS.bend`); `tools/layers.ts` finds the files and imports it judges |
 | `AGENTS.md` | The rules for agents working here; the game's vision is in the `opengame` repository |
 | `tests/` | Numerical tests (`checks()` lists), run by `tools/test.ts` |
 | `export/contract.bend` | Export's decisions about a game folder: what ships or is refused and why, cache, the code and asset budgets, the credits a game owes, the build machine it needs (laws in `LAWS.bend`, tests in `tests/export.bend`) |

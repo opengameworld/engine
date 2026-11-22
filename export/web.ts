@@ -12,6 +12,7 @@
 
 import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { closure, imports } from "../tools/layers";
 
 export const ROOT = join(import.meta.dir, "..");
 const BEND = join(ROOT, "..", "bend");
@@ -102,7 +103,15 @@ export async function exportWeb(slug: string, say = console.log): Promise<{ ok: 
     const bytes = new Uint8Array(await Bun.file(join(site, path)).arrayBuffer());
     entries = F.entry(path, bytes.length, Bun.gzipSync(bytes, { level: 9 }).length, sha256(bytes), entries);
   }
-  const outcome = F.release(checks, slug, entries, existsSync(join(site, "credits.html")), tools);
+  // What the build reaches from its page, and the generated game's own imports: LAYERS.bend,
+  // through files.bend, refuses a file that may not ship or an import a game may not make.
+  const genRel = F.gen_dir(slug);
+  const reached = closure([`${genRel}/index.html`]);
+  let reachedList = F.paths_none(), froms = F.paths_none(), tos = F.paths_none();
+  for (const p of [...reached].reverse()) reachedList = F.path(p, reachedList);
+  for (const f of reached.filter((p) => p.startsWith(`${genRel}/`) && /\.(bend|js|html)$/.test(p)))
+    for (const t of imports(f)) { froms = F.path(f, froms); tos = F.path(t, tos); }
+  const outcome = F.release(checks, slug, entries, existsSync(join(site, "credits.html")), tools, reachedList, froms, tos);
   if (!F.shipped(outcome)) {
     rmSync(stage, { recursive: true, force: true });
     say(F.reasons_text(outcome).trimEnd());

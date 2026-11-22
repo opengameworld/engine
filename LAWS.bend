@@ -24,6 +24,7 @@ import ./engine/skin.bend as Skin
 import ./engine/helpers.bend as H
 import ./engine/locomotion.bend as Loco
 import ./export/contract.bend as Ex
+import ./LAYERS.bend as Ly
 
 # ---------- Shortcuts ----------
 
@@ -348,3 +349,36 @@ law asset_budget_is_2m:
 # LAW: the credits page is fetched again on every load too.
 law the_credits_page_revalidates:
   {Ex.cache(Ex.Role.Doc{}) == Ex.Cache.Revalidate{} : Ex.Cache}
+
+# ---------- Layers (LAYERS.bend) ----------
+
+# LAW: nothing that ships in a game may import the editor.
+law shipped_never_imports_editor:
+  for a: Ly.Layer
+  {Bool.and(Ly.ships(a), Ly.may_import(a, Ly.Layer.Editor{})) == False{} : Bool}
+
+# LAW: nothing that ships may import export, tools or the layer rules.
+law shipped_never_imports_tooling:
+  for a: Ly.Layer
+  {Bool.and(Ly.ships(a), (Ly.may_import(a, Ly.Layer.Export{}) || Ly.may_import(a, Ly.Layer.Tools{}) || Ly.may_import(a, Ly.Layer.Rules{}))) == False{} : Bool}
+
+# LAW: nothing outside refs/ imports refs/.
+law only_refs_import_refs:
+  for a: Ly.Layer
+  {Bool.and(Bool.not(Ly.Layer.is_refs(a)), Ly.may_import(a, Ly.Layer.Refs{})) == False{} : Bool}
+
+# LAW: the editor, export, tools, the library's catalog and the mannequin's laws never ship.
+law the_editor_never_ships:
+  {Ly.ships(Ly.Layer.Editor{}) == False{} : Bool}
+
+law export_never_ships:
+  {Ly.ships(Ly.Layer.Export{}) == False{} : Bool}
+
+law tools_never_ship:
+  {Ly.ships(Ly.Layer.Tools{}) == False{} : Bool}
+
+law the_library_catalog_never_ships:
+  {Ly.ships(Ly.Layer.LibraryIndex{}) == False{} : Bool}
+
+law the_mannequin_laws_never_ship:
+  {Ly.ships(Ly.Layer.MannequinLaws{}) == False{} : Bool}

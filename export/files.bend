@@ -24,6 +24,7 @@ import ../PROJECT.bend as P
 import ./contract.bend as Ex
 import ./needs.bend as N
 import ./pages.bend as Pg
+import ../LAYERS.bend as Ly
 
 def out_dir() -> String: ".export"
 
@@ -191,8 +192,46 @@ def entry(+path: String, +bytes: U32, +gz: U32, +sha: String, +rest: List<&2, Ex
 def tools(+bend: String, +treeshake: Bool, +dxc: Bool, +spirv_cross: Bool) -> Ex.Toolchain:
   Ex.Toolchain{bend, treeshake, dxc, spirv_cross}
 
-def release(checks: Bool, +slug: String, +es: List<&2, Ex.Entry>, +credits_page: Bool, +t: Ex.Toolchain) -> Ex.Outcome:
-  Ex.release(checks, Ex.Facts{slug, title(slug), es, N.works(Files.skins(slug)), credits_page, hlsl(slug), t})
+def paths_none() -> List<&2, String>: []
+
+def path(+p: String, +rest: List<&2, String>) -> List<&2, String>: p <> rest
+
+# The imports a generated game makes that its layer may not make (the repository's own files are
+# `bun run check`'s), as one line each.
+def Files.blocked.pick(hit: Bool, +line: String, rest: List<&2, String>) -> List<&2, String>:
+  match hit:
+    case True{}:
+      line <> rest
+    case False{}:
+      rest
+
+def Files.blocked.keep(+v: String, +f: String, +t: String, rest: List<&2, String>) -> List<&2, String>:
+  Files.blocked.pick(String.starts_with(v, "blocked"), String.concat([f, " imports ", t, ": ", v]), rest)
+
+def Files.blocked(froms: List<&2, String>, tos: List<&2, String>) -> List<&2, String>:
+  match froms:
+    case Nil{}:
+      []
+    case Con{+f, ft}:
+      match tos:
+        case Nil{}:
+          []
+        case Con{+t, tt}:
+          Files.blocked.keep(Ly.verdict(f, t), f, t, Files.blocked(ft, tt))
+
+def Files.stowed(xs: List<&2, String>) -> List<&2, String>:
+  match xs:
+    case Nil{}:
+      []
+    case Con{x, t}:
+      String.append(x, ": its layer never ships in a game") <> Files.stowed(t)
+
+# `reached`: every file the build reaches from its page; `froms`/`tos`: the generated game's own
+# imports, one pair each.
+def release(checks: Bool, +slug: String, +es: List<&2, Ex.Entry>, +credits_page: Bool, +t: Ex.Toolchain,
+    reached: List<&2, String>, froms: List<&2, String>, tos: List<&2, String>) -> Ex.Outcome:
+  Ex.release(checks, Ex.Facts{slug, title(slug), es, N.works(Files.skins(slug)), credits_page, hlsl(slug), t,
+    List.append(&2, String, Files.stowed(Ly.stowaways(reached)), Files.blocked(froms, tos))})
 
 def shipped(o: Ex.Outcome) -> Bool:
   match o:

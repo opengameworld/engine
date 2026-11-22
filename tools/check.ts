@@ -5,32 +5,23 @@
 // 2. Types: every .bend file compiles (--check-only). They are found, not listed.
 // 3. Tests: the numerical tests in tests/*.bend (tools/test.ts).
 // 4. Study-only characters in refs/, when present.
-// 5. Fences: nothing outside refs/ imports from refs/, so third-party
-//    reference assets can never reach a build.
+// 5. Layers: every code file belongs to a layer of LAYERS.bend, every import is one its layer
+//    may make (or a named debt), and every debt is still used. This includes the old refs/
+//    fence: nothing outside refs/ imports from it.
 //
 // Limits now:
-// - Types are checked in the root and in engine/, projects/, mannequin/,
-//   library/, editor/ and tests/. A .bend file in a new top-level folder is not seen until the
-//   folder is added to FOLDERS below.
+// - LAYERS.bend says which .bend files are type-checked (its places()); a .bend file in a folder
+//   it does not name fails step 5 instead of being skipped silently.
 
 import { $ } from "bun";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readdirSync } from "node:fs";
+import { codeFiles, imports, rules } from "./layers";
 
-// Every .bend file of the engine: the ones at the root and all under these
-// folders. LAWS.bend and PROOF.bend files are left out: laws alone are
-// unproved statements, and step 1 checks them with their proofs.
-const FOLDERS = ["engine", "projects", "mannequin", "library", "editor", "tests", "export"];
-function bendFiles(dir: string, deep: boolean): string[] {
-  const out: string[] = [];
-  for (const name of readdirSync(dir).sort()) {
-    const p = dir === "." ? name : join(dir, name);
-    if (statSync(p).isDirectory()) { if (deep) out.push(...bendFiles(p, true)); }
-    else if (name.endsWith(".bend") && !/(LAWS|PROOF)\.bend$/.test(name)) out.push(p);
-  }
-  return out;
-}
-const typed = [...bendFiles(".", false), ...FOLDERS.flatMap((d) => bendFiles(d, true))];
+// LAYERS.bend decides which .bend files are type-checked. LAWS.bend and PROOF.bend files are
+// left out: laws alone are unproved statements, and step 1 checks them with their proofs.
+const L = await rules();
+const files = codeFiles();
+const typed = files.filter((f) => f.endsWith(".bend") && L.typed(f) && !/(LAWS|PROOF)\.bend$/.test(f));
 
 function step(title: string) { console.log(`\n== ${title}`); }
 
@@ -59,17 +50,25 @@ if (existsSync("refs")) {
   }
 }
 
-step("fences");
-const offenders: string[] = [];
-function walk(dir: string) {
-  for (const name of readdirSync(dir)) {
-    if ([".git", "node_modules", "refs", "dist", "tothinkabout"].includes(name)) continue;
-    const p = join(dir, name);
-    if (statSync(p).isDirectory()) walk(p);
-    else if (/\.(bend|js|ts|html)$/.test(name) && /^\s*import\s[^\n]*refs\/|from\s+["'][^"']*refs\/|src=["'][^"']*refs\//m.test(readFileSync(p, "utf8"))) offenders.push(p);
+step("layers");
+const fails: string[] = [];
+const owed = new Map<string, string>();
+for (const f of files) {
+  if (!L.placed(f)) fails.push(`${f}: no layer; add its folder to LAYERS.bend places()`);
+  for (const t of imports(f)) {
+    const v: string = L.verdict(f, t);
+    if (v.startsWith("blocked")) fails.push(`${f} imports ${t}: ${v.slice(9)}`);
+    else if (v.startsWith("owed")) owed.set(`${f} -> ${t}`, v.slice(6));
   }
 }
-walk(".");
-if (offenders.length) { console.error("these files import from refs/:", offenders); process.exit(1); }
-console.log("nothing outside refs/ imports from refs/");
+// A debt nothing uses any more fails, so the list cannot rot. Debts from a generated game
+// (.export/gen/) are export's to check, on every build.
+for (let l = L.debt_lines(); l.$ === "Con"; l = l.tail) {
+  const [from, to] = l.head.split("\t");
+  if (from.startsWith(".export/")) continue;
+  if (![...owed.keys()].some((k) => k.startsWith(from) && k.endsWith(` -> ${to}`))) fails.push(`debt ${from} -> ${to} is paid: remove it from LAYERS.bend debts()`);
+}
+for (const [edge, why] of owed) console.log(`owed: ${edge} (${why})`);
+if (fails.length) { console.error(fails.join("\n")); process.exit(1); }
+console.log(`${files.length} files in their layers; every import allowed or owed`);
 console.log("\nALL CHECKS PASS");

@@ -22,7 +22,7 @@ def big() -> Ex.Entry: Ex.Entry{"_/all-clips.js", Ex.Role.Code{}, 9288354, 19273
 def tools() -> Ex.Toolchain: Ex.Toolchain{"2.0.40", True{}, False{}, False{}}
 
 def facts(+es: List<&2, Ex.Entry>, +ws: List<&2, Ex.Work>, +credits: Bool, +hlsl: Bool, +t: Ex.Toolchain) -> Ex.Facts:
-  Ex.Facts{"character", "Character", es, ws, credits, hlsl, t}
+  Ex.Facts{"character", "Character", es, ws, credits, hlsl, t, []}
 
 def with_mannequin() -> List<&2, Ex.Entry>: [page(), code(), skin(), body(), face()]
 

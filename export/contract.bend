@@ -51,12 +51,15 @@ type Entry is Data:
 type Toolchain is Data:
   Toolchain{bend: String, treeshake: Bool, dxc: Bool, spirv_cross: Bool}
 
+# `forbidden`: files the build reaches that may not be in a game, or imports a game may not make
+# (LAYERS.bend, asked by export/files.bend).
 type Facts is Data:
   Facts{game: String, title: String, entries: List<&2, Entry>, works: List<&2, Work>,
-    credits_page: Bool, hlsl: Bool, tools: Toolchain}
+    credits_page: Bool, hlsl: Bool, tools: Toolchain, forbidden: List<&2, String>}
 
 type Reason is Data:
   Reason.ChecksFailed{}
+  Reason.Forbidden{what: String}
   Reason.NoPage{}
   Reason.TwoPages{}
   Reason.OverCode{wire: U32, budget: U32}
@@ -268,17 +271,24 @@ def toolchain(t: Toolchain, hlsl: Bool) -> List<&2, Reason>:
 
 # ---------- The verdict ----------
 
+def Reasons.forbidden(xs: List<&2, String>) -> List<&2, Reason>:
+  match xs:
+    case Nil{}:
+      []
+    case Con{x, t}:
+      Reason.Forbidden{x} <> Reasons.forbidden(t)
+
 def manifest(f: Facts) -> Manifest:
   match f:
-    case Facts{game, title, +entries, works, _, _, _}:
+    case Facts{game, title, +entries, works, _, _, _, _}:
       Manifest{format(), game, title, load(entries), credits(works), entries}
 
 def reasons(f: Facts) -> List<&2, Reason>:
   match f:
-    case Facts{_, _, +entries, works, credits_page, hlsl, tools}:
+    case Facts{_, _, +entries, works, credits_page, hlsl, tools, forbidden}:
       List.concat(&2, Reason,
-        [shape(entries), budget(load(entries)), attribution(credits_page, works),
-         toolchain(tools, hlsl)])
+        [Reasons.forbidden(forbidden), shape(entries), budget(load(entries)),
+         attribution(credits_page, works), toolchain(tools, hlsl)])
 
 def decide(rs: List<&2, Reason>, +f: Facts) -> Outcome:
   match rs:
@@ -313,6 +323,8 @@ def say(r: Reason) -> String:
   match r:
     case Reason.ChecksFailed{}:
       "check: `bun run check` did not pass; nothing ships until it does"
+    case Reason.Forbidden{what}:
+      String.append("layers: ", what)
     case Reason.NoPage{}:
       "shape: the build has no index.html"
     case Reason.TwoPages{}:
