@@ -22,7 +22,7 @@ Open [the editor](http://localhost:3100/) in your Windows browser. On Windows dr
 
 ## Shaders and materials
 
-Open `http://localhost:3100/?project=water` and select **Water**. In **Details â†’ Material â†’ Shader**, choose **Ripples (GLSL)** or **Bands (HLSL)**. Add fragment shaders and their JSON descriptors to `projects/<project>/shaders/`. The dev server rebuilds the catalog when those files change. HLSL import uses DXC and SPIRV-Cross. See the [shader module guide](docs/shaders.md) for the asset format, supported controls, tools, and architectural decisions.
+Open `http://localhost:3100/?project=water` and select **Water**. In the **Shaders** tab, in the Shader Library on the left, click **Ripples (GLSL)** or **Bands (HLSL)**. Add fragment shaders and their JSON descriptors to `projects/<project>/shaders/`. The dev server rebuilds the catalog when those files change. HLSL import uses DXC and SPIRV-Cross. See the [shader module guide](docs/shaders.md) for the asset format, supported controls, tools, and architectural decisions.
 
 ## Files
 
@@ -30,7 +30,7 @@ Open `http://localhost:3100/?project=water` and select **Water**. In **Details â
 | --- | --- |
 | `PROJECT.bend` | The projects (Water, Character, Mannequin, Animation), which one opens, and its starting camera |
 | `library/` | The animation library: `catalog.bend` (the folders, and the clip an entry becomes on a character) and one folder per collection (`quaternius/`: the source files, `clips.json`, the motions `tools/clips.ts` wrote, the credits) |
-| `projects/animation/` | The Animation project: the mannequin, to try the library on (add a clip in Details, press Play) |
+| `projects/animation/` | The Animation project: the mannequin, to try the library on (the Animation tab) |
 | `tools/clips.ts` | The clip importer: the animations of .glb files + clips.json â†’ motions (Bend) |
 | `mannequin/` | The standard character: `rig.json`, what the importer wrote (`gen/`), its laws, its scene and its credits |
 | `projects/water/` | The Water project: a plane with a material |
@@ -41,7 +41,7 @@ Open `http://localhost:3100/?project=water` and select **Water**. In **Details â
 | `engine/vec.bend`, `engine/quat.bend`, `engine/transform.bend` | Vectors, 4x4 matrices, quaternions, position/rotation/scale |
 | `engine/scene.bend` | The scene as data: things with a place and a look (Shown, Rigged, Hidden) |
 | `engine/mesh.bend`, `engine/material.bend`, `engine/shader/` | Meshes, material graphs, GLSL written by Bend (incl. the skinned shaders) |
-| `projects/*/shaders/`, `tools/shaders/`, `editor/shaders/` | Project shader assets, import tools, and the material inspector's controls |
+| `projects/*/shaders/`, `tools/shaders/`, `editor/shaders/` | Project shader assets, the tool that reads them, and the catalog it writes (as JSON for the GPU and as Bend for the editor; both generated, not tracked) |
 | `engine/skeleton.bend` | The rig standard: bones with roles (Root, Deform, Twist, Support, Chain) and slots, and its laws |
 | `engine/pose.bend` | Poses: local transforms, model/world matrices in one pass, bones as lines |
 | `engine/clip.bend` | Clips: rotation and position keys, sampled with slerp, looping |
@@ -58,7 +58,8 @@ Open `http://localhost:3100/?project=water` and select **Water**. In **Details â
 | `platform/web/loop.js` | The browser's frames: dt, redraw, the canvas's size. Runtime |
 | `editor/app.js` | The editor: puts the pieces together (theme, panels, gizmo, shortcuts, camera), shared by every page |
 | `editor/defaults/` | Editor Defaults: gizmo + info, accessibility (`ACCESSIBILITY.bend`). The info button is a page written in Bend (`view.bend`); the gizmo is a canvas (`defaults.js`) |
-| `editor/animation/` | The Animation screen, a tab beside Scene: the library, the transport, the clip's details. One page written in Bend (`view.bend`), with its own styles; no JS, HTML or CSS of its own |
+| `editor/workspace/` | The tabs (Scene, Animation, Shaders) and the screens of the last two: a library on the left, what shows over the viewport, the Details on the right, a transport for Animation. One page written in Bend (`view.bend`), with its own styles; no JS, HTML or CSS of its own |
+| `engine/shader/asset.bend` | An imported shader's parameters, what each may be worth, and editing one on a material |
 | `editor/panels/` | The Scene and Details panels: what they hold (`panels.bend`) and what is drawn for it (`view.bend`, a page written in Bend). No JS of their own: Bend-UI's driver draws them |
 | `tools/gltf.ts` | The importer: a .glb + rig.json â†’ skeleton, rules, weights (Bend) and skin.bin |
 | `tools/check.ts` | `bun run check`: laws (the engine's, the editor's, the mannequin's), types (every `.bend` file, found by itself), tests, the refs/ fence |

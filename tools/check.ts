@@ -34,6 +34,10 @@ const typed = [...bendFiles(".", false), ...FOLDERS.flatMap((d) => bendFiles(d, 
 
 function step(title: string) { console.log(`\n== ${title}`); }
 
+// The shader catalog is written first: editor/shaders/catalog_generated.bend is Bend the editor
+// imports, made from the projects' shader files.
+await $`bun tools/shaders/catalog.js`.quiet();
+
 step("laws");
 await $`bend PROOF.bend`;
 await $`bend editor/defaults/PROOF.bend`;

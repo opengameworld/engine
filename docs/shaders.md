@@ -1,6 +1,6 @@
 # Shaders and materials
 
-Run `bun run dev`, open [Water](http://localhost:3100/?project=water), and select **Water** in the Scene panel. In **Details → Material → Shader**, choose **Ripples (GLSL)**, **Bands (HLSL)**, or **Freeze (HLSL)**. Parameter edits update the viewport during the session. **Original graph** restores the Bend graph material. To save a material in a scene, use `Mat.imported("freeze.frag.hlsl")` in the object's material slot and `Mat.instance` for overrides.
+Run `bun run dev`, open [Water](http://localhost:3100/?project=water), and select **Water** in the Scene panel. Open the **Shaders** tab: in the Shader Library on the left, click **Ripples (GLSL)**, **Bands (HLSL)**, or **Freeze (HLSL)** to apply it; its parameters are in **Details → Material** on the right. Parameter edits update the viewport during the session. **Original graph** restores the Bend graph material. To save a material in a scene, use `Mat.imported("freeze.frag.hlsl")` in the object's material slot and `Mat.instance` for overrides.
 
 ## Import
 
@@ -39,7 +39,9 @@ Put shader sources under `projects/<project>/shaders/`. A source's path relative
 | `platform/web/` | Program cache, uniform binding, and drawing with the same depth rules as the rest of the scene |
 | `projects/<project>/shaders/` | Authored shader sources and descriptors |
 | `tools/shaders/` | Asset discovery, validation, and HLSL translation before browser load |
-| `editor/shaders/` | Generated catalog and the shader controls attached to Bend-UI's Details panel |
+| `editor/shaders/` | The generated catalog: JSON for the GPU, Bend for the editor (neither is tracked) |
+| `engine/shader/asset.bend` | A shader's parameters, what each may be worth, and editing one on a material |
+| `editor/workspace/view.bend` | The Shaders screen (a tab beside Scene and Animation), written in Bend |
 
 The Unity Shader Graph Blackboard exposes properties through a named contract. The descriptor serves that role for both source languages. Keeping the descriptor explicit requires matching its names and types to the source, and lets authors choose editor controls independently of GPU types. [Unity Blackboard](https://docs.unity3d.com/Packages/com.unity.shadergraph@17.0/manual/Blackboard.html)
 
@@ -47,7 +49,7 @@ Unreal Material Instances inherit a shader definition and override parameter val
 
 The catalog and per-context program cache follow the division between resource management and rendering discussed in chapters 7 and 11 of Jason Gregory's book. The first use pays the driver's link cost. Linked programs and uniform locations are then shared, and the renderer binds each instance's values before its draw. [Game Engine Architecture, 3rd edition](https://www.oreilly.com/library/view/game-engine-architecture/9781351974271/)
 
-The module uses Bend for scene and material data. Its WebGL adapter works with the browser loader in Bend 2.0.40. The shader inspector uses Bend-UI fields, dropdowns, and toggles, with a native range element inside the field for sliders. [Bend 2.0.40](https://github.com/bendlang/bend/releases/tag/v2.0.40) · [Bend-UI requests](bend-ui-requests.txt)
+The module uses Bend for scene and material data. Its WebGL adapter works with the browser loader in Bend 2.0.40. The Shaders screen is a page written in Bend (Bend-UI's Web.bend and UI.bend): fields, a menu and toggles from Bend-UI, with a native range element for sliders. No JavaScript builds it. [Bend 2.0.40](https://github.com/bendlang/bend/releases/tag/v2.0.40) · [Bend-UI requests](bend-ui-requests.txt)
 
 ## Limits now
 

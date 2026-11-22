@@ -27,6 +27,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .cache
 *.tsbuildinfo
 editor/shaders/catalog.generated.json*
+editor/shaders/catalog_generated.bend*
 
 # IntelliJ based IDEs
 .idea

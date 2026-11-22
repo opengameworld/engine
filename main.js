@@ -16,5 +16,6 @@ const project = Project.preview(slug);
 startEditor(Project.start(project), {
   camera: Project.camera(project),
   shaders: shaders[Project.folder(project)],
+  folder: Project.folder(project),
   skins: { [Mannequin.skin()]: { info, bin, textures: [body, face] } },
 });
