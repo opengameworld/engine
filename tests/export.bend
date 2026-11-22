@@ -96,10 +96,19 @@ def load_of(es: List<&2, Ex.Entry>) -> U32:
     case Nil{}:
       0
 
+def placed() -> List<&2, Ex.Entry>:
+  F.entry("index.html", 400, 300, "s", F.entry("credits.html", 900, 500, "s",
+    F.entry("_/chunk-22cryak6.js", 172188, 43941, "s", F.entry("a/skin-29mnqhsf.bin", 10, 5, "s", F.entries_none()))))
+
 def files_checks() -> List<&2, Check>:
-  [Check{"index.html is the page, credits.html a doc, a chunk code, a PNG an asset",
+  [Check{"index.html is the page, credits.html a doc, what is in _/ code, what is in a/ an asset",
      (String.eq(role_name(F.role_of("index.html")), "page") && String.eq(role_name(F.role_of("credits.html")), "doc")
-       && String.eq(role_name(F.role_of("chunk-5nmq0pr0.js")), "code") && String.eq(role_name(F.role_of("p_ism001_00-ph83475s.png")), "asset"))},
+       && String.eq(role_name(F.role_of("_/chunk-5nmq0pr0.js")), "code") && String.eq(role_name(F.role_of("a/p_ism001_00-ph83475s.png")), "asset"))},
+   Check{"a character build with its pages, _/ and a/ ships",
+     F.shipped(F.release(True{}, "character", placed(), True{}, F.tools("2.0.40", True{}, False{}, False{}), F.paths_none(), F.paths_none(), F.paths_none()))},
+   Check{"a file beside the pages that is not a page refuses the build, and says which",
+     has(F.reasons_text(F.release(True{}, "character", F.entry("skin.bin", 10, 5, "s", placed()), True{}, F.tools("2.0.40", True{}, False{}, False{}), F.paths_none(), F.paths_none(), F.paths_none())),
+       "skin.bin: only pages may sit outside _/ and a/")},
    Check{"PNGs travel as they are; code and the skin's .bin travel gzipped",
      (Bool.not(F.compresses("a.png")) && F.compresses("chunk.js") && F.compresses("skin-29mnqhsf.bin"))},
    Check{"a PNG's wire size is its size; a chunk's is its gzip size",

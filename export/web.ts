@@ -4,8 +4,9 @@
 // of ../bend (the engine's Bend, see not-in-bend.txt).
 //
 // Limits now:
-// - Bundling is `bend <page> -o <dir>` from ../bend: Bun's HTML bundle, hashed names flat in the
-//   folder (no _/ or a/ subfolders yet).
+// - Bundling is Bun.build on the generated page with ../bend's loader, as `bend <page> -o <dir>`
+//   does, plus the names files.bend gives (_/ and a/). A page with an inline module script is
+//   not supported: the generated page has none.
 // - `bun run check` runs in full before every build (about 40 s): nothing ships unchecked.
 // - The build writes into a stage folder and renames it into place; a crash leaves the stage
 //   behind (.export/web/<game>.stage-*), never a half-written game.
@@ -18,9 +19,12 @@ export const ROOT = join(import.meta.dir, "..");
 const BEND = join(ROOT, "..", "bend");
 
 // Bend modules load through ../bend's plugin, as tools/test.ts does.
+async function loader() {
+  return (await import(join(BEND, "bend2", "main.ts"))).default;
+}
+
 async function files() {
-  const plugin = (await import(join(BEND, "bend2", "main.ts"))).default;
-  Bun.plugin(plugin);
+  Bun.plugin(await loader());
   return (await import("./files.bend")).default;
 }
 
@@ -83,16 +87,29 @@ export async function exportWeb(slug: string, say = console.log): Promise<{ ok: 
     diagnostics: (mine.diagnostics ?? []).filter((d: any) => wanted.has(d.id)),
   }, null, 2));
 
-  // Bundle into a stage folder with ../bend's own CLI (its loader, its Bun.build).
+  // Bundle into a stage folder.
   const folder = join(ROOT, F.folder(slug));
   const stage = `${folder}.stage-${process.pid}`;
   const site = join(stage, "site");
   rmSync(stage, { recursive: true, force: true });
   say("bundling...");
-  const b = await sh(["bun", join(BEND, "bend2", "main.ts"), join(gen, "index.html"), "-o", site]);
-  if (b.code !== 0) {
+  try {
+    await Bun.build({
+      entrypoints: [join(gen, "index.html")],
+      outdir: site,
+      target: "browser",
+      minify: true,
+      naming: { entry: "[name].[ext]", chunk: F.code_naming(), asset: F.asset_naming() },
+      // Asset URLs are used by fetch and <img>, which resolve them against the page, not the
+      // chunk in _/: without this they come out as "../a/…" and break when the game is served
+      // below the root of its host.
+      publicPath: F.public_path(),
+      plugins: [await loader()],
+      throw: true,
+    });
+  } catch (e) {
     rmSync(stage, { recursive: true, force: true });
-    say(`bundling failed:\n${b.err || b.out}`);
+    say(`bundling failed:\n${e instanceof AggregateError ? e.errors.join("\n") : e}`);
     return { ok: false };
   }
   await Bun.write(join(site, "credits.html"), F.credits_html(slug));

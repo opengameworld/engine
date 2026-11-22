@@ -37,6 +37,15 @@ def site_dir(+slug: String) -> String: String.append(folder(slug), "/site")
 
 def gen_dir(+slug: String) -> String: Files.under("gen", slug)
 
+# The bundler's names inside site/: code in _/ and assets in a/, both named by their hash, so
+# they are the only files cached forever; pages stay at the root under their own names.
+def code_naming() -> String: "_/[name]-[hash].[ext]"
+
+def asset_naming() -> String: "a/[name]-[hash].[ext]"
+
+# URLs in the built files are relative to the page, so a game plays at any path of its host.
+def public_path() -> String: "./"
+
 # A slug names a project when PROJECT.bend's own lookup gives that project back (an unknown
 # slug falls back to the opening project there, whose folder is another name).
 def known(+slug: String) -> Bool:
@@ -169,8 +178,10 @@ def Files.role.page(page: Bool, doc: Bool, code: Bool) -> Ex.Role:
       Files.role.doc(doc, code)
 
 def role_of(+path: String) -> Ex.Role:
-  Files.role.page(String.eq(path, "index.html"), String.eq(path, "credits.html"),
-    (Files.ends(path, ".js") || Files.ends(path, ".mjs") || Files.ends(path, ".css")))
+  Files.role.page(String.eq(path, "index.html"), Files.ends(path, ".html"), String.starts_with(path, "_/"))
+
+def Files.placed(+path: String) -> Bool:
+  String.starts_with(path, "_/") || String.starts_with(path, "a/") || Files.ends(path, ".html")
 
 # Files already compressed travel as they are; everything else travels gzipped.
 def compresses(+path: String) -> Bool:
@@ -198,7 +209,7 @@ def path(+p: String, +rest: List<&2, String>) -> List<&2, String>: p <> rest
 
 # The imports a generated game makes that its layer may not make (the repository's own files are
 # `bun run check`'s), as one line each.
-def Files.blocked.pick(hit: Bool, +line: String, rest: List<&2, String>) -> List<&2, String>:
+def Files.keep_if(hit: Bool, +line: String, rest: List<&2, String>) -> List<&2, String>:
   match hit:
     case True{}:
       line <> rest
@@ -206,7 +217,7 @@ def Files.blocked.pick(hit: Bool, +line: String, rest: List<&2, String>) -> List
       rest
 
 def Files.blocked.keep(+v: String, +f: String, +t: String, rest: List<&2, String>) -> List<&2, String>:
-  Files.blocked.pick(String.starts_with(v, "blocked"), String.concat([f, " imports ", t, ": ", v]), rest)
+  Files.keep_if(String.starts_with(v, "blocked"), String.concat([f, " imports ", t, ": ", v]), rest)
 
 def Files.blocked(froms: List<&2, String>, tos: List<&2, String>) -> List<&2, String>:
   match froms:
@@ -218,6 +229,16 @@ def Files.blocked(froms: List<&2, String>, tos: List<&2, String>) -> List<&2, St
           []
         case Con{+t, tt}:
           Files.blocked.keep(Ly.verdict(f, t), f, t, Files.blocked(ft, tt))
+
+# A file outside _/ and a/ that is not a page would be cached as a page under a name that never
+# changes; the build is refused instead.
+def Files.misplaced(es: List<&2, Ex.Entry>) -> List<&2, String>:
+  match es:
+    case Nil{}:
+      []
+    case Con{Ex.Entry{+path, _, _, _, _}, t}:
+      Files.keep_if(Bool.not(Files.placed(path)),
+        String.append(path, ": only pages may sit outside _/ and a/"), Files.misplaced(t))
 
 def Files.stowed(xs: List<&2, String>) -> List<&2, String>:
   match xs:
@@ -231,7 +252,8 @@ def Files.stowed(xs: List<&2, String>) -> List<&2, String>:
 def release(checks: Bool, +slug: String, +es: List<&2, Ex.Entry>, +credits_page: Bool, +t: Ex.Toolchain,
     reached: List<&2, String>, froms: List<&2, String>, tos: List<&2, String>) -> Ex.Outcome:
   Ex.release(checks, Ex.Facts{slug, title(slug), es, N.works(Files.skins(slug)), credits_page, hlsl(slug), t,
-    List.append(&2, String, Files.stowed(Ly.stowaways(reached)), Files.blocked(froms, tos))})
+    List.append(&2, String, Files.misplaced(es),
+      List.append(&2, String, Files.stowed(Ly.stowaways(reached)), Files.blocked(froms, tos)))})
 
 def shipped(o: Ex.Outcome) -> Bool:
   match o:

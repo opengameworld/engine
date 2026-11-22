@@ -17,7 +17,6 @@
 # Limits now:
 # - Facts are measured by the shell; nothing here reads a file or a clock.
 # - Only web builds. Native targets come with their own exporter.
-# - Hashed names are the bundler's; a file named without a hash is not detected yet.
 # - The mannequin depicts a character owned by Square Enix / Disney: its CC BY credit covers
 #   the model, not the character. Nothing here decides about that (the owner's call).
 # - The budget numbers come from the reach rule above; a real phone may differ.
@@ -25,7 +24,8 @@
 import Base
 
 # Page: index.html, the one page a game opens on. Doc: another page beside it (credits.html),
-# not needed for the first frame. Code: JS and CSS. Asset: everything else (skins, textures).
+# not needed for the first frame. Code: what the bundler writes in _/. Asset: what it writes in
+# a/ (skins, textures). Both are named by their hash (export/files.bend).
 type Role is Data:
   Role.Page{}
   Role.Doc{}
