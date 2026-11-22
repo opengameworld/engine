@@ -344,3 +344,7 @@ law code_budget_is_300k:
 
 law asset_budget_is_2m:
   {Ex.asset_budget() == 2000000 : U32}
+
+# LAW: the credits page is fetched again on every load too.
+law the_credits_page_revalidates:
+  {Ex.cache(Ex.Role.Doc{}) == Ex.Cache.Revalidate{} : Ex.Cache}

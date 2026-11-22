@@ -231,3 +231,6 @@ def Laws.code_budget_is_300k():
 
 def Laws.asset_budget_is_2m():
   {==}
+
+def Laws.the_credits_page_revalidates():
+  {==}

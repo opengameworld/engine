@@ -7,7 +7,8 @@
     "dev": "bun tools/dev.ts",
     "build": "bun tools/shaders/catalog.js && bend index.html -o dist",
     "check": "bun tools/check.ts",
-    "test": "bun tools/test.ts"
+    "test": "bun tools/test.ts",
+    "export": "bun export/cli.ts"
   },
   "dependencies": {
     "bend-ui": "github:isabellaherman/Bend-UI#433e547"

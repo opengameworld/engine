@@ -1,5 +1,5 @@
-# Numerical tests of export/contract.bend: what makes a build ship or be refused, and what its
-# manifest says.
+# Numerical tests of export/contract.bend (what makes a build ship or be refused, and what its
+# manifest says) and export/files.bend (what export writes and how it reads a built file).
 #
 # Limits now:
 # - Chosen builds (the Character game's real sizes, the mannequin's assets, one over each
@@ -7,6 +7,7 @@
 
 import Base
 import ../export/contract.bend as Ex
+import ../export/files.bend as F
 
 type Check is Data:
   Check{name: String, ok: Bool}
@@ -73,7 +74,52 @@ def credit_titles(o: Ex.Outcome) -> String:
     case Ex.Outcome.Refused{_}:
       "refused"
 
-def checks() -> List<&2, Check>:
+
+def role_name(r: Ex.Role) -> String:
+  match r:
+    case Ex.Role.Page{}:
+      "page"
+    case Ex.Role.Doc{}:
+      "doc"
+    case Ex.Role.Code{}:
+      "code"
+    case Ex.Role.Asset{}:
+      "asset"
+
+def has(+s: String, +part: String) -> Bool:
+  String.contains(s, part)
+
+def load_of(es: List<&2, Ex.Entry>) -> U32:
+  match es:
+    case Con{Ex.Entry{_, _, _, wire, _}, _}:
+      wire
+    case Nil{}:
+      0
+
+def files_checks() -> List<&2, Check>:
+  [Check{"index.html is the page, credits.html a doc, a chunk code, a PNG an asset",
+     (String.eq(role_name(F.role_of("index.html")), "page") && String.eq(role_name(F.role_of("credits.html")), "doc")
+       && String.eq(role_name(F.role_of("chunk-5nmq0pr0.js")), "code") && String.eq(role_name(F.role_of("p_ism001_00-ph83475s.png")), "asset"))},
+   Check{"PNGs travel as they are; code and the skin's .bin travel gzipped",
+     (Bool.not(F.compresses("a.png")) && F.compresses("chunk.js") && F.compresses("skin-29mnqhsf.bin"))},
+   Check{"a PNG's wire size is its size; a chunk's is its gzip size",
+     (U32.is_eq(load_of(F.entry("t.png", 597989, 597000, "s", F.entries_none())), 597989)
+       && U32.is_eq(load_of(F.entry("c.js", 172188, 43941, "s", F.entries_none())), 43941))},
+   Check{"the four projects are games; another name is not",
+     (F.known("water") && F.known("character") && F.known("mannequin") && F.known("animation") && Bool.not(F.known("nonexistent")))},
+   Check{"the mannequin's game imports its skin and textures; the arm's game imports none",
+     (has(F.entry_js("mannequin"), "mannequin/gen/skin.bin") && has(F.entry_js("mannequin"), "p_ism001_01.png")
+       && Bool.not(has(F.entry_js("character"), "skin.bin")))},
+   Check{"the mannequin's credits page names it, its author and its license",
+     (has(F.credits_html("mannequin"), "Sora (Kingdom Hearts Melody of Memory)") && has(F.credits_html("mannequin"), "CC BY 4.0"))},
+   Check{"the generated game module opens the game it was made for",
+     has(F.game_module("water"), "P.preview(\"water\")")},
+   Check{"the build folder is under .export",
+     String.eq(F.folder("character"), ".export/web/character")}]
+
+
+
+def contract_checks() -> List<&2, Check>:
   [Check{"a game with the mannequin, its credits page and the treeshaken Bend ships",
      ships(Ex.release(True{}, facts(with_mannequin(), [Ex.Work.Mannequin{}], True{}, False{}, tools())))},
    Check{"its load counts the page and code apart from the assets",
@@ -103,3 +149,6 @@ def checks() -> List<&2, Check>:
      refused_for(Ex.release(True{}, facts([page(), code()], [], False{}, True{}, Ex.Toolchain{"2.0.40", True{}, False{}, True{}})), Ex.Reason.ToolMissing{"dxc"})},
    Check{"a GLSL-only game builds without dxc or spirv-cross",
      ships(Ex.release(True{}, facts([page(), code()], [], False{}, False{}, tools())))}]
+
+def checks() -> List<&2, Check>:
+  List.append(&2, Check, files_checks(), contract_checks())

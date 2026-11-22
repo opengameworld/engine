@@ -24,8 +24,11 @@
 
 import Base
 
+# Page: index.html, the one page a game opens on. Doc: another page beside it (credits.html),
+# not needed for the first frame. Code: JS and CSS. Asset: everything else (skins, textures).
 type Role is Data:
   Role.Page{}
+  Role.Doc{}
   Role.Code{}
   Role.Asset{}
 
@@ -90,6 +93,8 @@ def asset_budget() -> U32: 2000000
 def cache(r: Role) -> Cache:
   match r:
     case Role.Page{}:
+      Cache.Revalidate{}
+    case Role.Doc{}:
       Cache.Revalidate{}
     case Role.Code{}:
       Cache.Immutable{}
@@ -166,6 +171,8 @@ def Load.add(role: Role, +wire: U32, l: Load) -> Load:
   match role:
     case Role.Page{}:
       Load.code(wire, l)
+    case Role.Doc{}:
+      Load.assets(wire, l)
     case Role.Code{}:
       Load.code(wire, l)
     case Role.Asset{}:
@@ -187,6 +194,8 @@ def Role.is_page(r: Role) -> U32:
   match r:
     case Role.Page{}:
       1
+    case Role.Doc{}:
+      0
     case Role.Code{}:
       0
     case Role.Asset{}:

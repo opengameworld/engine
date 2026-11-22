@@ -66,6 +66,9 @@ Open `http://localhost:3100/?project=water` and select **Water**. In the **Shade
 | `AGENTS.md` | The rules for agents working here; the game's vision is in the `opengame` repository |
 | `tests/` | Numerical tests (`checks()` lists), run by `tools/test.ts` |
 | `export/contract.bend` | Export's decisions about a game folder: what ships or is refused and why, cache, the code and asset budgets, the credits a game owes, the build machine it needs (laws in `LAWS.bend`, tests in `tests/export.bend`) |
+| `export/needs.bend`, `export/pages.bend`, `export/files.bend` | What a game takes from its scene (skins, shaders, credits); its two pages as Bend-UI trees written as static text; everything export writes and how it reads a build |
+| `export/web.ts`, `export/cli.ts` | `bun run export web <game>` builds `.export/web/<game>/` (`game.json` + `site/`) or says why not; `bun run export serve <game>` plays it at localhost:3200. Only measures and writes: every decision is the Bend above |
+| `platform/web/run.js` | `runGame`: the game without the editor (draws the scene, the editor's frame rule and walking keys), the player's counterpart of `startEditor` |
 | `not-in-bend.txt` | What the engine's Bend (`../bend`) has that released Bend 2.0.40 does not, why, and how to set it up |
 | `KEYS.bend` | The keymap: views 1–4, walking W/A/S/D |
 | `SPEC.bend`, `LAWS.bend`, `PROOF.bend` | The engine's laws and their proofs |
