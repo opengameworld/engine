@@ -1,6 +1,8 @@
 # Export and publish, revision 2: the release protocol is the spine
 
 > **Status: proposal for review. No code yet.** Revision 2 of the export design, after Isabella's review of revision 1 (PR #2, 2026-11-22). Revision 1 is in this file's git history.
+>
+> **Update (2026-11-22): the export half is built** (PR #3: `export/`, `LAYERS.bend`, `bun run export web|serve`). Where the code and this proposal differ, the code is right. **The publish half below is superseded.** Deployment is a separate product, in a private repository of the organization. It works as Vercel does: a commit triggers a build on the service, which runs `bun run export web` from a clean clone. Every commit gets a preview build, and the main branch is production. The service builds, so the client attestations, the client upload and the "server that never builds" below no longer hold. What export owes the service is a build that is reproducible from a clean clone: on the same toolchain, the same commit gives the same build id.
 
 It revises the approved revision 1 and keeps what survives. How it was made: two structurally different designs, scored by an independent judge who also re-measured the sizes; this one is the base, with four ideas grafted from the other (see "Synthesis decision"). Sketch files are under `sketch/`, at the paths they would have in the engine repo, with `.txt` appended. Bend bodies are `TODO` and TS bodies `throw new Error("not implemented")`. Nothing here runs.
 
