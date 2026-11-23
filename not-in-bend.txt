@@ -15,7 +15,10 @@ engine moves to that release, the entry is deleted.
                    && !k.includes(":");
    Where:    https://github.com/caiodomingues/bend, branch ogw/v2.0.40-treeshake
              (commit d2862e06 = tag v2.0.40 + that line).
-   Upstream: https://github.com/bendlang/bend/pull/2224 (open).
+   Upstream: https://github.com/bendlang/bend/pull/2224, merged into Bend's main on
+             2026-11-23 (commit 6b806192), not in a release yet (the latest is v2.0.40).
+             When a release includes it, the engine moves to that release and this entry
+             is deleted.
    Evidence: https://github.com/caiodomingues/poc-bend-treeshake (Bend's own test corpus with
              0 differences, other bundlers, this engine's tests, browser timings).
 
