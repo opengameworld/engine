@@ -12,4 +12,6 @@ import Base
 # starts moving by itself. A character's clip plays only after the person
 # presses Play on it (Details panel), in place, and stops when they press
 # Stop; that is motion asked for, and the camera still does not move.
-def reduce_motion() -> Bool: True{}
+# False by default: the engine and its games animate, and a person who needs
+# less motion turns it on here or in their system's settings.
+def reduce_motion() -> Bool: False{}

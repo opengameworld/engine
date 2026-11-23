@@ -134,6 +134,7 @@ also serves each `refs/<name>/index.html`, and `bun run check` proves each
 
 ## Walking
 
-W / S walk ahead and back, A / D turn. With reduce motion on (the default in
-`editor/defaults/ACCESSIBILITY.bend`), each press is one step and nothing
-moves between presses. With it off, held keys walk continuously.
+W / S walk ahead and back, A / D turn. Held keys walk continuously, and the
+character blends from idle into its walk. With reduce motion on (in
+`editor/defaults/ACCESSIBILITY.bend`, off by default, or in the system's
+settings), each press is one step and nothing moves between presses.
