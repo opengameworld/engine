@@ -38,6 +38,7 @@ Open `http://localhost:3100/?project=water` and select **Water**. In the **Shade
 | `engine/world.bend` | The World: origin, axes, units, ground grid, sky, grid fade |
 | `engine/camera.bend` | The editor camera: orbit, pan, zoom, view and projection; `close_up()` frames a person |
 | `engine/gizmo.bend` | The axis gizmo: handles, hover, click-to-align |
+| `engine/place.bend` | Places in an open World: a 1 km cell and a position inside it, so nothing loses precision kilometers from the origin; `delta(a, b)` gives meters around a chosen origin |
 | `engine/vec.bend`, `engine/quat.bend`, `engine/transform.bend` | Vectors, 4x4 matrices, quaternions, position/rotation/scale |
 | `engine/scene.bend` | The scene as data: things with a place and a look (Shown, Rigged, Hidden) |
 | `engine/mesh.bend`, `engine/material.bend`, `engine/shader/` | Meshes, material graphs, GLSL written by Bend (incl. the skinned shaders) |
@@ -71,6 +72,7 @@ Open `http://localhost:3100/?project=water` and select **Water**. In the **Shade
 | `export/web.ts`, `export/cli.ts` | `bun run export web <game>` builds `.export/web/<game>/` (`game.json` + `site/`: the pages, code in `site/_/`, assets in `site/a/`, both named by hash) or says why not; `bun run export serve <game>` plays it at localhost:3200. Only measures and writes: every decision is the Bend above |
 | `platform/web/run.js` | `runGame`: the game without the editor (draws the scene, the editor's frame rule and walking keys), the player's counterpart of `startEditor` |
 | `not-in-bend.txt` | What the engine's Bend (`../bend`) has that released Bend 2.0.40 does not, why, and how to set it up |
+| `docs/barriers.md` | Limits that exist only on the web or only natively, and what the engine does about each |
 | `KEYS.bend` | The keymap: views 1–4, walking W/A/S/D |
 | `SPEC.bend`, `LAWS.bend`, `PROOF.bend` | The engine's laws and their proofs |
 | `main.js`, `index.html` | The engine's page: opens the project PROJECT.bend names |

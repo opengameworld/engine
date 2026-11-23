@@ -379,3 +379,15 @@ def Laws.the_library_catalog_never_ships():
 
 def Laws.the_mannequin_laws_never_ship():
   {==}
+
+def Laws.origin_is_the_center_cell_x():
+  {==}
+
+def Laws.origin_is_the_center_cell_z():
+  {==}
+
+def Laws.cells_forward_and_back_come_home():
+  {==}
+
+def Laws.cells_back_and_forward_come_home():
+  {==}
