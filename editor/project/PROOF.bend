@@ -41,3 +41,12 @@ def Laws.on_disk_drops_assets():
 
 def Laws.a_listing_is_one_path_per_line():
   {==}
+
+def Laws.the_scene_file_is_the_scene():
+  {==}
+
+def Laws.the_extension_is_the_last_part():
+  {==}
+
+def Laws.a_folder_has_no_extension():
+  {==}

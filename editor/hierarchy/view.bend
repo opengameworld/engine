@@ -6,6 +6,9 @@
 # The scene's row ends with "*" when something Save writes changed since the last Save, as
 # Unity's scene row does.
 #
+# Each row has its thing's icon (editor/icons/): the scene a cube, a character a person, a shown
+# thing the sphere its material is drawn on, a hidden thing an eye struck through.
+#
 # The rows are Bend-UI's tree rows (panes.css: .tree, .tree__row, .tree__kids); the selected row
 # is aria-selected and drawn as the tree's current row.
 #
@@ -20,19 +23,19 @@ import ../../node_modules/bend-ui/UI.bend as Ui
 import ../../engine/scene/scene.bend as S
 import ../workspace/state.bend as W
 import ../workspace/pieces.bend as P
+import ../project/files.bend as F
+import ../icons/icons.bend as I
+import ../icons/view.bend as Ic
 
 def row_id(+i: U32) -> String:
   "editor-hierarchy-" ++ U32.show(i)
-
-def thing_icon(+t: S.Thing) -> String:
-  P.pick_text(S.is_rigged(t), "user", P.pick_text(S.is_shown(t), "square-round-corner", "eye-off"))
 
 def row(+t: S.Thing, +i: U32, +n: U32, +sel: U32) -> Web.HTML<W.Ev>:
   Web.node{"div", [Web.attr{"class", "tree__row"}, Web.attr{"role", "treeitem"}, Web.attr{"id", row_id(i)},
     Web.attr{"aria-level", "2"}, Web.attr{"aria-posinset", U32.show((i + 1 : U32))}, Web.attr{"aria-setsize", U32.show(n)},
     Web.attr{"aria-selected", Ui.bool_text(U32.is_eq(i, sel))}, Web.attr{"aria-current", Ui.bool_text(U32.is_eq(i, sel))},
     Web.on{Web.click{W.a_thing{i}}}], [
-    Ui.icon_with(W.Ev, [Ui.icon_sm{}], "", [], thing_icon(t)),
+    Ic.glyph(I.thing_glyph(t), I.thing_color(t)),
     Ui.says(W.Ev, "span", "tree__name", S.name(t))]}
 
 def rows(xs: List<&2, S.Thing>, +i: U32, +n: U32, +sel: U32) -> List<&2, Web.HTML<W.Ev>>:
@@ -53,6 +56,7 @@ def tree(+st: W.St) -> Web.HTML<W.Ev>:
     Web.on{Web.key_down{W.h_key{""}}}], [
     Web.node{"div", [Web.attr{"class", "tree__row editor-hierarchy__scene"}, Web.attr{"role", "treeitem"}, Web.attr{"aria-level", "1"}, Web.attr{"aria-expanded", "true"}], [
       Ui.icon_with(W.Ev, [Ui.icon_sm{}], "", [], "chevron-down"),
+      Ic.glyph(I.scene_glyph(), I.color(F.Sort.Scene{})),
       Ui.says(W.Ev, "span", "tree__name", W.project_name(st) ++ star(W.dirty(st)))]},
     Web.node{"div", [Web.attr{"class", "tree__kids"}, Web.attr{"role", "group"}], rows(S.things(W.scene(st)), 0, n, W.selected(st))}]}
 

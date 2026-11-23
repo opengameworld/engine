@@ -263,8 +263,13 @@ def opened_to(+open: List<&2, String>, +at: String) -> List<&2, String>:
 
 # ---------- What a file is ----------
 
+# What a file is. A project's scene is its scene.bend (PROJECT.bend's rule: a project is a folder
+# with a scene.bend), and what the editor saved for it is its saved.bend (engine/scene/save.bend's
+# file); any other .bend file is a module.
 type Sort is Data:
   Sort.Folder{}
+  Sort.Scene{}
+  Sort.Saved{}
   Sort.Clip{}
   Sort.Shader{}
   Sort.Module{}
@@ -290,14 +295,20 @@ def pick_kind(c: Bool, +a: Sort, +b: Sort) -> Sort:
 
 def kind(+paths: List<&2, String>, +path: String) -> Sort:
   pick_kind(is_folder(paths, path), Sort.Folder{},
+  pick_kind(String.eq(path, assets() ++ "/scene.bend"), Sort.Scene{},
+  pick_kind(String.eq(path, assets() ++ "/saved.bend"), Sort.Saved{},
   pick_kind(String.starts_with(path, animations() ++ "/"), Sort.Clip{},
   pick_kind(any_end(path, shader_ends()), Sort.Shader{},
-  pick_kind(String.ends_with(path, ".bend"), Sort.Module{}, Sort.Other{}))))
+  pick_kind(String.ends_with(path, ".bend"), Sort.Module{}, Sort.Other{}))))))
 
 def kind_name(+k: Sort) -> String:
   match k:
     case Sort.Folder{}:
       "Folder"
+    case Sort.Scene{}:
+      "Scene"
+    case Sort.Saved{}:
+      "Saved by the editor"
     case Sort.Clip{}:
       "Animation clip"
     case Sort.Shader{}:
@@ -307,19 +318,20 @@ def kind_name(+k: Sort) -> String:
     case Sort.Other{}:
       "File"
 
-# The icon of each kind (Bend-UI's set: Lucide).
-def kind_icon(+k: Sort) -> String:
-  match k:
-    case Sort.Folder{}:
-      "folder"
-    case Sort.Clip{}:
-      "play"
-    case Sort.Shader{}:
-      "wand-sparkles"
-    case Sort.Module{}:
-      "code"
-    case Sort.Other{}:
-      "file-text"
+# A file's extension, as the Project window writes it under its icon ("glsl" for
+# "ripples.frag.glsl"); "" for a folder, a clip, or a name with no dot.
+def ext_go(ps: List<&2, String>, +last: String) -> String:
+  match ps:
+    case Nil{}:
+      last
+    case h <> t:
+      ext_go(t, h)
+
+def ext_of(+n: String) -> String:
+  pick_s(String.contains(n, "."), String.to_lower(ext_go(String.split(n, '.'), "")), "")
+
+def ext(+paths: List<&2, String>, +path: String) -> String:
+  pick_s((is_folder(paths, path) || String.starts_with(path, animations() ++ "/")), "", ext_of(name(path)))
 
 # A shader's id in the project's catalog: its path inside the project's shaders folder
 # (tools/shaders/catalog.js names it so).

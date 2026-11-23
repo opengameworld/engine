@@ -21,7 +21,9 @@
 # The sizes are Bend-UI's: the Hierarchy and the Inspector are as wide as Bend-UI's side bar
 # (TOKENS.bend's side_width), and the dock is as tall as they are wide.
 #
-# Accessibility (ACCESSIBILITY.bend): nothing here moves by itself (see each window).
+# Accessibility (ACCESSIBILITY.bend): nothing here moves by itself (see each window). The body says
+# data-motion="reduce" while reduce motion is on, so nothing moves under the pointer either
+# (editor/icons/view.bend): only colors change.
 #
 # Limits now:
 # - The windows cannot be resized, moved, closed or docked elsewhere (Unity's are): Bend-UI's
@@ -49,6 +51,8 @@ import ../project/view.bend as Pj
 import ../console/view.bend as C
 import ../animation/view.bend as An
 import ../shaders/view.bend as Sh
+import ../icons/view.bend as Ic
+import ../defaults/defaults.bend as D
 
 # ---------- What editor/app.js asks ----------
 # A Bend module gives only its own defs, so what app.js asks of the state is named again here.
@@ -207,8 +211,6 @@ def styles() -> String:
   ".editor-project__naming .input { width: var(--side-width); }" ++
   ".editor-project__tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-8) + var(--space-5)), 1fr)); gap: var(--space-1); align-content: start; }" ++
   ".editor-project__tile { height: auto; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2) var(--space-1); border-radius: var(--radius-md); position: relative; min-width: 0; }" ++
-  ".editor-project__tile .editor-anim__picture, .editor-project__icon { width: var(--space-7); height: var(--space-7); }" ++
-  ".editor-project__icon { display: flex; align-items: center; justify-content: center; color: var(--text-2); }" ++
   ".editor-project__name { font-size: var(--text-xs); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }" ++
   ".editor-project__warning { position: absolute; top: var(--space-1); right: var(--space-1); color: var(--warning-text); }" ++
   ".editor-console__lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-hairline); font-size: var(--text-sm); }" ++
@@ -242,11 +244,12 @@ def styles() -> String:
   ".editor-anim__foot { display: flex; flex-direction: column; padding: var(--space-2); }" ++
   ".editor-anim__wide { display: flex; }" ++
   ".editor-anim__wide > button { flex: 1; padding: 0 var(--space-2); }" ++
-  ".editor-anim__wide > button:disabled { opacity: var(--disabled-opacity); cursor: default; }"
+  ".editor-anim__wide > button:disabled { opacity: var(--disabled-opacity); cursor: default; }" ++
+  Ic.styles()
 
 # The windows, as children of the page's body, around the editor's window.
 def render(+st: W.St) -> Web.HTML<W.Ev>:
-  Web.node{"body", [Web.attr{"data-editor", ""}], [
+  Web.node{"body", [Web.attr{"data-editor", ""}, Web.attr{"data-motion", P.pick_text(D.reduce_motion(W.still(st)), "reduce", "")}], [
     Web.node{"style", [], [Web.text{styles()}]},
     toolbar(st), H.panel(st), showing(st), I.panel(st), dock(st)]}
 

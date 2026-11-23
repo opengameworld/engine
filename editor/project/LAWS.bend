@@ -59,3 +59,15 @@ law on_disk_drops_assets:
 # LAW: the dev server's listing is read one path per line, empty lines left out.
 law a_listing_is_one_path_per_line:
   {F.listed("scene.bend\nshaders/\n\n") == ["scene.bend", "shaders/"] : List<&2, String>}
+
+# LAW: a project's scene.bend is its scene, and its saved.bend what the editor saved.
+law the_scene_file_is_the_scene:
+  {F.kind(F.own(some()), "Assets/scene.bend") == F.Sort.Scene{} : F.Sort}
+
+# LAW: a file's extension is the part after its last dot.
+law the_extension_is_the_last_part:
+  {F.ext(F.own(some()), "Assets/shaders/ripples.frag.glsl") == "glsl" : String}
+
+# LAW: a folder has no extension.
+law a_folder_has_no_extension:
+  {F.ext(F.own(some()), "Assets/shaders") == "" : String}

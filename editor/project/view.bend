@@ -20,6 +20,7 @@
 #   files: a script in this engine is a Rule, added in the Inspector (engine/script/rule.bend).
 # - Making a folder and showing a file's text need `bun run dev`.
 # - A clip's tile shows the source rig's stick figure, not the character in that pose.
+# - The icons are editor/icons/'s: a file's kind and its extension decide them.
 
 import Base
 import ../../node_modules/bend-ui/Web.bend as Web
@@ -34,6 +35,8 @@ import ../workspace/pieces.bend as P
 import ../animation/view.bend as An
 import ../shaders/view.bend as Sh
 import ./files.bend as F
+import ../icons/icons.bend as I
+import ../icons/view.bend as Ic
 
 # Every path the window lists: the project's files and the library's clips.
 def all(+st: W.St) -> List<&2, String>:
@@ -52,7 +55,7 @@ def tree_row(+r: Tree.Row, +at: String) -> Web.HTML<W.Ev>:
     Web.attr{"aria-expanded", Ui.bool_text(open)}, Web.attr{"aria-current", Ui.bool_text(String.eq(path, at))},
     Web.style{"padding-left", indent(level)}, Web.on{Web.click{W.f_tree{path}}}], [
     Ui.icon_with(W.Ev, [Ui.icon_sm{}], "", [], P.pick_text(open, "chevron-down", "chevron-right")),
-    Ui.icon_with(W.Ev, [Ui.icon_sm{}], "", [], "folder"),
+    Ic.mini(F.Sort.Folder{}),
     Ui.says(W.Ev, "span", "tree__name", name)]}
 
 def row_shown(r: Tree.Row) -> Bool:
@@ -121,21 +124,16 @@ def warning_mark(on: Bool) -> List<&2, Web.HTML<W.Ev>>:
   P.pick_html(on, [Ui.icon_with(W.Ev, [Ui.icon_sm{}], "editor-project__warning", [Web.attr{"aria-label", "Could not be used"}], "triangle-alert")], Nil{})
 
 # A tile's picture: a clip's stick figure, or the icon of its kind.
-def clip_picture(+c: F.Clip) -> Web.HTML<W.Ev>:
-  An.picture(L.entry_thumb(An.entry_at(L.entries(An.collection_at(Cat.collections(), F.clip_folder(c))), F.clip_k(c))))
-
-def kind_picture(+st: W.St, +path: String) -> Web.HTML<W.Ev>:
-  Ui.box(W.Ev, "span", "editor-project__icon", [], [Ui.icon_with(W.Ev, [Ui.icon_lg{}], "", [], F.kind_icon(F.kind(all(st), path)))])
-
-def pick_one(c: Bool, +a: Web.HTML<W.Ev>, +b: Web.HTML<W.Ev>) -> Web.HTML<W.Ev>:
+# A tile's picture (editor/icons/): a clip shows its own pose on its sheet.
+def pose_by(c: Bool, +cl: F.Clip) -> List<&2, F32>:
   match c:
     case True{}:
-      a
+      L.entry_thumb(An.entry_at(L.entries(An.collection_at(Cat.collections(), F.clip_folder(cl))), F.clip_k(cl)))
     case False{}:
-      b
+      Nil{}
 
 def picture(+st: W.St, +path: String) -> Web.HTML<W.Ev>:
-  pick_one(F.is_clip(F.clip_at(path)), clip_picture(F.clip_at(path)), kind_picture(st, path))
+  Ic.tile(F.kind(all(st), path), F.ext(all(st), path), pose_by(F.is_clip(F.clip_at(path)), F.clip_at(path)))
 
 def opens(folder: Bool, +path: String) -> List<&2, Web.Attr<W.Ev>>:
   P.pick_attrs(folder, [Web.on{Web.double_click{W.f_go{path}}}], Nil{})
