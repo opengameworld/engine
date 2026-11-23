@@ -78,3 +78,9 @@ the engine uses the closest Bend-UI piece, and each place says so in its
   keys, and panes.js draws them as HTML text; the editor's Hierarchy and Project tree draw the
   same rows with Web.bend themselves (and leave TREE.bend's keys out in the Project tree). A
   Web.bend view of TREE.bend's rows would let every Bend page share one.
+
+- A context-menu event in Web.bend (requested by the engine, 2026-11-23). The Project window opens
+  Create on a right click, as Unity's does. Web.bend has pointer_down (with buttons) but no
+  `contextmenu` event, and nothing stops the browser's own menu, so editor/app.js listens for it
+  and hands Bend the place (Work.menu_event). A DomEvent `context_menu{msg}` whose handler prevents
+  the browser's menu, with point{x, y} from the page's corner, would let the page do it alone.

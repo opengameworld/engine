@@ -5,7 +5,7 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "bun tools/dev.ts",
-    "build": "bun tools/shaders/catalog.js && bun tools/project/files.js && bend editor/index.html -o dist",
+    "build": "bun tools/shaders/catalog.js && bun tools/project/files.js && bun tools/project/registry.js && bend editor/index.html -o dist",
     "check": "bun tools/check.ts",
     "test": "bun tools/test.ts",
     "export": "bun export/cli.ts"

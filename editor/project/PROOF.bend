@@ -42,7 +42,28 @@ def Laws.on_disk_drops_assets():
 def Laws.a_listing_is_one_path_per_line():
   {==}
 
-def Laws.the_scene_file_is_the_scene():
+def Laws.a_bend_in_scenes_is_a_scene():
+  {==}
+
+def Laws.a_saved_file_is_saved():
+  {==}
+
+def Laws.a_bend_in_scripts_is_a_script():
+  {==}
+
+def Laws.a_script_goes_to_scripts():
+  {==}
+
+def Laws.a_shader_goes_to_shaders():
+  {==}
+
+def Laws.a_name_with_a_space_is_refused():
+  {==}
+
+def Laws.a_scene_name_taken_is_refused():
+  {==}
+
+def Laws.a_new_scene_may_be_made():
   {==}
 
 def Laws.the_extension_is_the_last_part():

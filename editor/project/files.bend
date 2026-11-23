@@ -27,6 +27,9 @@ import ../../library/catalog.bend as Cat
 # ---------- The roots ----------
 
 def assets() -> String: "Assets"
+def scenes() -> String: "Assets/scenes"
+def scripts() -> String: "Assets/scripts"
+def shaders() -> String: "Assets/shaders"
 def library() -> String: "Library"
 def animations() -> String: "Library/Animations"
 
@@ -57,9 +60,11 @@ def has(xs: List<&2, String>, +x: String) -> Bool:
 def cut(+p: String, +n: Nat) -> String:
   String.reverse(String.drop(String.reverse(p), n))
 
-# Is this a shader's settings (x.json beside x)?
+# Is this a shader's settings (x.json beside x), or a file a tool writes (x_generated.bend, the
+# project's registry)? Neither is listed: one is part of its shader, the other is written again on
+# every start, as Unity keeps its Library folder out of the Project window.
 def is_settings(+p: String, +files: List<&2, String>) -> Bool:
-  (String.ends_with(p, ".json") && has(files, cut(p, 5n)))
+  ((String.ends_with(p, ".json") && has(files, cut(p, 5n))) || String.ends_with(p, "_generated.bend"))
 
 def pick_list(c: Bool, a: List<&2, String>, b: List<&2, String>) -> List<&2, String>:
   match c:
@@ -263,13 +268,15 @@ def opened_to(+open: List<&2, String>, +at: String) -> List<&2, String>:
 
 # ---------- What a file is ----------
 
-# What a file is. A project's scene is its scene.bend (PROJECT.bend's rule: a project is a folder
-# with a scene.bend), and what the editor saved for it is its saved.bend (engine/scene/save.bend's
-# file); any other .bend file is a module.
+# What a file is, by where it is (PROJECT.bend says a project's folders): a .bend in scenes/ is a
+# scene, and the one of the same name in scenes/saved/ what the editor saved for it
+# (engine/scene/save.bend); a .bend in scripts/ is a script (engine/play/game.bend runs it); any
+# other .bend file is a module.
 type Sort is Data:
   Sort.Folder{}
   Sort.Scene{}
   Sort.Saved{}
+  Sort.Script{}
   Sort.Clip{}
   Sort.Shader{}
   Sort.Module{}
@@ -295,11 +302,12 @@ def pick_kind(c: Bool, +a: Sort, +b: Sort) -> Sort:
 
 def kind(+paths: List<&2, String>, +path: String) -> Sort:
   pick_kind(is_folder(paths, path), Sort.Folder{},
-  pick_kind(String.eq(path, assets() ++ "/scene.bend"), Sort.Scene{},
-  pick_kind(String.eq(path, assets() ++ "/saved.bend"), Sort.Saved{},
+  pick_kind(String.starts_with(path, scenes() ++ "/saved/"), Sort.Saved{},
+  pick_kind((String.starts_with(path, scenes() ++ "/") && String.ends_with(path, ".bend")), Sort.Scene{},
+  pick_kind((String.starts_with(path, scripts() ++ "/") && String.ends_with(path, ".bend")), Sort.Script{},
   pick_kind(String.starts_with(path, animations() ++ "/"), Sort.Clip{},
   pick_kind(any_end(path, shader_ends()), Sort.Shader{},
-  pick_kind(String.ends_with(path, ".bend"), Sort.Module{}, Sort.Other{}))))))
+  pick_kind(String.ends_with(path, ".bend"), Sort.Module{}, Sort.Other{})))))))
 
 def kind_name(+k: Sort) -> String:
   match k:
@@ -309,6 +317,8 @@ def kind_name(+k: Sort) -> String:
       "Scene"
     case Sort.Saved{}:
       "Saved by the editor"
+    case Sort.Script{}:
+      "Script"
     case Sort.Clip{}:
       "Animation clip"
     case Sort.Shader{}:
@@ -379,3 +389,65 @@ def why_not(+paths: List<&2, String>, +at: String, +name: String) -> String:
 # The path of the new folder.
 def made(+at: String, +name: String) -> String:
   Tree.under(at, String.trim(name))
+
+# ---------- Creating (the Project window's Create) ----------
+#
+# A folder is made in the folder shown. A scene, a script and a shader each go to their project's
+# folder (scenes/, scripts/, shaders/): that is where the registry (tools/project/registry.js) and
+# the shader catalog (tools/shaders/catalog.js) find them, as Godot looks for script templates in
+# one folder. Their name becomes a Bend name, so it is a word: a letter, then letters, digits or _.
+
+def is_word_char(+c: Char) -> Bool:
+  (Char.is_alpha(c) || Char.is_digit(c) || Char.is_eq(c, '_'))
+
+def all_word(cs: List<&2, Char>) -> Bool:
+  match cs:
+    case Nil{}:
+      True{}
+    case +h <> t:
+      (is_word_char(h) && all_word(t))
+
+def starts_alpha(cs: List<&2, Char>) -> Bool:
+  match cs:
+    case Nil{}:
+      False{}
+    case +h <> _:
+      Char.is_alpha(h)
+
+def is_word(+n: String) -> Bool:
+  (starts_alpha(String.to_list(n)) && all_word(String.to_list(n)))
+
+# Where a new thing of this kind goes ("folder" in the folder shown).
+def target(+what: String, +at: String) -> String:
+  pick_s(String.eq(what, "scene"), scenes(), pick_s(String.eq(what, "script"), scripts(), pick_s(String.eq(what, "shader"), shaders(), at)))
+
+# The file a new scene, script or shader is (its main file, for a shader).
+def new_file(+what: String, +n: String) -> String:
+  pick_s(String.eq(what, "shader"), shaders() ++ "/" ++ n ++ ".frag.glsl", target(what, "") ++ "/" ++ n ++ ".bend")
+
+def pick_b(c: Bool, +a: Bool, +b: Bool) -> Bool:
+  match c:
+    case True{}:
+      a
+    case False{}:
+      b
+
+def taken(+paths: List<&2, String>, +what: String, +n: String) -> Bool:
+  pick_b(String.eq(what, "folder"), False{}, has(paths, new_file(what, n)))
+
+def may_create_n(+paths: List<&2, String>, +what: String, +at: String, +n: String) -> Bool:
+  pick_b(String.eq(what, "folder"), may_make(paths, at, n), (is_word(n) && Bool.not(taken(paths, what, n))))
+
+# May a thing of this kind, with this name, be made now?
+def may_create(+paths: List<&2, String>, +what: String, +at: String, +name: String) -> Bool:
+  may_create_n(paths, what, at, String.trim(name))
+
+def why_not_create_n(+paths: List<&2, String>, +what: String, +at: String, +n: String) -> String:
+  pick_s(String.eq(what, "folder"), why_not(paths, at, n),
+  pick_s(String.is_empty(n), "",
+  pick_s(Bool.not(is_word(n)), "A name is a word: a letter, then letters, digits or _.",
+  pick_s(taken(paths, what, n), "There is one with that name already.", ""))))
+
+# Why a name cannot be used, for the line under the field ("" when it can).
+def why_not_create(+paths: List<&2, String>, +what: String, +at: String, +name: String) -> String:
+  why_not_create_n(paths, what, at, String.trim(name))

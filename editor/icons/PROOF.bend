@@ -21,6 +21,12 @@ def Laws.the_saved_color_is_a_token():
 def Laws.a_saved_has_a_glyph():
   {==}
 
+def Laws.the_script_color_is_a_token():
+  {==}
+
+def Laws.a_script_has_a_glyph():
+  {==}
+
 def Laws.the_module_color_is_a_token():
   {==}
 

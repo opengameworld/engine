@@ -1,39 +1,43 @@
 # The projects this engine knows, and the one it opens.
 #
-# A project is a folder in projects/ with a scene.bend whose start() gives
-# the scene the editor opens with. The engine (engine/) and the editor
-# (editor/) are shared by every project.
+# A project is a folder in projects/:
 #
-# Why a written list and not "every folder in projects/": a Bend import is
-# fixed, and a project nobody imports does not exist for the compiler. The
-# gain: one law checks every project's first scene at once, and adding a
-# project makes the compiler point at every match below that misses it.
+#   projects/<folder>/
+#     scenes/<Scene>.bend         a scene's code: start() gives its things, rules() what they do
+#     scenes/saved/<Scene>.bend   what the editor saved for it (engine/scene/save.bend)
+#     scripts/<Script>.bend       a script: start(scene) once when Play starts, update(scene, dt)
+#                                 every tick (engine/play/game.bend)
+#     shaders/                    its shaders (tools/shaders/catalog.js)
+#     project_generated.bend      its registry: every scene and script above, imported
+#                                 (tools/project/registry.js writes it; not tracked)
 #
-# A project opens with its scene (its code's) and what was saved in the editor put back
-# (projects/<folder>/saved.bend, engine/scene/save.bend): the places, and the rules once the
-# editor saved its own.
+# A project has any number of scenes, as a Unity or Godot project does; one is its main scene, the
+# one it opens with (Godot's application/run/main_scene), here main(). The engine (engine/) and the
+# editor (editor/) are shared by every project.
+#
+# Why a written list of projects and not "every folder in projects/": a Bend import is fixed, and a
+# project nobody imports does not exist for the compiler. The gain: one law checks every project's
+# main scene at once, and adding a project makes the compiler point at every match below that
+# misses it. Inside a project, its scenes and scripts are found by the registry, so a new scene or
+# script needs no line here.
 #
 # Limits now:
-# - Which project opens is this file's open(); there is no project picker
-#   in the editor.
-# - The build (bun run build) bundles every project listed here, the
-#   mannequin's skin with them. Nothing from refs/ may ever be listed:
-#   refs/ is for third-party assets kept only for study, which never ship
-#   (tools/check.ts fails if anything outside refs/ imports from it).
+# - Which project opens is this file's open() (or the page's ?project=); there is no project
+#   picker in the editor.
+# - The build (bun run build) bundles every project listed here, the mannequin's skin with them.
+#   Nothing from refs/ may ever be listed: refs/ is for third-party assets kept only for study,
+#   which never ship (tools/check.ts fails if anything outside refs/ imports from it).
 
 import Base
 import ./engine/scene/scene.bend as S
 import ./engine/scene/camera.bend as Cam
-import ./projects/water/scene.bend as WaterScene
-import ./projects/character/scene.bend as CharacterScene
-import ./mannequin/scene.bend as MannequinScene
-import ./projects/animation/scene.bend as AnimationScene
 import ./engine/script/rule.bend as R
-import ./engine/scene/save.bend as Save
-import ./projects/water/saved.bend as WaterSaved
-import ./projects/character/saved.bend as CharacterSaved
-import ./projects/mannequin/saved.bend as MannequinSaved
-import ./projects/animation/saved.bend as AnimationSaved
+import ./engine/play/play.bend as Play
+import ./projects/prefabs.bend as Pre
+import ./projects/water/project_generated.bend as WaterP
+import ./projects/character/project_generated.bend as CharacterP
+import ./projects/mannequin/project_generated.bend as MannequinP
+import ./projects/animation/project_generated.bend as AnimationP
 
 type Project is Data:
   Water{}
@@ -66,6 +70,18 @@ def folder(p: Project) -> String:
     case Animation{}:
       "animation"
 
+# The scene a project opens with (a file of its scenes/).
+def main(p: Project) -> String:
+  match p:
+    case Water{}:
+      "Water"
+    case Character{}:
+      "Character"
+    case Mannequin{}:
+      "Mannequin"
+    case Animation{}:
+      "Animation"
+
 def pick_project(c: Bool, a: Project, b: Project) -> Project:
   match c:
     case True{}:
@@ -80,76 +96,149 @@ def preview(+slug: String) -> Project:
   pick_project(String.eq(slug, "mannequin"), Mannequin{},
   pick_project(String.eq(slug, "animation"), Animation{}, open()))))
 
-# A project's scene as its code makes it, before what was saved (engine/scene/save.bend).
-def scene(p: Project) -> S.Scene:
+# ---------- Scenes (each project's registry) ----------
+
+def scenes(p: Project) -> List<&2, String>:
   match p:
     case Water{}:
-      WaterScene.start()
+      WaterP.scenes()
     case Character{}:
-      CharacterScene.start()
+      CharacterP.scenes()
     case Mannequin{}:
-      MannequinScene.start()
+      MannequinP.scenes()
     case Animation{}:
-      AnimationScene.start()
+      AnimationP.scenes()
 
-# What was saved in the editor for each project: the places that differ from its code.
-def saved(p: Project) -> List<&2, Save.Placed>:
+def has(xs: List<&2, String>, +x: String) -> Bool:
+  match xs:
+    case Nil{}:
+      False{}
+    case h <> t:
+      (String.eq(h, x) || has(t, x))
+
+def pick_s(c: Bool, +a: String, +b: String) -> String:
+  match c:
+    case True{}:
+      a
+    case False{}:
+      b
+
+# The scene a link asks for, when the project has it; its main scene otherwise.
+def scene_named(+p: Project, +want: String) -> String:
+  pick_s(has(scenes(p), want), want, main(p))
+
+# A scene as its code makes it, before what was saved (engine/scene/save.bend compares with it).
+def code(+p: Project, +sc: String) -> S.Scene:
   match p:
     case Water{}:
-      WaterSaved.places()
+      WaterP.code(sc)
     case Character{}:
-      CharacterSaved.places()
+      CharacterP.code(sc)
     case Mannequin{}:
-      MannequinSaved.places()
+      MannequinP.code(sc)
     case Animation{}:
-      AnimationSaved.places()
+      AnimationP.code(sc)
 
-# The scene a project opens with: its code's, with what was saved put back.
+# A scene as it opens: its code with what the editor saved put back.
+def opened(+p: Project, +sc: String) -> S.Scene:
+  match p:
+    case Water{}:
+      WaterP.opened(sc)
+    case Character{}:
+      CharacterP.opened(sc)
+    case Mannequin{}:
+      MannequinP.opened(sc)
+    case Animation{}:
+      AnimationP.opened(sc)
+
+# What a scene's things do in Play (engine/script/rule.bend): the rules the editor saved, or its code's.
+def scene_rules(+p: Project, +sc: String) -> List<&2, R.Rule>:
+  match p:
+    case Water{}:
+      WaterP.rules(sc)
+    case Character{}:
+      CharacterP.rules(sc)
+    case Mannequin{}:
+      MannequinP.rules(sc)
+    case Animation{}:
+      AnimationP.rules(sc)
+
+# Did the editor save a scene's rules? Then they are its rules.
+def has_saved_rules(+p: Project, +sc: String) -> Bool:
+  match p:
+    case Water{}:
+      WaterP.own_rules(sc)
+    case Character{}:
+      CharacterP.own_rules(sc)
+    case Mannequin{}:
+      MannequinP.own_rules(sc)
+    case Animation{}:
+      AnimationP.own_rules(sc)
+
+# The things made in the editor in a scene, and the things of its code deleted there.
+def made(+p: Project, +sc: String) -> List<&2, Pre.Made>:
+  match p:
+    case Water{}:
+      WaterP.made(sc)
+    case Character{}:
+      CharacterP.made(sc)
+    case Mannequin{}:
+      MannequinP.made(sc)
+    case Animation{}:
+      AnimationP.made(sc)
+
+def removed(+p: Project, +sc: String) -> List<&2, String>:
+  match p:
+    case Water{}:
+      WaterP.removed(sc)
+    case Character{}:
+      CharacterP.removed(sc)
+    case Mannequin{}:
+      MannequinP.removed(sc)
+    case Animation{}:
+      AnimationP.removed(sc)
+
+# A project's main scene, as it opens, and its rules (what a published game plays).
 def start(+p: Project) -> S.Scene:
-  Save.apply(scene(p), saved(p))
+  opened(p, main(p))
 
-# What each project's things do in Play (engine/script/rule.bend), as its code writes them.
-def code_rules(p: Project) -> List<&2, R.Rule>:
-  match p:
-    case Water{}:
-      []
-    case Character{}:
-      []
-    case Mannequin{}:
-      []
-    case Animation{}:
-      AnimationScene.rules()
-
-# Did the editor save the project's rules (engine/scene/save.bend)? Then they are its rules.
-def has_saved_rules(p: Project) -> Bool:
-  match p:
-    case Water{}:
-      WaterSaved.has_rules()
-    case Character{}:
-      CharacterSaved.has_rules()
-    case Mannequin{}:
-      MannequinSaved.has_rules()
-    case Animation{}:
-      AnimationSaved.has_rules()
-
-def saved_rules(p: Project) -> List<&2, R.Rule>:
-  match p:
-    case Water{}:
-      WaterSaved.rules()
-    case Character{}:
-      CharacterSaved.rules()
-    case Mannequin{}:
-      MannequinSaved.rules()
-    case Animation{}:
-      AnimationSaved.rules()
-
-# What each project's things do in Play: the rules the editor saved, or its code's.
 def rules(+p: Project) -> List<&2, R.Rule>:
-  Save.rules(has_saved_rules(p), saved_rules(p), code_rules(p))
+  scene_rules(p, main(p))
+
+def scene(+p: Project) -> S.Scene:
+  code(p, main(p))
 
 # The scene the editor opens with.
 def opening() -> S.Scene:
   start(open())
+
+# ---------- Play, with the project's scripts ----------
+
+# One browser frame of Play, with the project's scripts (engine/play/play.bend's frame_with).
+def frame(+p: Project, +x: Play.Session, +dt: F32, +reduce: Bool) -> Play.Session:
+  match p:
+    case Water{}:
+      Play.frame_with(~WaterP.start, ~WaterP.update, x, dt, reduce)
+    case Character{}:
+      Play.frame_with(~CharacterP.start, ~CharacterP.update, x, dt, reduce)
+    case Mannequin{}:
+      Play.frame_with(~MannequinP.start, ~MannequinP.update, x, dt, reduce)
+    case Animation{}:
+      Play.frame_with(~AnimationP.start, ~AnimationP.update, x, dt, reduce)
+
+# Step (one tick while paused), with the project's scripts.
+def step(+p: Project, +x: Play.Session) -> Play.Session:
+  match p:
+    case Water{}:
+      Play.step_with(~WaterP.start, ~WaterP.update, x)
+    case Character{}:
+      Play.step_with(~CharacterP.start, ~CharacterP.update, x)
+    case Mannequin{}:
+      Play.step_with(~MannequinP.start, ~MannequinP.update, x)
+    case Animation{}:
+      Play.step_with(~AnimationP.start, ~AnimationP.update, x)
+
+# ---------- The camera ----------
 
 # Where the editor's camera starts: the whole Water, or a person up close.
 def camera(p: Project) -> Cam.Cam:

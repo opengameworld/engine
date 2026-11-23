@@ -19,6 +19,7 @@ import ../../editor/workspace/number.bend as Num
 import ../../editor/workspace/state.bend as W
 import ../../editor/workspace/view.bend as Work
 import ../../editor/inspector/rules.bend as Ru
+import ../../projects/prefabs.bend as Pre
 
 type Check is Data:
   Check{name: String, ok: Bool}
@@ -32,7 +33,7 @@ def state_of(u: Web.Update<W.St, W.Ev>) -> W.St:
       next
 
 def opened() -> W.St:
-  state_of(Work.start(two(), False{}, A.none(), ["scene.bend", "shaders/"], [], False{}, "Test", "test"))
+  state_of(Work.start(two(), False{}, A.none(), ["scenes/Test.bend", "shaders/"], [], False{}, "Test", "test", "Test", [], []))
 
 # The state after an event.
 def after(+ev: W.Ev, +st: W.St) -> W.St:
@@ -109,13 +110,35 @@ def checks() -> List<&2, Check>:
    Check{"typing 90 in Turn turns a quarter turn", close(turn_of(first_does(W.rules(after(Work.on_input(W.r_num{0, 0, ""}, Web.typed{"90"}), with_rule())))), 1.5707964)},
    Check{"Do > Move makes the rule a move by nothing", U32.is_eq(Ru.response_n(first_does(W.rules(after(W.r_does{0, 0}, with_rule())))), 0)},
    Check{"Remove rule takes it off", U32.is_eq(count(after(W.r_drop{0}, with_rule())), 0)},
-   Check{"a thing selected again shows in the Inspector", Bool.not(W.shows_asset(after(W.a_thing{0}, after(W.f_pick{"Assets/scene.bend"}, opened()))))},
-   Check{"a project file picked shows in the Inspector", W.shows_asset(after(W.f_pick{"Assets/scene.bend"}, opened()))},
-   Check{"a project file picked is asked of the dev server", String.eq(W.ask_what(W.ask(after(W.f_pick{"Assets/scene.bend"}, opened()))), "read")},
+   Check{"a thing selected again shows in the Inspector", Bool.not(W.shows_asset(after(W.a_thing{0}, after(W.f_pick{"Assets/scenes/Test.bend"}, opened()))))},
+   Check{"a project file picked shows in the Inspector", W.shows_asset(after(W.f_pick{"Assets/scenes/Test.bend"}, opened()))},
+   Check{"a project file picked is asked of the dev server", String.eq(W.ask_what(W.ask(after(W.f_pick{"Assets/scenes/Test.bend"}, opened()))), "read")},
    Check{"a clip picked is the library's clip picked", W.picked(W.lib(after(W.f_pick{"Library/Animations/Universal Animation Library/Jog"}, opened())))},
    Check{"a folder opened is the folder shown", String.eq(W.at(W.files(after(W.f_go{"Assets/shaders"}, opened()))), "Assets/shaders")},
-   Check{"Create asks for the folder named", String.eq(W.ask_path(W.ask(after(W.f_make{}, after(Work.on_input(W.f_name{""}, Web.typed{"Water"}), after(W.f_naming{True{}}, opened()))))), "Water")},
-   Check{"Create with a taken name asks nothing", U32.is_eq(W.ask_n(W.ask(after(W.f_make{}, after(Work.on_input(W.f_name{""}, Web.typed{"shaders"}), after(W.f_naming{True{}}, opened()))))), 0)},
+   Check{"Create asks for the folder named", String.eq(W.ask_path(W.ask(after(W.f_make{}, after(Work.on_input(W.f_name{""}, Web.typed{"Water"}), after(W.f_new{"folder"}, opened()))))), "Water")},
+   Check{"Create with a taken name asks nothing", U32.is_eq(W.ask_n(W.ask(after(W.f_make{}, after(Work.on_input(W.f_name{""}, Web.typed{"shaders"}), after(W.f_new{"folder"}, opened()))))), 0)},
    Check{"a line for the Console is kept", U32.is_eq(lines(after(Work.log_event("info", "Saved."), opened())), 1)},
    Check{"Clear empties the Console", U32.is_eq(lines(after(W.c_clear{}, after(Work.log_event("info", "Saved."), opened()))), 0)},
-   Check{"the dock's tab is the one chosen", U32.is_eq(W.dock(after(W.a_tab{1}, opened())), 1)}]
+   Check{"the dock's tab is the one chosen", U32.is_eq(W.dock(after(W.a_tab{1}, opened())), 1)},
+   Check{"Create > Plane adds a thing", Nat.is_eq(S.count(W.scene(after(W.h_make{1}, opened()))), 3n)},
+   Check{"a thing made is selected", U32.is_eq(W.selected(after(W.h_make{1}, opened())), 2)},
+   Check{"a thing made takes a free name", String.eq(S.name(S.at(W.scene(after(W.h_make{0}, after(W.h_make{0}, opened()))), 3)), "Empty 2")},
+   Check{"a thing made is saved as made", String.contains(Work.save_text(after(W.h_make{1}, opened()), two(), W.scene(after(W.h_make{1}, opened()))), "Pre.Made{\"Plane\", Pre.Prefab.Plane{}")},
+   Check{"making a thing marks the scene as not saved", W.dirty(after(W.h_make{0}, opened()))},
+   Check{"the list of things changed once per thing made", U32.is_eq(Work.built(after(W.h_make{0}, opened())), 1)},
+   Check{"nothing is made in Play", Nat.is_eq(S.count(W.scene(after(W.h_make{1}, after(W.p_play{}, opened())))), 2n)},
+   Check{"Delete removes the thing selected", Nat.is_eq(S.count(W.scene(after(W.h_delete{}, opened()))), 1n)},
+   Check{"a thing of the code deleted is saved as removed", String.contains(Work.save_text(after(W.h_delete{}, opened()), two(), W.scene(after(W.h_delete{}, opened()))), "[\"Box\"]")},
+   Check{"deleting a thing made forgets it", Bool.not(String.contains(Work.save_text(after(W.h_delete{}, after(W.h_make{1}, opened())), two(), W.scene(after(W.h_delete{}, after(W.h_make{1}, opened())))), "Pre.Made{"))},
+   Check{"deleting a thing deletes its rules", U32.is_eq(count(after(W.h_delete{}, with_rule())), 0)},
+   Check{"Delete on the Hierarchy deletes", Nat.is_eq(S.count(W.scene(after(key("delete"), opened()))), 1n)},
+   Check{"the scene saves beside itself", String.eq(Work.save_path(opened()), "projects/test/scenes/saved/Test.bend")},
+   Check{"Create > Script asks for the script's files", String.eq(W.ask_what(W.ask(after(W.f_make{}, after(Work.on_input(W.f_name{""}, Web.typed{"Spin"}), after(W.f_new{"script"}, opened()))))), "create")},
+   Check{"a new script is a file in scripts/", String.eq(Work.created_file(after(W.f_make{}, after(Work.on_input(W.f_name{""}, Web.typed{"Spin"}), after(W.f_new{"script"}, opened())))), "Assets/scripts/Spin.bend")},
+   Check{"a script waits for Save while something is not saved", U32.is_eq(W.ask_n(W.ask(after(W.f_make{}, after(Work.on_input(W.f_name{""}, Web.typed{"Spin"}), after(W.f_new{"script"}, after(W.h_make{0}, opened())))))), 0)},
+   Check{"a folder does not wait for Save", U32.is_eq(W.ask_n(W.ask(after(W.f_make{}, after(Work.on_input(W.f_name{""}, Web.typed{"Art"}), after(W.f_new{"folder"}, after(W.h_make{0}, opened())))))), 1)},
+   Check{"a scene opens when nothing waits for Save", String.eq(W.ask_what(W.ask(after(W.f_open{"Beach", False{}}, opened()))), "open")},
+   Check{"a scene does not open over what is not saved", U32.is_eq(W.ask_n(W.ask(after(W.f_open{"Beach", False{}}, after(W.h_make{0}, opened())))), 0)},
+   Check{"Discard and open opens anyway", String.eq(W.ask_path(W.ask(after(W.f_open{"Beach", True{}}, after(W.h_make{0}, opened())))), "Beach")},
+   Check{"a right click opens the menu", W.menu_open(W.cut(after(Work.menu_event(10.0, 20.0, 800.0), opened())))},
+   Check{"choosing in the menu closes it", Bool.not(W.menu_open(W.cut(after(W.f_new{"scene"}, after(Work.menu_event(10.0, 20.0, 800.0), opened())))))}]

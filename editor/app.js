@@ -34,6 +34,7 @@ import Files from "./project/files_generated.bend";
 import Catalog from "./shaders/catalog_generated.bend";
 import Defaults from "./defaults/defaults.bend";
 import Play from "../engine/play/play.bend";
+import Project from "../PROJECT.bend";
 import Select from "./viewport/select.bend";
 import Save from "../engine/scene/save.bend";
 import { flat } from "../platform/web/gpu.js";
@@ -46,7 +47,8 @@ import { createLoop, fitCanvas } from "../platform/web/loop.js";
 // `camera` is where the editor's camera starts (engine/scene/camera.bend; its
 // start() when none). `skins` gives, for each figure's skin name, the files
 // to draw it with (platform/web/draw.js says their shape).
-export function startEditor(opening, { skins = {}, camera = null, shaders = {}, folder = "", name = "", rules = [], ownRules = false, base = opening } = {}) {
+export function startEditor(opening, { skins = {}, camera = null, shaders = {}, folder = "", name = "", rules = [], ownRules = false, base = opening,
+  project = null, scene: sceneName = "", made = { $: "Nil" }, removed = { $: "Nil" }, at = "", pick = "" } = {}) {
   theme({ mode: "dark", radius: "pill" });   // every button and segmented in the layout is a pill
 
   const canvas = document.getElementById("scene");
@@ -66,7 +68,9 @@ export function startEditor(opening, { skins = {}, camera = null, shaders = {}, 
     tick: (dt) => {
       const reduce = Defaults.reduce_motion(still.matches);
       if (Play.runs(session, reduce)) {
-        session = Play.frame(session, dt, reduce);
+        // The project's scripts run in Play's ticks (PROJECT.bend's frame); a page with no project
+        // (refs/) plays with none.
+        session = project ? Project.frame(project, session, dt, reduce) : Play.frame(session, dt, reduce);
         moved(Play.shown(session));
         redraw();
       }
@@ -98,34 +102,45 @@ export function startEditor(opening, { skins = {}, camera = null, shaders = {}, 
   const offline = (what) => (e) => say("error", `${what} needs \`bun run dev\` (${e.message}).`);
 
   const work = mount(document.body, {
-    init: () => Work.start(scene, still.matches, Catalog.of(folder), Files.of(folder), rules, ownRules, name, folder),
+    init: () => Work.start(scene, still.matches, Catalog.of(folder), Files.of(folder), rules, ownRules, name, folder, sceneName, made, removed),
     render: Work.render, on_event: Work.on_event, on_input: Work.on_input,
   }, {
     adopt: true,
     changed: (st, before) => {
-      // Save: Bend writes the places that differ from the project's code and the rules
-      // (engine/scene/save.bend); the dev server writes the file (tools/dev.ts).
+      // Save: Bend writes the scene's saved file (editor/hierarchy/make.bend's save_text); the dev
+      // server writes it where Bend says (tools/dev.ts).
       if (Work.saves(st) !== Work.saves(before)) {
-        const text = Save.text(folder, Save.changed(base, Play.edited(session)), Work.own_rules(st), Work.rules(st));
-        post("/save", { text }).then((path) => say("info", `Saved ${path}.`), offline("Saving"));
+        const text = Work.save_text(st, base, Play.edited(session));
+        post("/save", { scene: sceneName, text }).then((path) => say("info", `Saved ${path}.`), offline("Saving"));
         return;
       }
-      // What the page asked: a folder made, or a file read (editor/project/).
+      // What the page asked: a folder made, a file read, a scene, script or shader created, a
+      // scene opened.
       if (Work.ask_n(st) !== Work.ask_n(before)) {
         const what = Work.ask_what(st), path = Work.ask_path(st);
         if (what === "folder") post("/folder", { path }).then((list) => { work.dispatch(Work.listed_event(list)); say("info", `Made the folder ${path}.`); }, offline("Making a folder"));
         if (what === "read") post("/read", { path }).then((text) => work.dispatch(Work.text_event(path, text)), () => {});
+        if (what === "create") create(st);
+        if (what === "open") location.assign(link({ scene: path }));
       }
       if (Work.rules(st) !== Work.rules(before)) session = Play.with_rules(session, Work.rules(st));
       if (Work.play_mode(st) !== Work.play_mode(before) || Work.steps(st) !== Work.steps(before)) {
         session = Play.to_mode(session, Work.play_mode(st));
-        if (Work.steps(st) !== Work.steps(before)) session = Play.step(session);
+        if (Work.steps(st) !== Work.steps(before)) session = project ? Project.step(project, session) : Play.step(session);
         moved(Play.shown(session));
         redrawAll();
         redraw();
         return;
       }
       const next = Work.scene(st), i = Work.selected(st);
+      // A thing made or deleted: the scene's list changed, and every thing is uploaded again.
+      if (Work.built(st) !== Work.built(before)) {
+        session = Play.with_scene(session, next);
+        scene = next;
+        renderer.rebuild(scene);
+        redraw();
+        return;
+      }
       if (next !== scene && Work.shader_of(st) !== Work.shader_of(before) && i === Work.selected(before)
         && !renderer.bindMaterial(i, Scene.material(Scene.look(Scene.at(next, i))))) {
         const id = Work.shader_of(st);
@@ -139,6 +154,43 @@ export function startEditor(opening, { skins = {}, camera = null, shaders = {}, 
       redraw();
     },
   });
+
+  // This page's address with some of its parameters changed (an empty value drops one).
+  function link(change) {
+    const params = new URLSearchParams(location.search);
+    for (const [k, v] of Object.entries(change)) v ? params.set(k, v) : params.delete(k);
+    return `${location.pathname}?${params}`;
+  }
+
+  // Create: the files Bend wrote go to the dev server, which writes them and restarts the engine to
+  // compile them; the page opens again on the new file, in its folder.
+  function create(st) {
+    const files = [];
+    for (let l = Work.create_files(st); l.$ === "Con"; l = l.tail) files.push({ path: Work.file_path(l.head), text: Work.file_text(l.head) });
+    const shown = link({ at: Work.created_at(st), pick: Work.created_file(st) });
+    post("/create", { files }).then(async () => {
+      say("info", `Created ${Work.created_file(st)}. The engine restarts to compile it.`);
+      history.replaceState(null, "", shown);
+      // The dev server restarts: the page opens again once it answers.
+      for (let tries = 0; tries < 40; tries++) {
+        await new Promise((ok) => setTimeout(ok, 500));
+        if (await fetch(shown, { method: "HEAD" }).then((r) => r.ok, () => false)) { location.replace(shown); return; }
+      }
+    }, offline("Creating"));
+  }
+
+  // A right click in the Project window opens Create there (Web.bend has no context-menu event
+  // yet: docs/bend-ui-requests.txt). Bend says what the menu holds.
+  document.addEventListener("contextmenu", (e) => {
+    if (!e.target.closest?.(".editor-project")) return;
+    e.preventDefault();
+    work.dispatch(Work.menu_event(e.clientX, e.clientY, innerHeight));
+  });
+
+  // The page opened on a file just made: the Project window shows its folder, and it.
+  if (at) work.dispatch(Work.go_event(at));
+  if (pick) work.dispatch(Work.pick_event(pick));
+
   // The scene or the selection changed outside the page: it gets them, and is drawn again when
   // asked (`draw`), or when Bend says it shows a time that moves every frame.
   function follow(next, selected, draw) {

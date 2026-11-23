@@ -1,11 +1,17 @@
 # Saving a scene: what was edited, written back as Bend.
 #
-# A project's scene is code (projects/<name>/scene.bend). Saving does not rewrite that code: it
+# A scene is code (projects/<name>/scenes/<Scene>.bend). Saving does not rewrite that code: it
 # writes what differs from it, as Godot's .tscn stores only "properties [not] equal to the
 # default value" and a Unity prefab instance stores its overrides. The difference is a list of
 # places: for each thing whose place (Transform) was changed, its name and its place now. The
-# file is projects/<name>/saved.bend, a Bend module of one def, places(); PROJECT.bend applies it
-# to the project's scene when the project opens, so what was saved is what opens.
+# file is projects/<name>/scenes/saved/<Scene>.bend, beside the scene's code (a folder of its
+# own: a Bend import path takes plain names, so "<Scene>.saved.bend" cannot be imported); the project's
+# registry (tools/project/registry.js) applies it to the scene when the scene opens, so what was
+# saved is what opens.
+#
+# Things made in the editor (projects/prefabs.bend) are saved whole, by kind, name and place
+# (made), and things of the code that were deleted by name (removed), as a Unity prefab instance
+# keeps its added and removed objects beside its overrides.
 #
 # Bend writes the file's text (text) and says where it goes (file); the editor's dev server only
 # writes it to disk (tools/dev.ts), because a browser page cannot write a file in every browser
@@ -157,6 +163,15 @@ def Save.lines(ps: List<&2, Placed>) -> String:
     case Con{Placed{n, p}, +t}:
       String.concat(["   Save.Placed{", String.quote(n), ", ", Save.place(p), "}", Save.sep(t), Save.lines(t)])
 
+def Save.names(xs: List<&2, String>) -> String:
+  match xs:
+    case Nil{}:
+      ""
+    case Con{+h, Nil{}}:
+      String.quote(h)
+    case Con{+h, +t}:
+      String.quote(h) ++ ", " ++ Save.names(t)
+
 def Save.bool(b: Bool) -> String:
   match b:
     case True{}:
@@ -198,22 +213,29 @@ def Save.rule_lines(rs: List<&2, R.Rule>) -> String:
     case Con{+h, +t}:
       String.concat(["   ", rule(h), Save.rule_sep(t), Save.rule_lines(t)])
 
-# The text of projects/<folder>/saved.bend: the places that differ from the code, and the rules
-# when the editor holds its own (own: the editor's rules replace the code's).
-def text(+folder: String, +ps: List<&2, Placed>, +own: Bool, +rs: List<&2, R.Rule>) -> String:
+# The text of a scene's saved file: the places that differ from the code, the things made in the
+# editor (projects/prefabs.bend's lines, already written), the things of the code deleted, and the
+# rules when the editor holds its own (own: the editor's rules replace the code's).
+def text(+folder: String, +scene: String, +ps: List<&2, Placed>, +made: String, +removed: List<&2, String>, +own: Bool, +rs: List<&2, R.Rule>) -> String:
   String.concat([
-    "# Saved by the editor for the project \"", folder, "\" (engine/scene/save.bend). Do not edit by\n",
-    "# hand: Save in the editor writes it again. Each line of places() is a thing of\n",
-    "# projects/", folder, "/scene.bend, by name, and the place it was saved at; when has_rules() is\n",
-    "# True, rules() are the scene's rules in place of the code's. PROJECT.bend puts them back.\n\n",
+    "# Saved by the editor for the scene \"", scene, "\" of the project \"", folder, "\"\n",
+    "# (engine/scene/save.bend). Do not edit by hand: Save in the editor writes it again. places()\n",
+    "# are the places that differ from ", scene, ".bend's, made() the things made in the editor,\n",
+    "# removed() the things of the code deleted, and, when has_rules() is True, rules() are the\n",
+    "# scene's rules in place of the code's.\n\n",
     "import Base\n",
-    "import ../../engine/core/vec.bend as V\n",
-    "import ../../engine/core/quat.bend as Q\n",
-    "import ../../engine/core/transform.bend as Tr\n",
-    "import ../../engine/scene/save.bend as Save\n",
-    "import ../../engine/script/rule.bend as R\n\n",
+    "import ../../../../engine/core/vec.bend as V\n",
+    "import ../../../../engine/core/quat.bend as Q\n",
+    "import ../../../../engine/core/transform.bend as Tr\n",
+    "import ../../../../engine/scene/save.bend as Save\n",
+    "import ../../../../engine/script/rule.bend as R\n",
+    "import ../../../prefabs.bend as Pre\n\n",
     "def places() -> List<&2, Save.Placed>:\n",
     "  [", String.drop(Save.lines(ps), 3n), "]\n\n",
+    "def made() -> List<&2, Pre.Made>:\n",
+    "  [", String.drop(made, 3n), "]\n\n",
+    "def removed() -> List<&2, String>:\n",
+    "  [", Save.names(removed), "]\n\n",
     "def has_rules() -> Bool: ", Save.bool(own), "\n\n",
     "def rules() -> List<&2, R.Rule>:\n",
     "  [", String.drop(Save.rule_lines(rs), 3n), "]\n"])
@@ -226,6 +248,38 @@ def rules(own: Bool, saved: List<&2, R.Rule>, code: List<&2, R.Rule>) -> List<&2
     case False{}:
       code
 
-# Where a project's saved places go, from the repository's root.
-def file(+folder: String) -> String:
-  "projects/" ++ folder ++ "/saved.bend"
+# Where a scene's saved file goes, from the repository's root.
+def file(+folder: String, +scene: String) -> String:
+  "projects/" ++ folder ++ "/scenes/saved/" ++ scene ++ ".bend"
+
+# A transform as Bend reads it back (projects/prefabs.bend writes the things made with it).
+def place_text(+t: Tr.Transform) -> String:
+  Save.place(t)
+
+# ---------- Deleting ----------
+
+def Save.has(xs: List<&2, String>, +x: String) -> Bool:
+  match xs:
+    case Nil{}:
+      False{}
+    case h <> t:
+      (String.eq(h, x) || Save.has(t, x))
+
+def Save.keep_thing(c: Bool, +h: S.Thing, rest: List<&2, S.Thing>) -> List<&2, S.Thing>:
+  match c:
+    case True{}:
+      h <> rest
+    case False{}:
+      rest
+
+def Save.without_go(xs: List<&2, S.Thing>, +names: List<&2, String>) -> List<&2, S.Thing>:
+  match xs:
+    case Nil{}:
+      Nil{}
+    case Con{+h, t}:
+      Save.keep_thing(Bool.not(Save.has(names, S.name(h))), h, Save.without_go(t, names))
+
+# The scene without the things deleted by name.
+def without(s: S.Scene, +names: List<&2, String>) -> S.Scene:
+  S.Scene{xs} = s
+  S.Scene{Save.without_go(xs, names)}

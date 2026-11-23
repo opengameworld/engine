@@ -29,6 +29,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 editor/shaders/catalog.generated.json*
 editor/shaders/catalog_generated.bend*
 editor/project/files_generated.bend*
+projects/*/project_generated.bend*
 
 # IntelliJ based IDEs
 .idea

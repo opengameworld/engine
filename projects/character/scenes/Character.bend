@@ -10,11 +10,16 @@
 #   role (engine/anim/pose.bend).
 
 import Base
-import ../../engine/scene/scene.bend as S
-import ../../engine/core/transform.bend as Tr
-import ../../engine/anim/figure.bend as Fig
-import ./arm.bend as Arm
+import ../../../engine/script/rule.bend as R
+import ../../../engine/scene/scene.bend as S
+import ../../../engine/core/transform.bend as Tr
+import ../../../engine/anim/figure.bend as Fig
+import ../arm.bend as Arm
 
 def start() -> S.Scene:
   S.Scene{[
     S.Thing{"Arm", Tr.identity(), S.Rigged{Fig.make(Arm.skeleton(), "", Arm.rules())}}]}
+
+# What the scene's things do in Play (engine/script/rule.bend).
+def rules() -> List<&2, R.Rule>:
+  []

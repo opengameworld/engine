@@ -22,6 +22,8 @@ import { codeFiles, imports, rules } from "./layers";
 await $`bun tools/shaders/catalog.js`.quiet();
 // The Project window's file list is written the same way (editor/project/files_generated.bend).
 await $`bun tools/project/files.js`.quiet();
+// And each project's registry (projects/<name>/project_generated.bend): PROJECT.bend imports it.
+await $`bun tools/project/registry.js`.quiet();
 
 // LAYERS.bend decides which .bend files are type-checked. LAWS.bend and PROOF.bend files are
 // left out: laws alone are unproved statements, and step 1 checks them with their proofs.

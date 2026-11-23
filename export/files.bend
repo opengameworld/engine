@@ -87,7 +87,7 @@ def game_module(+slug: String) -> String:
     "def camera() -> Cam.Cam: P.camera(P.preview(\"", slug, "\"))\n\n",
     "def reduce_motion(+system: Bool) -> Bool: (A.reduce_motion() || system)\n\n",
     "def runs(+x: Play.Session, +reduce: Bool) -> Bool: Play.runs(x, reduce)\n\n",
-    "def frame(+x: Play.Session, +dt: F32, +reduce: Bool) -> Play.Session: Play.frame(x, dt, reduce)\n\n",
+    "def frame(+x: Play.Session, +dt: F32, +reduce: Bool) -> Play.Session: P.frame(P.preview(\"", slug, "\"), x, dt, reduce)\n\n",
     "def shown(+x: Play.Session) -> S.Scene: Play.shown(x)\n\n",
     "def view(+x: Play.Session, +cam: Cam.Cam) -> Cam.Cam: Play.camera(x, cam)\n\n",
     "def key(+x: Play.Session, +code: String, +down: Bool) -> Play.Session: Play.key(x, code, down)\n\n",

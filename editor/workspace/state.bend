@@ -17,6 +17,7 @@ import ../../engine/anim/figure.bend as Fig
 import ../../engine/render/shader/asset.bend as A
 import ../../engine/script/rule.bend as R
 import ../scene/panels.bend as O
+import ../../projects/prefabs.bend as Pre
 
 # The animation library's clip picked in the Project window (its collection and place in it,
 # when `picked`), and Mirror.
@@ -51,13 +52,21 @@ type Files is Data:
 type Ask is Data:
   Ask{n: U32, what: String, path: String}
 
+# The scene being edited: its name, the things made in the editor (projects/prefabs.bend) and the
+# things of its code deleted (both saved, engine/scene/save.bend), how many times its list of
+# things changed (editor/app.js uploads them again: platform/web/draw.js's rebuild), the Project
+# window's Create menu opened by a right click (and where), and what New is making ("folder",
+# "scene", "script" or "shader").
+type Cut is Data:
+  Cut{scene: String, made: List<&2, Pre.Made>, removed: List<&2, String>, built: U32, menu: Bool, mx: F32, my: F32, what: String, mh: F32}
+
 # The desk: the dock's tab (0 Project, 1 Console, 2 Animation), the Project window, the Console's
 # lines, the scene's rules (engine/script/rule.bend), whether they are the editor's own (saved in
 # place of the code's), whether something Save writes was changed since the last Save, whether the
 # Inspector shows the asset picked (or the thing selected), what is asked of the page, and the
 # project's name.
 type Desk is Data:
-  Desk{dock: U32, files: Files, log: List<&2, Line>, rules: List<&2, R.Rule>, own: Bool, dirty: Bool, asset: Bool, ask: Ask, name: String}
+  Desk{dock: U32, files: Files, log: List<&2, Line>, rules: List<&2, R.Rule>, own: Bool, dirty: Bool, asset: Bool, ask: Ask, name: String, cut: Cut}
 
 # The workspace: the scene, the thing selected, the system asking for less motion, the desk, the
 # animation library's clip picked, the shader catalog and Play.
@@ -103,6 +112,12 @@ type Ev is Data:
   f_text{path: String, text: String} # a file's text, as the dev server read it (editor/app.js)
   c_log{tone: String, text: String}  # a line for the Console (editor/app.js)
   c_clear{}                          # Clear pressed
+  h_make{n: U32}                     # the Hierarchy's Create: Empty (0), Plane (1), Character (2)
+  h_delete{}                         # the thing selected deleted
+  f_new{what: String}                # Create: "folder", "scene", "script" or "shader"
+  f_menu{x: F32, y: F32, h: F32}     # a right click in the Project window, and the page's height
+  f_menu_close{}                     # the right click's menu closed
+  f_open{name: String, force: Bool}  # open a scene; force: drop what is not saved
 
 def no_ask() -> Ask:
   Ask{0, "", ""}
@@ -115,10 +130,11 @@ def problem_lines(ps: List<&2, A.Problem>) -> List<&2, Line>:
     case +h <> t:
       Line{"warning", A.problem_label(h) ++ " (" ++ A.path(h) ++ "): " ++ A.message(h)} <> problem_lines(t)
 
-# The workspace on a project: its scene, the system's reduced motion, its shader catalog, its
-# files, its rules and whether they are the editor's own, its name and its folder.
-def start(+scene: S.Scene, +still: Bool, +catalog: A.Catalog, +paths: List<&2, String>, +rules: List<&2, R.Rule>, +own: Bool, +name: String, +folder: String) -> Web.Update<St, Ev>:
-  Web.update{Screen{scene, 0, still, Desk{0, Files{folder, paths, ["Assets"], "Assets", "", "", False{}, "", ""}, problem_lines(A.problems(catalog)), rules, own, False{}, False{}, no_ask(), name}, Lib{0, 0, False{}, False{}}, Shade{catalog, scene}, Run{0, 0, 0}}, Web.none{}}
+# The workspace on a project: the scene as it opens, the system's reduced motion, the project's
+# shader catalog and files, the scene's rules and whether they are the editor's own, the project's
+# name and folder, the scene's name, and what the editor made and deleted in it.
+def start(+scene: S.Scene, +still: Bool, +catalog: A.Catalog, +paths: List<&2, String>, +rules: List<&2, R.Rule>, +own: Bool, +name: String, +folder: String, +sc: String, +made: List<&2, Pre.Made>, +removed: List<&2, String>) -> Web.Update<St, Ev>:
+  Web.update{Screen{scene, 0, still, Desk{0, Files{folder, paths, ["Assets"], "Assets", "", "", False{}, "", ""}, problem_lines(A.problems(catalog)), rules, own, False{}, False{}, no_ask(), name, Cut{sc, made, removed, 0, False{}, 0.0, 0.0, "", 0.0}}, Lib{0, 0, False{}, False{}}, Shade{catalog, scene}, Run{0, 0, 0}}, Web.none{}}
 
 # ---------- The state's parts ----------
 
@@ -150,42 +166,42 @@ def with_desk(+st: St, +d: Desk) -> St:
 # ----- The desk's parts
 
 def dock.of(+d: Desk) -> U32:
-  Desk{n, _, _, _, _, _, _, _, _} = d
+  Desk{n, _, _, _, _, _, _, _, _, _} = d
   n
 
 def dock(+st: St) -> U32:
   dock.of(desk(st))
 
 def files.of(+d: Desk) -> Files:
-  Desk{_, f, _, _, _, _, _, _, _} = d
+  Desk{_, f, _, _, _, _, _, _, _, _} = d
   f
 
 def files(+st: St) -> Files:
   files.of(desk(st))
 
 def log.of(+d: Desk) -> List<&2, Line>:
-  Desk{_, _, g, _, _, _, _, _, _} = d
+  Desk{_, _, g, _, _, _, _, _, _, _} = d
   g
 
 def log(+st: St) -> List<&2, Line>:
   log.of(desk(st))
 
 def rules.of(+d: Desk) -> List<&2, R.Rule>:
-  Desk{_, _, _, rs, _, _, _, _, _} = d
+  Desk{_, _, _, rs, _, _, _, _, _, _} = d
   rs
 
 def rules(+st: St) -> List<&2, R.Rule>:
   rules.of(desk(st))
 
 def own_rules.of(+d: Desk) -> Bool:
-  Desk{_, _, _, _, o, _, _, _, _} = d
+  Desk{_, _, _, _, o, _, _, _, _, _} = d
   o
 
 def own_rules(+st: St) -> Bool:
   own_rules.of(desk(st))
 
 def dirty.of(+d: Desk) -> Bool:
-  Desk{_, _, _, _, _, y, _, _, _} = d
+  Desk{_, _, _, _, _, y, _, _, _, _} = d
   y
 
 def dirty(+st: St) -> Bool:
@@ -193,72 +209,138 @@ def dirty(+st: St) -> Bool:
 
 # Does the Inspector show the asset picked in the Project window (or the thing selected)?
 def shows_asset.of(+d: Desk) -> Bool:
-  Desk{_, _, _, _, _, _, a, _, _} = d
+  Desk{_, _, _, _, _, _, a, _, _, _} = d
   a
 
 def shows_asset(+st: St) -> Bool:
   shows_asset.of(desk(st))
 
 def ask.of(+d: Desk) -> Ask:
-  Desk{_, _, _, _, _, _, _, k, _} = d
+  Desk{_, _, _, _, _, _, _, k, _, _} = d
   k
 
 def ask(+st: St) -> Ask:
   ask.of(desk(st))
 
 def project_name.of(+d: Desk) -> String:
-  Desk{_, _, _, _, _, _, _, _, n} = d
+  Desk{_, _, _, _, _, _, _, _, n, _} = d
   n
 
 def project_name(+st: St) -> String:
   project_name.of(desk(st))
 
+def cut.of(+d: Desk) -> Cut:
+  Desk{_, _, _, _, _, _, _, _, _, c} = d
+  c
+
+def cut(+st: St) -> Cut:
+  cut.of(desk(st))
+
+def with_cut.of(+d: Desk, +c: Cut) -> Desk:
+  Desk{n, f, g, rs, o, y, a, k, nm, _} = d
+  Desk{n, f, g, rs, o, y, a, k, nm, c}
+
+def with_cut(+st: St, +c: Cut) -> St:
+  with_desk(st, with_cut.of(desk(st), c))
+
+# ----- The scene being edited (Cut)
+
+def scene_name(+c: Cut) -> String:
+  Cut{n, _, _, _, _, _, _, _, _} = c
+  n
+
+def made(+c: Cut) -> List<&2, Pre.Made>:
+  Cut{_, m, _, _, _, _, _, _, _} = c
+  m
+
+def removed(+c: Cut) -> List<&2, String>:
+  Cut{_, _, r, _, _, _, _, _, _} = c
+  r
+
+def built(+c: Cut) -> U32:
+  Cut{_, _, _, b, _, _, _, _, _} = c
+  b
+
+def menu_open(+c: Cut) -> Bool:
+  Cut{_, _, _, _, o, _, _, _, _} = c
+  o
+
+def menu_x(+c: Cut) -> F32:
+  Cut{_, _, _, _, _, x, _, _, _} = c
+  x
+
+def menu_y(+c: Cut) -> F32:
+  Cut{_, _, _, _, _, _, y, _, _} = c
+  y
+
+def making(+c: Cut) -> String:
+  Cut{_, _, _, _, _, _, _, w, _} = c
+  w
+
+# The list of things changed: what was made and deleted now, and one more change to upload.
+def rebuilt(+c: Cut, +m: List<&2, Pre.Made>, +r: List<&2, String>) -> Cut:
+  Cut{n, _, _, b, o, x, y, w, h} = c
+  Cut{n, m, r, (b + 1 : U32), o, x, y, w, h}
+
+# The right click's menu: open or closed, where it was asked (x, y) and how tall the page is (h).
+def with_menu(+c: Cut, +o: Bool, +x: F32, +y: F32, +h: F32) -> Cut:
+  Cut{n, m, r, b, _, _, _, w, _} = c
+  Cut{n, m, r, b, o, x, y, w, h}
+
+def menu_h(+c: Cut) -> F32:
+  Cut{_, _, _, _, _, _, _, _, h} = c
+  h
+
+def with_making(+c: Cut, +w: String) -> Cut:
+  Cut{n, m, r, b, _, x, y, _, h} = c
+  Cut{n, m, r, b, False{}, x, y, w, h}
+
 def with_dock.of(+d: Desk, +n: U32) -> Desk:
-  Desk{_, f, g, rs, o, y, a, k, nm} = d
-  Desk{n, f, g, rs, o, y, a, k, nm}
+  Desk{_, f, g, rs, o, y, a, k, nm, c} = d
+  Desk{n, f, g, rs, o, y, a, k, nm, c}
 
 def with_dock(+st: St, +n: U32) -> St:
   with_desk(st, with_dock.of(desk(st), n))
 
 def with_files.of(+d: Desk, +f: Files) -> Desk:
-  Desk{n, _, g, rs, o, y, a, k, nm} = d
-  Desk{n, f, g, rs, o, y, a, k, nm}
+  Desk{n, _, g, rs, o, y, a, k, nm, c} = d
+  Desk{n, f, g, rs, o, y, a, k, nm, c}
 
 def with_files(+st: St, +f: Files) -> St:
   with_desk(st, with_files.of(desk(st), f))
 
 def with_log.of(+d: Desk, +g: List<&2, Line>) -> Desk:
-  Desk{n, f, _, rs, o, y, a, k, nm} = d
-  Desk{n, f, g, rs, o, y, a, k, nm}
+  Desk{n, f, _, rs, o, y, a, k, nm, c} = d
+  Desk{n, f, g, rs, o, y, a, k, nm, c}
 
 def with_log(+st: St, +g: List<&2, Line>) -> St:
   with_desk(st, with_log.of(desk(st), g))
 
 # The scene's rules changed by the editor: they are its own now, and there is something to save.
 def with_rules.of(+d: Desk, +rs: List<&2, R.Rule>) -> Desk:
-  Desk{n, f, g, _, _, _, a, k, nm} = d
-  Desk{n, f, g, rs, True{}, True{}, a, k, nm}
+  Desk{n, f, g, _, _, _, a, k, nm, c} = d
+  Desk{n, f, g, rs, True{}, True{}, a, k, nm, c}
 
 def with_rules(+st: St, +rs: List<&2, R.Rule>) -> St:
   with_desk(st, with_rules.of(desk(st), rs))
 
 def with_dirty.of(+d: Desk, +y: Bool) -> Desk:
-  Desk{n, f, g, rs, o, _, a, k, nm} = d
-  Desk{n, f, g, rs, o, y, a, k, nm}
+  Desk{n, f, g, rs, o, _, a, k, nm, c} = d
+  Desk{n, f, g, rs, o, y, a, k, nm, c}
 
 def with_dirty(+st: St, +y: Bool) -> St:
   with_desk(st, with_dirty.of(desk(st), y))
 
 def with_asset.of(+d: Desk, +a: Bool) -> Desk:
-  Desk{n, f, g, rs, o, y, _, k, nm} = d
-  Desk{n, f, g, rs, o, y, a, k, nm}
+  Desk{n, f, g, rs, o, y, _, k, nm, c} = d
+  Desk{n, f, g, rs, o, y, a, k, nm, c}
 
 def with_asset(+st: St, +a: Bool) -> St:
   with_desk(st, with_asset.of(desk(st), a))
 
 def with_ask.of(+d: Desk, +k: Ask) -> Desk:
-  Desk{n, f, g, rs, o, y, a, _, nm} = d
-  Desk{n, f, g, rs, o, y, a, k, nm}
+  Desk{n, f, g, rs, o, y, a, _, nm, c} = d
+  Desk{n, f, g, rs, o, y, a, k, nm, c}
 
 def with_ask(+st: St, +k: Ask) -> St:
   with_desk(st, with_ask.of(desk(st), k))

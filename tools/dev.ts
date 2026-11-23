@@ -7,17 +7,20 @@
 // a file in every browser (MDN: showSaveFilePicker is Chromium only), so the dev server does.
 //
 // For the Project window (editor/project/), it also makes a folder inside a project
-// (POST /folder) and answers with the project's files again, and reads a project's text file for
-// the Inspector (POST /read). Both refuse a path that leaves the project's folder.
+// (POST /folder) and answers with the project's files again, reads a project's text file for the
+// Inspector (POST /read), and writes the files of a scene, script or shader the editor created
+// (POST /create), then the project's registry (tools/project/registry.js). All of them refuse a
+// path that leaves the project's folder; Create refuses a file that is there already.
 //
 // Limits now:
 // - Saving, making a folder and reading a file work only under `bun run dev`.
 
 import { Glob, spawn, type Subprocess } from "bun";
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, watch } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, watch, writeFileSync } from "node:fs";
 import { writeShaderCatalog } from "./shaders/catalog.js";
 import { listProject, writeProjectFiles } from "./project/files.js";
-import { join, normalize, resolve, sep } from "node:path";
+import { writeRegistries } from "./project/registry.js";
+import { dirname, join, normalize, resolve, sep } from "node:path";
 import { rules, ROOT } from "./layers";
 
 const PORT = "3100";
@@ -33,6 +36,7 @@ let server: Subprocess | null = null;
 function start() {
   writeShaderCatalog();
   writeProjectFiles();
+  writeRegistries();
   server = spawn(["bun", `--port=${PORT}`, "editor/index.html", ...REFERENCE_PAGES], { stdout: "inherit", stderr: "inherit" });
 }
 
@@ -89,7 +93,7 @@ if (process.env.WSL_DISTRO_NAME && /^\/mnt\/[a-z](?:\/|$)/i.test(process.cwd()))
       if (!file) return;
       const path = file.replaceAll("\\", "/");
       // The shader catalog is written by start() itself (writeShaderCatalog): watching it would restart forever.
-      if (path.endsWith("catalog_generated.bend") || path.endsWith("files_generated.bend")) return;
+      if (path.endsWith("catalog_generated.bend") || path.endsWith("files_generated.bend") || path.endsWith("project_generated.bend")) return;
       if ((dir === "projects" && /^[^/]+\/shaders(?:\/|$)/.test(path))
         || (path.endsWith(".bend") && !path.includes("node_modules"))) restart(file);
     });
@@ -118,7 +122,7 @@ Bun.serve({
   async fetch(req) {
     if (req.method === "OPTIONS") return new Response(null, { headers: cors });
     const route = new URL(req.url).pathname;
-    if (req.method !== "POST" || !["/save", "/folder", "/read"].includes(route)) return new Response("not found", { status: 404, headers: cors });
+    if (req.method !== "POST" || !["/save", "/folder", "/read", "/create"].includes(route)) return new Response("not found", { status: 404, headers: cors });
     const body = await req.json();
     const { folder } = body;
     // Only a project PROJECT.bend knows by that folder: an unknown one opens the default project.
@@ -135,12 +139,31 @@ Bun.serve({
       if (!full || !TEXT.test(full)) return new Response("not a text file of the project", { status: 400, headers: cors });
       return new Response(readFileSync(full, "utf8"), { headers: cors });
     }
-    const { text } = body;
-    if (typeof text !== "string") return new Response("no text", { status: 400, headers: cors });
-    const path = Save.file(folder);
+    // Create: the files Bend wrote (editor/project/templates.bend), none of which may be there yet.
+    // Writing them changes the project's code, so the engine restarts (the watcher below).
+    if (route === "/create") {
+      const files = Array.isArray(body.files) ? body.files : [];
+      const fulls = files.map((f: any) => typeof f?.text === "string" ? inside(folder, f.path) : null);
+      if (!files.length || fulls.some((f: string | null) => !f)) return new Response("outside the project", { status: 400, headers: cors });
+      if (fulls.some((f: string) => existsSync(f))) return new Response("a file with that name is there already", { status: 409, headers: cors });
+      files.forEach((f: any, i: number) => { mkdirSync(dirname(fulls[i]!), { recursive: true }); writeFileSync(fulls[i]!, f.text); console.log(`created projects/${folder}/${f.path}`); });
+      writeRegistries();
+      writeProjectFiles();
+      return new Response("created", { headers: cors });
+    }
+    // Save: the scene's saved file, beside it (engine/scene/save.bend's file).
+    const { scene, text } = body;
+    if (typeof text !== "string" || typeof scene !== "string" || !/^[A-Za-z][A-Za-z0-9_]*$/.test(scene)
+      || !existsSync(join(ROOT, "projects", folder, "scenes", `${scene}.bend`)))
+      return new Response("no such scene", { status: 400, headers: cors });
+    const path = Save.file(folder, scene);
     written.set(path.replace(/^projects\//, ""), Date.now());
     await Bun.write(join(ROOT, path), text);
     console.log(`saved ${path}`);
+    // A scene saved for the first time has a saved file the registry must import now: the page's
+    // code is compiled again (a restart; the page opens again, with nothing left to save).
+    writeProjectFiles();
+    if (writeRegistries()) restart(`projects/${folder}/project_generated.bend`);
     return new Response(path, { headers: cors });
   },
 });

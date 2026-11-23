@@ -2,24 +2,23 @@
 # mannequin.
 #
 # The scene is the mannequin (mannequin/scene.bend), standing at the
-# World's origin. Open the Animation tab (editor/animation/view.bend): a
-# click on a clip of the library tries it on the mannequin, Add keeps it,
-# and the transport under the viewport plays it.
+# World's origin. Pick a clip in the Project window (Library/Animations): it is tried on the
+# mannequin, Add keeps it, and the dock's Animation tab plays it.
 #
 # It also holds the engine's first rule (engine/script/rule.bend): in Play, a click on the
 # mannequin turns it a quarter turn, so a click doing something is plain to see.
 #
 # Limits now:
-# - What is added lives while the page is open: nothing writes it back to
-#   this file, and a reload starts from the mannequin with no clips.
+# - A clip added to the mannequin lives while the page is open: Save does not write clips yet,
+#   and a reload starts from the mannequin with no clips.
 # - One character. The library works on any character that keeps the rig
 #   standard, and the mannequin is the only one there is.
 
 import Base
-import ../../engine/scene/scene.bend as S
-import ../../engine/core/transform.bend as Tr
-import ../../mannequin/scene.bend as Mannequin
-import ../../engine/script/rule.bend as R
+import ../../../engine/scene/scene.bend as S
+import ../../../engine/core/transform.bend as Tr
+import ../../../mannequin/scene.bend as Mannequin
+import ../../../engine/script/rule.bend as R
 
 def start() -> S.Scene:
   S.Scene{[

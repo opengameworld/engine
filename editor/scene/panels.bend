@@ -13,7 +13,7 @@
 #
 # Limits now:
 # - Edits live only while the page is open: nothing writes them back to
-#   projects/water/scene.bend, and a reload starts from the file again.
+#   projects/water/scenes/Water.bend, and a reload starts from the file again.
 # - Rotation is shown in degrees per axis (engine/core/quat.bend's to_degrees).
 #   Near ±90° around X, the Y and Z fields may show a different split than
 #   the one typed; the rotation itself is right.

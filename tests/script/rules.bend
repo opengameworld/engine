@@ -12,7 +12,7 @@ import ../../engine/scene/camera.bend as Cam
 import ../../engine/scene/pick.bend as Pick
 import ../../engine/anim/locomotion.bend as Loco
 import ../../engine/play/play.bend as Play
-import ../../projects/animation/scene.bend as Anim
+import ../../projects/animation/scenes/Animation.bend as Anim
 
 type Check is Data:
   Check{name: String, ok: Bool}

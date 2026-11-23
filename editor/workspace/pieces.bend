@@ -8,6 +8,7 @@ import ../../engine/scene/scene.bend as S
 import ../defaults/defaults.bend as D
 import ./number.bend as Num
 import ./state.bend as W
+import ../../engine/core/transform.bend as Tr
 
 # ---------- Small pieces ----------
 
@@ -68,6 +69,20 @@ def pick_ev(c: Bool, +a: W.Ev, +b: W.Ev) -> W.Ev:
       b
 
 def pick_one(c: Bool, +a: Web.HTML<W.Ev>, +b: Web.HTML<W.Ev>) -> Web.HTML<W.Ev>:
+  match c:
+    case True{}:
+      a
+    case False{}:
+      b
+
+def pick_cut(c: Bool, +a: W.Cut, +b: W.Cut) -> W.Cut:
+  match c:
+    case True{}:
+      a
+    case False{}:
+      b
+
+def pick_place(c: Bool, +a: Tr.Transform, +b: Tr.Transform) -> Tr.Transform:
   match c:
     case True{}:
       a

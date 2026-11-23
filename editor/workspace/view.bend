@@ -53,12 +53,59 @@ import ../animation/view.bend as An
 import ../shaders/view.bend as Sh
 import ../icons/view.bend as Ic
 import ../defaults/defaults.bend as D
+import ../hierarchy/make.bend as Mk
+import ../project/templates.bend as Tp
+import ../../projects/prefabs.bend as Pre
 
 # ---------- What editor/app.js asks ----------
 # A Bend module gives only its own defs, so what app.js asks of the state is named again here.
 
-def start(+scene: S.Scene, +still: Bool, +catalog: A.Catalog, +paths: List<&2, String>, +rules: List<&2, R.Rule>, +own: Bool, +name: String, +folder: String) -> Web.Update<W.St, W.Ev>:
-  W.start(scene, still, catalog, paths, rules, own, name, folder)
+def start(+scene: S.Scene, +still: Bool, +catalog: A.Catalog, +paths: List<&2, String>, +rules: List<&2, R.Rule>, +own: Bool, +name: String, +folder: String, +sc: String, +made: List<&2, Pre.Made>, +removed: List<&2, String>) -> Web.Update<W.St, W.Ev>:
+  W.start(scene, still, catalog, paths, rules, own, name, folder, sc, made, removed)
+
+# The scene being edited, and how many times its list of things changed (editor/app.js uploads
+# them again: platform/web/draw.js's rebuild).
+def scene_name(+st: W.St) -> String:
+  W.scene_name(W.cut(st))
+
+def built(+st: W.St) -> U32:
+  W.built(W.cut(st))
+
+# Save: the text of the scene's saved file (base: the scene as its code makes it; now: as edited),
+# and where it goes.
+def save_text(+st: W.St, +base: S.Scene, +now: S.Scene) -> String:
+  Mk.save_text(st, base, now)
+
+def save_path(+st: W.St) -> String:
+  Mk.save_path(st)
+
+# Create: the files a scene, a script or a shader is made of, each a path inside the project's
+# folder and its text; and where the Project window shows the new file when the page opens again.
+def create_files(+st: W.St) -> List<&2, Tp.Written>:
+  Pj.create_files(st)
+
+def file_path(+f: Tp.Written) -> String:
+  Tp.path(f)
+
+def file_text(+f: Tp.Written) -> String:
+  Tp.text(f)
+
+def created_at(+st: W.St) -> String:
+  Pj.created_at(st)
+
+def created_file(+st: W.St) -> String:
+  Pj.created_file(st)
+
+# What editor/app.js hands over: a right click in the Project window, and the folder and the asset
+# to show when the page opens on a file just made.
+def menu_event(+x: F32, +y: F32, +h: F32) -> W.Ev:
+  W.f_menu{x, y, h}
+
+def go_event(+path: String) -> W.Ev:
+  W.f_go{path}
+
+def pick_event(+path: String) -> W.Ev:
+  W.f_pick{path}
 
 def scene(+st: W.St) -> S.Scene:
   W.scene(st)
@@ -148,7 +195,7 @@ def save_button(dirty: Bool) -> Web.HTML<W.Ev>:
 
 def toolbar(+st: W.St) -> Web.HTML<W.Ev>:
   Web.node{"header", [Web.attr{"class", "toolbar editor-toolbar"}], [
-    Ui.box(W.Ev, "div", "editor-toolbar__start", [], List.append(&2, Web.HTML<W.Ev>, [Ui.says(W.Ev, "span", "item-title", W.project_name(st))],
+    Ui.box(W.Ev, "div", "editor-toolbar__start", [], List.append(&2, Web.HTML<W.Ev>, [Ui.says(W.Ev, "span", "item-title", W.project_name(st)), Ui.says(W.Ev, "span", "meta", "/"), Ui.says(W.Ev, "span", "item-title", W.scene_name(W.cut(st)))],
       P.pick_html(W.dirty(st), [Ui.says(W.Ev, "span", "meta", "Not saved")], Nil{}))),
     play_controls(st),
     Ui.box(W.Ev, "div", "editor-toolbar__end", [], [save_button(W.dirty(st))])]}
@@ -245,13 +292,16 @@ def styles() -> String:
   ".editor-anim__wide { display: flex; }" ++
   ".editor-anim__wide > button { flex: 1; padding: 0 var(--space-2); }" ++
   ".editor-anim__wide > button:disabled { opacity: var(--disabled-opacity); cursor: default; }" ++
+  ".editor-menu-layer { position: fixed; inset: 0; z-index: var(--layer-menu); }" ++
+  ".editor-context-menu { position: fixed; top: auto; z-index: var(--layer-menu); }" ++
+  ".editor-inspector__choices { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-1) var(--space-2); }" ++
   Ic.styles()
 
 # The windows, as children of the page's body, around the editor's window.
 def render(+st: W.St) -> Web.HTML<W.Ev>:
-  Web.node{"body", [Web.attr{"data-editor", ""}, Web.attr{"data-motion", P.pick_text(D.reduce_motion(W.still(st)), "reduce", "")}], [
+  Web.node{"body", [Web.attr{"data-editor", ""}, Web.attr{"data-motion", P.pick_text(D.reduce_motion(W.still(st)), "reduce", "")}], List.append(&2, Web.HTML<W.Ev>, [
     Web.node{"style", [], [Web.text{styles()}]},
-    toolbar(st), H.panel(st), showing(st), I.panel(st), dock(st)]}
+    toolbar(st), H.panel(st), showing(st), I.panel(st), dock(st)], Pj.context_menu(W.menu_open(W.cut(st)), st))}
 
 # Is the page showing a time that moves by itself now? Then it is drawn every frame (editor/app.js
 # asks before drawing it again): the Animation tab's time bar, while a character is selected.
@@ -365,6 +415,18 @@ def step(+ev: W.Ev, +st: W.St) -> W.St:
       W.logged(st, tone, text)
     case W.c_clear{}:
       W.with_log(st, Nil{})
+    case W.h_make{n}:
+      Mk.made(st, n)
+    case W.h_delete{}:
+      Mk.deleted(st)
+    case W.f_new{what}:
+      Pj.started(st, what)
+    case W.f_menu{x, y, h}:
+      W.with_cut(st, W.with_menu(W.cut(st), True{}, x, y, h))
+    case W.f_menu_close{}:
+      W.with_cut(st, W.with_menu(W.cut(st), False{}, 0.0, 0.0, 0.0))
+    case W.f_open{name, force}:
+      P.pick_st((force || Bool.not(W.dirty(st))), W.asked(st, "open", name), st)
     case W.a_left{}:
       st
 

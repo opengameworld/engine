@@ -4,7 +4,7 @@
 #   left    the folders, as a tree (Bend-UI's TREE.bend makes its rows); a click shows a folder,
 #           and a second click on the folder shown folds or unfolds it
 #   top     the breadcrumbs of the folder shown, the search (any file, in any folder, by name),
-#           and New folder (inside Assets)
+#           and Create (Folder, Scene, Script, Shader), which a right click on the window opens too
 #   right   what the folder holds, as tiles: a click picks an asset (the Inspector shows it), a
 #           double click opens a folder
 #
@@ -16,9 +16,17 @@
 # - No drag and drop (Bend-UI's Web.bend has no drag event): an asset is used from the Inspector,
 #   or, for a clip, by picking it.
 # - The folder tree takes clicks only: its keys (TREE.bend's key) are not wired yet.
-# - New folder makes an empty folder; no renaming, moving or deleting files from here, and no new
-#   files: a script in this engine is a Rule, added in the Inspector (engine/script/rule.bend).
-# - Making a folder and showing a file's text need `bun run dev`.
+# Create makes a folder in the folder shown, and a scene, a script or a shader in its project
+# folder (editor/project/files.bend's target), from editor/project/templates.bend. A scene, a
+# script or a shader is code the engine compiles, so the dev server restarts and the page opens
+# again on the new file; with something not saved, they wait for Save (Unity also compiles a new
+# script before it can be used).
+#
+# Limits now:
+# - No renaming, moving or deleting files from here.
+# - Creating and showing a file's text need `bun run dev`.
+# - The right click's menu is opened by editor/app.js: Bend-UI's Web.bend has no context-menu
+#   event yet (docs/bend-ui-requests.txt).
 # - A clip's tile shows the source rig's stick figure, not the character in that pose.
 # - The icons are editor/icons/'s: a file's kind and its extension decide them.
 
@@ -35,6 +43,7 @@ import ../workspace/pieces.bend as P
 import ../animation/view.bend as An
 import ../shaders/view.bend as Sh
 import ./files.bend as F
+import ./templates.bend as Tp
 import ../icons/icons.bend as I
 import ../icons/view.bend as Ic
 
@@ -92,15 +101,67 @@ def search(+st: W.St) -> Web.HTML<W.Ev>:
     Ui.input_with(W.Ev, [Ui.input_sm{}], "", [Web.attr{"type", "search"}, Web.attr{"placeholder", "Search"}, Web.attr{"aria-label", "Search the project"},
       Web.attr{"value", W.files_query(W.files(st))}, Web.on{Web.input{W.f_query{""}}}, Web.on{Web.change{W.a_left{}}}])])
 
+# What Create offers: a kind, its label and the kind of file it makes (for its icon).
+def create_item(+what: String, +label: String, +k: F.Sort) -> Web.HTML<W.Ev>:
+  Web.node{"button", [Web.attr{"class", "menu__item"}, Web.attr{"type", "button"}, Web.attr{"role", "menuitem"}, Web.on{Web.click{W.f_new{what}}}], [
+    Ic.mini(k), Web.node{"span", [], [Web.text{label}]}]}
+
+def create_items() -> List<&2, Web.HTML<W.Ev>>:
+  [create_item("folder", "Folder", F.Sort.Folder{}),
+   create_item("scene", "Scene", F.Sort.Scene{}),
+   create_item("script", "Script", F.Sort.Script{}),
+   create_item("shader", "Shader", F.Sort.Shader{})]
+
+def create_menu() -> Web.HTML<W.Ev>:
+  Ui.dropdown(W.Ev,
+    Ui.trigger_with(W.Ev, [Ui.btn_plain{}, Ui.btn_neutral{}, Ui.btn_sm{}], "", [Web.attr{"type", "button"}], [
+      Ui.icon_with(W.Ev, [Ui.icon_sm{}], "", [], "plus"), Web.node{"span", [], [Web.text{"Create"}]}, Ui.icon_with(W.Ev, [Ui.icon_sm{}], "", [], "chevron-down")]),
+    Ui.menu_with(W.Ev, [Ui.menu_end{}], "", [Web.attr{"role", "menu"}, Web.attr{"aria-label", "Create"}], create_items()))
+
 def bar(+st: W.St) -> Web.HTML<W.Ev>:
   +f = W.files(st)
   Ui.box(W.Ev, "div", "editor-dock__bar", [], [
     Web.node{"nav", [Web.attr{"class", "breadcrumbs editor-project__crumbs"}, Web.attr{"aria-label", "Folder"}], crumbs(F.trail(W.at(f)), W.at(f))},
     search(st),
-    Ui.button_with(W.Ev, [Ui.btn_plain{}, Ui.btn_neutral{}, Ui.btn_sm{}], "", Web.on{Web.click{W.f_naming{True{}}}} <> P.disabled(Bool.not(F.is_own(W.at(f)))), [
-      Ui.icon_with(W.Ev, [Ui.icon_sm{}], "", [], "plus"), Web.text{"New folder"}])])
+    create_menu()])
 
-# The New folder field, under the bar while it is open.
+# Where the menu sits: under the pointer in the page's upper half; in the lower half it opens
+# upward, its bottom at the pointer, so it stays on the page (Bend-UI's menu--up does the same for
+# a menu near the bottom).
+def menu_place(+c: W.Cut) -> List<&2, Web.Attr<W.Ev>>:
+  P.pick_attrs(F32.is_lt(W.menu_y(c), (W.menu_h(c) / 2.0 : F32)),
+    [Web.style{"left", F32.show(W.menu_x(c)) ++ "px"}, Web.style{"top", F32.show(W.menu_y(c)) ++ "px"}],
+    [Web.style{"left", F32.show(W.menu_x(c)) ++ "px"}, Web.style{"bottom", F32.show((W.menu_h(c) - W.menu_y(c) : F32)) ++ "px"}])
+
+# The menu a right click opens (editor/app.js says where): Create's items, over a layer that
+# closes it.
+def context_menu(open: Bool, +st: W.St) -> List<&2, Web.HTML<W.Ev>>:
+  match open:
+    case False{}:
+      Nil{}
+    case True{}:
+      +c = W.cut(st)
+      [Web.node{"div", [Web.attr{"class", "editor-menu-layer"}, Web.on{Web.click{W.f_menu_close{}}}], []},
+       Web.node{"div", List.append(&2, Web.Attr<W.Ev>, [Web.attr{"class", "menu editor-context-menu"}, Web.attr{"role", "menu"}, Web.attr{"aria-label", "Create"}], menu_place(c)), create_items()}]
+
+def what_label(+what: String) -> String:
+  P.pick_text(String.eq(what, "scene"), "Scene name", P.pick_text(String.eq(what, "script"), "Script name", P.pick_text(String.eq(what, "shader"), "Shader name", "Folder name")))
+
+# A scene, a script or a shader restarts the engine: with something not saved, they wait for Save.
+def waits(+st: W.St, +what: String) -> Bool:
+  (W.dirty(st) && Bool.not(String.eq(what, "folder")))
+
+def may(+st: W.St) -> Bool:
+  +f = W.files(st)
+  +w = W.making(W.cut(st))
+  (F.may_create(all(st), w, W.at(f), W.new_name(f)) && Bool.not(waits(st, w)))
+
+def why(+st: W.St) -> String:
+  +f = W.files(st)
+  +w = W.making(W.cut(st))
+  P.pick_text(waits(st, w), "Save the scene first: a new " ++ w ++ " restarts the engine.", F.why_not_create(all(st), w, W.at(f), W.new_name(f)))
+
+# The name field, under the bar while Create waits for a name.
 def naming(on: Bool, +st: W.St) -> List<&2, Web.HTML<W.Ev>>:
   match on:
     case False{}:
@@ -108,12 +169,12 @@ def naming(on: Bool, +st: W.St) -> List<&2, Web.HTML<W.Ev>>:
     case True{}:
       +f = W.files(st)
       [Ui.box(W.Ev, "div", "editor-dock__bar editor-project__naming", [], [
-        Web.node{"label", [Web.attr{"class", "field__label"}, Web.attr{"for", "editor-project-name"}], [Web.text{"Folder name"}]},
+        Web.node{"label", [Web.attr{"class", "field__label"}, Web.attr{"for", "editor-project-name"}], [Web.text{what_label(W.making(W.cut(st)))}]},
         Ui.input_with(W.Ev, [Ui.input_sm{}], "", [Web.attr{"id", "editor-project-name"}, Web.attr{"value", W.new_name(f)}, Web.attr{"autofocus", ""},
           Web.on{Web.input{W.f_name{""}}}, Web.on{Web.change{W.a_left{}}}]),
-        Ui.button_with(W.Ev, [Ui.btn_filled{}, Ui.btn_sm{}], "", Web.on{Web.click{W.f_make{}}} <> P.disabled(Bool.not(F.may_make(all(st), W.at(f), W.new_name(f)))), [Web.text{"Create"}]),
+        Ui.button_with(W.Ev, [Ui.btn_filled{}, Ui.btn_sm{}], "", Web.on{Web.click{W.f_make{}}} <> P.disabled(Bool.not(may(st))), [Web.text{"Create"}]),
         Ui.button(W.Ev, [Ui.btn_plain{}, Ui.btn_neutral{}, Ui.btn_sm{}], "Cancel", W.f_naming{False{}}),
-        Ui.says(W.Ev, "span", "meta", F.why_not(all(st), W.at(f), W.new_name(f)))])]
+        Ui.says(W.Ev, "span", "meta", why(st))])]
 
 # ---------- The tiles (right) ----------
 
@@ -197,12 +258,31 @@ def picked_on(+now: W.St, +path: String) -> W.St:
 def picked(+st: W.St, +path: String) -> W.St:
   picked_on(W.with_asset(on_files(st, W.with_picked(W.files(st), path)), True{}), path)
 
-# Create pressed: the folder is asked of the dev server (editor/app.js), and the field closes.
-def made_with(+st: W.St, +f: W.Files) -> W.St:
-  W.asked(on_files(st, W.with_naming(f, False{})), "folder", F.on_disk(F.made(W.at(f), W.new_name(f))))
+# Create chosen (the bar's menu, or the right click's): the name field opens for that kind.
+def started(+st: W.St, +what: String) -> W.St:
+  W.with_cut(W.with_files(st, W.with_naming(W.files(st), True{})), W.with_making(W.cut(st), what))
+
+# Create pressed: a folder is asked of the dev server; a scene, a script or a shader too, with the
+# files editor/project/templates.bend writes (editor/app.js asks create_files for them). The field
+# closes.
+def made_with(+st: W.St, +f: W.Files, +w: String) -> W.St:
+  P.pick_st(String.eq(w, "folder"),
+    W.asked(on_files(st, W.with_naming(f, False{})), "folder", F.on_disk(F.made(W.at(f), W.new_name(f)))),
+    W.asked(on_files(st, W.with_naming(f, False{})), "create", String.trim(W.new_name(f))))
 
 def made(+st: W.St) -> W.St:
-  P.pick_st(F.may_make(all(st), W.at(W.files(st)), W.new_name(W.files(st))), made_with(st, W.files(st)), st)
+  P.pick_st(may(st), made_with(st, W.files(st), W.making(W.cut(st))), st)
+
+# What a Create of a scene, a script or a shader writes, each file inside the project's folder.
+def create_files(+st: W.St) -> List<&2, Tp.Written>:
+  Tp.files(W.making(W.cut(st)), W.ask_path(W.ask(st)))
+
+# Where the Project window shows the new file once the page opens again: its folder, and itself.
+def created_at(+st: W.St) -> String:
+  F.target(W.making(W.cut(st)), W.at(W.files(st)))
+
+def created_file(+st: W.St) -> String:
+  F.new_file(W.making(W.cut(st)), W.ask_path(W.ask(st)))
 
 # The project's files again, after a folder was made.
 def listed(+st: W.St, +text: String) -> W.St:

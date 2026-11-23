@@ -41,5 +41,5 @@ def Laws.nothing_saved_changes_nothing(s):
       %unsaved(xs) : {S.Scene{_} == S.Scene{xs} : S.Scene}
       {==}
 
-def Laws.a_save_goes_to_its_project():
+def Laws.a_save_goes_beside_its_scene():
   {==}

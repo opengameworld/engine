@@ -1,4 +1,4 @@
-# Water: the shape and material of the scene's water (projects/water/scene.bend
+# Water: the shape and material of the scene's water (projects/water/scenes/Water.bend
 # puts it in the World).
 #
 # This is content, not engine code: one particular water. The engine's

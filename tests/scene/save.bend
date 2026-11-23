@@ -10,7 +10,7 @@ import ../../engine/core/vec.bend as V
 import ../../engine/core/transform.bend as Tr
 import ../../engine/scene/scene.bend as S
 import ../../engine/scene/save.bend as Save
-import ../../projects/animation/scene.bend as Anim
+import ../../projects/animation/scenes/Animation.bend as Anim
 import ../../engine/script/rule.bend as R
 
 type Check is Data:
@@ -28,9 +28,11 @@ def checks() -> List<&2, Check>:
    Check{"a scene as its code makes it has nothing to save", U32.is_eq(count(Save.changed(Anim.start(), Anim.start())), 0)},
    Check{"a moved thing is one place to save", U32.is_eq(count(Save.changed(Anim.start(), moved())), 1)},
    Check{"what was saved, put back, is the moved scene", Save.same_place(S.place(S.at(Save.apply(Anim.start(), Save.changed(Anim.start(), moved())), 0)), S.place(S.at(moved(), 0)))},
-   Check{"the text names the thing and its place", String.contains(Save.text("animation", Save.changed(Anim.start(), moved()), False{}, []), "Save.Placed{\"Mannequin\", Tr.Transform{V.V3{1.5, 0.0, 0.0}")},
+   Check{"the text names the thing and its place", String.contains(Save.text("animation", "Animation", Save.changed(Anim.start(), moved()), "", [], False{}, []), "Save.Placed{\"Mannequin\", Tr.Transform{V.V3{1.5, 0.0, 0.0}")},
    Check{"a rule is written as Bend reads it", String.eq(Save.rule(R.Rule{"Box", R.Trigger.Clicked{}, R.Response.Turn{(0.0 - 0.5 : F32)}}), "R.Rule{\"Box\", R.Trigger.Clicked{}, R.Response.Turn{(0.0 - 0.5 : F32)}}")},
    Check{"a move is written with its vector", String.eq(Save.rule(R.Rule{"Box", R.Trigger.Started{}, R.Response.Move{V.V3{0.0, 1.0, 0.0}}}), "R.Rule{\"Box\", R.Trigger.Started{}, R.Response.Move{V.V3{0.0, 1.0, 0.0}}}")},
-   Check{"the editor's own rules are saved with has_rules True", String.contains(Save.text("animation", [], True{}, Anim.rules()), "def has_rules() -> Bool: True{}")},
-   Check{"the saved rules are the file's rules", String.contains(Save.text("animation", [], True{}, Anim.rules()), "  [R.Rule{\"Mannequin\", R.Trigger.Clicked{}, R.Response.Turn{1.5707964}}]")},
+   Check{"the editor's own rules are saved with has_rules True", String.contains(Save.text("animation", "Animation", [], "", [], True{}, Anim.rules()), "def has_rules() -> Bool: True{}")},
+   Check{"the saved rules are the file's rules", String.contains(Save.text("animation", "Animation", [], "", [], True{}, Anim.rules()), "  [R.Rule{\"Mannequin\", R.Trigger.Clicked{}, R.Response.Turn{1.5707964}}]")},
+   Check{"the things of the code deleted are written by name", String.contains(Save.text("animation", "Animation", [], "", ["Box", "Lamp"], False{}, []), "def removed() -> List<&2, String>:\n  [\"Box\", \"Lamp\"]")},
+   Check{"a deleted thing is gone when the scene opens", Nat.is_eq(S.count(Save.without(Anim.start(), ["Mannequin"])), 0n)},
    Check{"rules the editor did not save are the code's", Nat.is_eq(List.length(&2, R.Rule, Save.rules(False{}, [], Anim.rules())), 1n)}]

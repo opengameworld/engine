@@ -11,7 +11,8 @@
 #   Folder   warning-text   amber, the folder's color in Unity's, Godot's and macOS's file icons
 #   Scene    accent-text    the scene is what the editor opens and works on: the accent
 #   Saved    syntax-string  saved.bend holds written values, which a code view colors as strings
-#   Module   syntax-type    a Bend module defines types and functions: the type color
+#   Script   syntax-type    a script is the code a project writes to act: the type color
+#   Module   syntax-comment any other Bend module: code, but not one the editor runs or opens
 #   Shader   syntax-keyword shader source, in the code color that stands out most
 #   Clip     success-text   a clip is motion to play, the green of Play and "go"
 #   Other    text-detail    a file the engine does not use: no color of its own
@@ -38,7 +39,7 @@ type Mark is Data:
 
 # Bend-UI's color tokens an icon may use.
 def tokens() -> List<&2, String>:
-  ["warning-text", "accent-text", "syntax-string", "syntax-type", "syntax-keyword", "success-text", "text-detail"]
+  ["warning-text", "accent-text", "syntax-string", "syntax-type", "syntax-comment", "syntax-keyword", "success-text", "text-detail"]
 
 def tone(+k: F.Sort) -> String:
   match k:
@@ -48,8 +49,10 @@ def tone(+k: F.Sort) -> String:
       "accent-text"
     case F.Sort.Saved{}:
       "syntax-string"
-    case F.Sort.Module{}:
+    case F.Sort.Script{}:
       "syntax-type"
+    case F.Sort.Module{}:
+      "syntax-comment"
     case F.Sort.Shader{}:
       "syntax-keyword"
     case F.Sort.Clip{}:
@@ -74,7 +77,11 @@ def scene_glyph() -> List<&2, Mark>:
 def saved_glyph() -> List<&2, Mark>:
   [Mark.Path{"M5 3.5h11l3.5 3.5v12a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V5A1.5 1.5 0 0 1 5 3.5z"}, Mark.Path{"M7.5 3.5V8h7V3.5M7.5 20.5v-6h9v6"}]
 
-# A module: Bend's braces.
+# A module: code brackets.
+def code_glyph() -> List<&2, Mark>:
+  [Mark.Path{"m8 7-5 5 5 5M16 7l5 5-5 5M13.5 5l-3 14"}]
+
+# A script: Bend's braces.
 def module_glyph() -> List<&2, Mark>:
   [Mark.Path{"M8.5 4C6.5 4 6.5 5.6 6.5 7v2c0 1.2-.8 2.3-2.3 2.6 1.5.3 2.3 1.4 2.3 2.6v2.3c0 1.4 0 3 2 3"}, Mark.Path{"M15.5 4c2 0 2 1.6 2 3v2c0 1.2.8 2.3 2.3 2.6-1.5.3-2.3 1.4-2.3 2.6v2.3c0 1.4 0 3-2 3"}]
 
@@ -98,8 +105,10 @@ def glyph(+k: F.Sort) -> List<&2, Mark>:
       scene_glyph()
     case F.Sort.Saved{}:
       saved_glyph()
-    case F.Sort.Module{}:
+    case F.Sort.Script{}:
       module_glyph()
+    case F.Sort.Module{}:
+      code_glyph()
     case F.Sort.Shader{}:
       shader_glyph()
     case F.Sort.Clip{}:

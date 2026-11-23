@@ -7,7 +7,7 @@ import ../../engine/render/material.bend as Mat
 import ../../projects/water/water.bend as Water
 import ../../engine/scene/scene.bend as S
 import ../../engine/core/transform.bend as Tr
-import ../../projects/water/scene.bend as Content
+import ../../projects/water/scenes/Water.bend as Content
 import ./panels.bend as O
 import ../../engine/core/vec.bend as V
 

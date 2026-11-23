@@ -1,6 +1,7 @@
-// The engine's page: opens the project PROJECT.bend names in the editor
-// (editor/app.js), and gives it the mannequin's skin files, so any scene
-// with the mannequin in it draws the skin.
+// The engine's page: opens a scene of the project PROJECT.bend names (the page's ?project= and
+// ?scene=, or the project's main scene) in the editor (editor/app.js), and gives it the
+// mannequin's skin files, so any scene with the mannequin in it draws the skin. ?at= and ?pick=
+// show a folder and an asset in the Project window (editor/app.js sets them after a Create).
 
 import Project from "../PROJECT.bend";
 import { startEditor } from "./app.js";
@@ -11,15 +12,22 @@ import bin from "../mannequin/gen/skin.bin" with { type: "file" };
 import body from "../mannequin/source/p_ism001_01.png";
 import face from "../mannequin/source/p_ism001_00.png";
 
-const slug = new URLSearchParams(location.search).get("project") ?? "";
-const project = Project.preview(slug);
-startEditor(Project.start(project), {
-  rules: Project.rules(project),
-  ownRules: Project.has_saved_rules(project),
-  name: Project.name(project),
-  base: Project.scene(project),
+const params = new URLSearchParams(location.search);
+const project = Project.preview(params.get("project") ?? "");
+const scene = Project.scene_named(project, params.get("scene") ?? "");
+startEditor(Project.opened(project, scene), {
+  project,
+  scene,
+  rules: Project.scene_rules(project, scene),
+  ownRules: Project.has_saved_rules(project, scene),
+  made: Project.made(project, scene),
+  removed: Project.removed(project, scene),
+  base: Project.code(project, scene),
   camera: Project.camera(project),
   shaders: shaders[Project.folder(project)],
   folder: Project.folder(project),
+  name: Project.name(project),
+  at: params.get("at") ?? "",
+  pick: params.get("pick") ?? "",
   skins: { [Mannequin.skin()]: { info, bin, textures: [body, face] } },
 });

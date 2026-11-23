@@ -94,8 +94,8 @@ def tile(+k: F.Sort, +ext: String, +pose: List<&2, F32>) -> Web.HTML<W.Ev>:
 
 # ---------- 16 px ----------
 
-def mini_sheet() -> Web.HTML<W.Ev>:
-  Web.node{"svg", [Web.attr{"class", "editor-icon__mini"}, Web.attr{"viewBox", "0 0 14 16"}, Web.attr{"aria-hidden", "true"}], [
+def mini_sheet(+color: String) -> Web.HTML<W.Ev>:
+  Web.node{"svg", [Web.attr{"class", "editor-icon editor-icon__mini"}, Web.attr{"viewBox", "0 0 14 16"}, Web.attr{"aria-hidden", "true"}, tint(color)], [
     Web.node{"path", [Web.attr{"class", "editor-icon__page"}, Web.attr{"d", "M2 .8h7.5l3.7 3.7v10.2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V1.8a1 1 0 0 1 1-1z"}], []},
     Web.node{"path", [Web.attr{"class", "editor-icon__fold"}, Web.attr{"d", "M9.5.8v3.7h3.7z"}], []}]}
 
@@ -104,7 +104,7 @@ def mini_of(+k: F.Sort) -> Web.HTML<W.Ev>:
     case F.Sort.Folder{}:
       glyph(I.glyph(k), I.color(k))
     case _:
-      Web.node{"span", [Web.attr{"class", "editor-icon editor-icon--mini"}, tint(I.color(k))], [mini_sheet()]}
+      mini_sheet(I.color(k))
 
 def mini(+k: F.Sort) -> Web.HTML<W.Ev>:
   mini_of(k)
@@ -114,8 +114,7 @@ def mini(+k: F.Sort) -> Web.HTML<W.Ev>:
 def styles() -> String:
   ".editor-icon { flex: none; display: inline-grid; place-items: center; }" ++
   ".editor-icon--glyph { width: 16px; height: 16px; fill: none; stroke: var(--c); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }" ++
-  ".editor-icon--mini { width: 16px; height: 16px; }" ++
-  ".editor-icon__mini { width: 14px; height: 16px; }" ++
+  ".editor-icon__mini { width: 16px; height: 16px; flex: none; }" ++
   ".editor-icon__mini .editor-icon__page { fill: var(--surface-2); stroke: var(--border-strong); stroke-width: 1; }" ++
   ".editor-icon__mini .editor-icon__fold { fill: var(--c); }" ++
   ".editor-icon--tile { width: calc(var(--space-7) + var(--space-2)); height: calc(var(--space-7) + var(--space-2)); transition: transform var(--duration) var(--ease); }" ++

@@ -25,6 +25,9 @@ async function loader() {
 
 async function files() {
   Bun.plugin(await loader());
+  // PROJECT.bend imports each project's registry, which is generated (tools/project/registry.js).
+  const { writeRegistries } = await import("../tools/project/registry.js");
+  writeRegistries(join(ROOT, "projects"));
   return (await import("./files.bend")).default;
 }
 

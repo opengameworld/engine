@@ -32,6 +32,14 @@ law the_saved_color_is_a_token:
 law a_saved_has_a_glyph:
   {has_marks(I.glyph(F.Sort.Saved{})) == True{} : Bool}
 
+# LAW: a script's color is one of Bend-UI's tokens.
+law the_script_color_is_a_token:
+  {F.has(I.tokens(), I.tone(F.Sort.Script{})) == True{} : Bool}
+
+# LAW: a script has a glyph.
+law a_script_has_a_glyph:
+  {has_marks(I.glyph(F.Sort.Script{})) == True{} : Bool}
+
 # LAW: a module's color is one of Bend-UI's tokens.
 law the_module_color_is_a_token:
   {F.has(I.tokens(), I.tone(F.Sort.Module{})) == True{} : Bool}

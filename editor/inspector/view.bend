@@ -7,7 +7,10 @@
 #                                   Component
 #   an asset (Project window)       what it is: a clip (where it comes from, how it plays, Root,
 #                                   Mirror, and Add to the character); a shader (its file, and
-#                                   Apply to the thing selected); a folder; a project file (its text)
+#                                   Apply to the thing selected); a scene (Open, as a double click
+#                                   opens one in Unity; with something not saved, Save first or
+#                                   Discard, as Unity asks); a script (when it runs, and its text);
+#                                   a folder; any other project file (its text)
 #
 # A rule is a script made in the editor: when the thing is clicked in Play, or when Play starts,
 # it moves, turns, or plays a clip. Its trigger and its response are picked from menus, so a rule
@@ -16,7 +19,8 @@
 # Limits now:
 # - Add Component offers Rule only: a thing's look (shown, character, hidden) is set in the
 #   project's code.
-# - A component cannot be removed, except a Rule.
+# - A component cannot be removed, except a Rule; Delete removes the whole thing
+#   (editor/hierarchy/make.bend).
 # - A file's text is shown as it is, without colors, and cannot be edited here.
 
 import Base
@@ -35,6 +39,7 @@ import ../animation/view.bend as An
 import ../shaders/view.bend as Sh
 import ../project/files.bend as F
 import ./rules.bend as Ru
+import ../hierarchy/make.bend as Mk
 
 # ---------- A rule ----------
 
@@ -137,6 +142,12 @@ def add_component() -> Web.HTML<W.Ev>:
 
 # ---------- A thing ----------
 
+# Delete: the thing and its rules (editor/hierarchy/make.bend). Off in Play.
+def delete_button(+st: W.St) -> Web.HTML<W.Ev>:
+  Ui.box(W.Ev, "div", "editor-inspector__add", [], [
+    Ui.button_with(W.Ev, [Ui.btn_plain{}, Ui.btn_danger{}, Ui.btn_sm{}], "", Web.on{Web.click{W.h_delete{}}} <> P.disabled(Bool.not(Mk.is_editing(st))), [
+      Ui.icon_with(W.Ev, [Ui.icon_sm{}], "", [], "trash-2"), Web.text{"Delete thing"}])])
+
 def look_name(+t: S.Thing) -> String:
   P.pick_text(S.is_rigged(t), "Character", P.pick_text(S.is_shown(t), "Shown", "Hidden"))
 
@@ -154,7 +165,7 @@ def thing_body(has: Bool, +st: W.St) -> List<&2, Web.HTML<W.Ev>>:
           Ui.says(W.Ev, "span", "item-title", S.name(t)), Ui.says(W.Ev, "span", "tag", look_name(t))]),
         Sc.transform(st)],
       List.append(&2, Web.HTML<W.Ev>, look_sections(st, t),
-      List.append(&2, Web.HTML<W.Ev>, rule_sections(W.rules(st), 0, S.name(t), st, S.is_rigged(t)), [add_component()])))
+      List.append(&2, Web.HTML<W.Ev>, rule_sections(W.rules(st), 0, S.name(t), st, S.is_rigged(t)), [add_component(), delete_button(st)])))
 
 # ---------- An asset ----------
 
@@ -183,8 +194,34 @@ def file_body(+st: W.St, +path: String) -> List<&2, Web.HTML<W.Ev>>:
   [P.section(F.kind_name(F.kind(F.all(W.paths(W.files(st))), path)), W.still(st), [P.fact("Name", F.name(path)), P.fact("Path", "projects/" ++ W.project_folder(W.files(st)) ++ "/" ++ F.on_disk(path))]),
    P.pick_one(String.is_empty(x), P.help("The file's text shows under `bun run dev`."), Web.node{"pre", [Web.attr{"class", "editor-inspector__text"}, Web.attr{"tabindex", "0"}, Web.attr{"aria-label", "The file's text"}], [Web.text{x}]})]
 
+# A scene's name: its file's, without .bend.
+def scene_of(+path: String) -> String:
+  String.reverse(String.drop(String.reverse(F.name(path)), 5n))
+
+def open_buttons(dirty: Bool, +name: String) -> List<&2, Web.HTML<W.Ev>>:
+  match dirty:
+    case False{}:
+      [Ui.button_with(W.Ev, [Ui.btn_filled{}, Ui.btn_sm{}], "", [Web.on{Web.click{W.f_open{name, False{}}}}], [Web.text{"Open scene"}])]
+    case True{}:
+      [P.help("This scene has changes that are not saved. Save them, or discard them and open " ++ name ++ "."),
+       Ui.box(W.Ev, "div", "editor-inspector__choices", [], [
+         Ui.button(W.Ev, [Ui.btn_filled{}, Ui.btn_sm{}], "Save", W.p_save{}),
+         Ui.button(W.Ev, [Ui.btn_bordered{}, Ui.btn_danger{}, Ui.btn_sm{}], "Discard and open", W.f_open{name, True{}})])]
+
+def scene_body(+st: W.St, +path: String) -> List<&2, Web.HTML<W.Ev>>:
+  +name = scene_of(path)
+  List.append(&2, Web.HTML<W.Ev>, [P.section("Scene", W.still(st), [P.fact("Name", name), P.fact("Path", "projects/" ++ W.project_folder(W.files(st)) ++ "/" ++ F.on_disk(path))])],
+    P.pick_html(String.eq(name, W.scene_name(W.cut(st))), [P.help("This scene is open.")], open_buttons(W.dirty(st), name)))
+
+def script_body(+st: W.St, +path: String) -> List<&2, Web.HTML<W.Ev>>:
+  List.append(&2, Web.HTML<W.Ev>, [P.help("Runs in Play: start once, on the first tick; update every tick, after the rules. Every script of the project runs, in the order of the file names.")], file_body(st, path))
+
 def asset_by(+k: F.Sort, +st: W.St, +path: String) -> List<&2, Web.HTML<W.Ev>>:
   match k:
+    case F.Sort.Scene{}:
+      scene_body(st, path)
+    case F.Sort.Script{}:
+      script_body(st, path)
     case F.Sort.Clip{}:
       clip_body(st)
     case F.Sort.Shader{}:

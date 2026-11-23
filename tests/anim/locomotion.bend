@@ -6,7 +6,7 @@ import ../../engine/core/transform.bend as Tr
 import ../../engine/scene/scene.bend as S
 import ../../engine/anim/figure.bend as Fig
 import ../../engine/anim/locomotion.bend as Loco
-import ../../projects/character/scene.bend as Ch
+import ../../projects/character/scenes/Character.bend as Ch
 
 type Check is Data:
   Check{name: String, ok: Bool}

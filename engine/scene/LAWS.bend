@@ -4,7 +4,7 @@ import Base
 import ./save.bend as Save
 import ./scene.bend as S
 import ../core/transform.bend as Tr
-import ../../projects/water/scene.bend as Content
+import ../../projects/water/scenes/Water.bend as Content
 import ./place.bend as Pl
 
 # ---------- Scene ----------
@@ -40,6 +40,6 @@ law nothing_saved_changes_nothing:
   for s: S.Scene
   {Save.apply(s, []) == s : S.Scene}
 
-# LAW: a saved file lives in its project's folder.
-law a_save_goes_to_its_project:
-  {Save.file("water") == "projects/water/saved.bend" : String}
+# LAW: a scene's saved file lives beside the scene, in its project's scenes/.
+law a_save_goes_beside_its_scene:
+  {Save.file("water", "Water") == "projects/water/scenes/saved/Water.bend" : String}

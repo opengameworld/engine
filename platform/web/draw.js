@@ -10,8 +10,9 @@
 // Limits now:
 // - Every material thing is drawn as opaque (engine/render/mesh.bend says why).
 //   Nothing is sorted: the depth test decides what shows.
-// - A shown thing is uploaded once, from the opening scene; a thing added
-//   later is not seen (an edit of place or values is: edited()).
+// - A shown thing is uploaded once, from the opening scene, and again only when the scene's list
+//   of things changes (rebuild(): a thing made or deleted). An edit of place or values is
+//   edited(), which uploads nothing.
 // - Bone lines and skinning matrices are copied from Bend lists every frame
 //   (gpu.js's flat), one number at a time.
 
@@ -93,6 +94,17 @@ export function createRenderer(canvas, opening, { skins = {}, redraw = () => {},
   // Each shown thing, by its place in the scene's list.
   const shown = new Map();
   flat(Scene.things(opening)).forEach((t, i) => { if (Scene.is_shown(t)) shown.set(i, upload(t)); });
+
+  // The scene's list of things changed (a thing made or deleted): every shown thing is uploaded
+  // again by its new place in the list, and a character's skin is loaded if it was not.
+  function rebuild(scene) {
+    for (const g of shown.values()) gl.deleteVertexArray(g.vao);
+    shown.clear();
+    flat(Scene.things(scene)).forEach((t, i) => {
+      if (Scene.is_shown(t)) shown.set(i, upload(t));
+      if (Scene.is_rigged(t)) loadSkin(Figure.skin(Scene.figure(Scene.look(t))));
+    });
+  }
 
   // After thing i of `scene` got a new place or new values: the GPU gets its
   // new matrix and values. The graph never changes, so no shader is compiled.
@@ -289,7 +301,7 @@ export function createRenderer(canvas, opening, { skins = {}, redraw = () => {},
   }
 
   return {
-    draw, edited, bindMaterial,
+    draw, edited, bindMaterial, rebuild,
     inspectMaterial: (i) => shown.get(i),
     updateMaterial: materials.update,
     shaderAssets: materials.assets,
