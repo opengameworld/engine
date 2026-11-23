@@ -25,6 +25,7 @@ import ./engine/helpers.bend as H
 import ./engine/locomotion.bend as Loco
 import ./export/contract.bend as Ex
 import ./LAYERS.bend as Ly
+import ./engine/place.bend as Pl
 
 # ---------- Shortcuts ----------
 
@@ -382,3 +383,19 @@ law the_library_catalog_never_ships:
 
 law the_mannequin_laws_never_ship:
   {Ly.ships(Ly.Layer.MannequinLaws{}) == False{} : Bool}
+
+# ---------- Places (the open World's coordinates) ----------
+
+# LAW: the origin is in the center cell, on X and on Z.
+law origin_is_the_center_cell_x:
+  {Pl.cell_x(Pl.origin()) == Pl.center() : U32}
+
+law origin_is_the_center_cell_z:
+  {Pl.cell_z(Pl.origin()) == Pl.center() : U32}
+
+# LAW: stepping cells forward and the same number back comes home, even across the center.
+law cells_forward_and_back_come_home:
+  {Pl.step(Pl.step(Pl.center(), 5, True{}), 5, False{}) == Pl.center() : U32}
+
+law cells_back_and_forward_come_home:
+  {Pl.step(Pl.step(Pl.center(), 7, False{}), 7, True{}) == Pl.center() : U32}
