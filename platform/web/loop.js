@@ -5,12 +5,11 @@
 // This is runtime code: a game without the editor runs on it too.
 //
 // Limits now:
-// - dt is whatever the browser's frame took (a variable step). A fixed
-//   step (engine/tick.bend, not written yet) will sit between this and the
-//   game.
-// - dt is not capped here: after a tab comes back from the background the
-//   first dt is the whole time away. engine/time.bend has the cap
-//   (max_step), and nothing calls it yet.
+// - dt is whatever the browser's frame took. In Play, Bend turns it into
+//   fixed ticks (engine/play/tick.bend), at most 8 a frame; while editing,
+//   the editor's clock still takes dt as it comes, so after a tab comes back
+//   from the background the first dt is the whole time away
+//   (engine/core/time.bend has a cap, max_step, nothing calls yet).
 
 // `draw()` draws one picture; `tick(dt)` is called every frame with the
 // seconds since the last one (0 on the first).

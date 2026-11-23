@@ -34,13 +34,13 @@ Put shader sources under `projects/<project>/shaders/`. A source's path relative
 
 | Location | Responsibility |
 | --- | --- |
-| `engine/material.bend`, `engine/scene.bend` | Material instances, values, and the object's single material slot |
-| `engine/shader/` | Bend shader graphs, GLSL generation, and the fixed mesh vertex stage |
+| `engine/render/material.bend`, `engine/scene/scene.bend` | Material instances, values, and the object's single material slot |
+| `engine/render/shader/` | Bend shader graphs, GLSL generation, and the fixed mesh vertex stage |
 | `platform/web/` | Program cache, uniform binding, and drawing with the same depth rules as the rest of the scene |
 | `projects/<project>/shaders/` | Authored shader sources and descriptors |
 | `tools/shaders/` | Asset discovery, validation, and HLSL translation before browser load |
 | `editor/shaders/` | The generated catalog: JSON for the GPU, Bend for the editor (neither is tracked) |
-| `engine/shader/asset.bend` | A shader's parameters, what each may be worth, and editing one on a material |
+| `engine/render/shader/asset.bend` | A shader's parameters, what each may be worth, and editing one on a material |
 | `editor/workspace/view.bend` | The Shaders screen (a tab beside Scene and Animation), written in Bend |
 
 The Unity Shader Graph Blackboard exposes properties through a named contract. The descriptor serves that role for both source languages. Keeping the descriptor explicit requires matching its names and types to the source, and lets authors choose editor controls independently of GPU types. [Unity Blackboard](https://docs.unity3d.com/Packages/com.unity.shadergraph@17.0/manual/Blackboard.html)

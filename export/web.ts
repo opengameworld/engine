@@ -1,7 +1,7 @@
 // export's hands for the web: it measures, generates, bundles, hashes and writes. Every decision
 // (what a game takes, the text of each generated file, what each built file is, whether the
 // build ships, the manifest, the serve headers) is export/files.bend's, through the Bend loader
-// of ../bend (the engine's Bend, see not-in-bend.txt).
+// of ../bend (the engine's Bend, see docs/not-in-bend.txt).
 //
 // Limits now:
 // - Bundling is Bun.build on the generated page with ../bend's loader, as `bend <page> -o <dir>`

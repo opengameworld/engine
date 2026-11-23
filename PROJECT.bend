@@ -9,6 +9,10 @@
 # gain: one law checks every project's first scene at once, and adding a
 # project makes the compiler point at every match below that misses it.
 #
+# A project opens with its scene (its code's) and what was saved in the editor put back
+# (projects/<folder>/saved.bend, engine/scene/save.bend): the places, and the rules once the
+# editor saved its own.
+#
 # Limits now:
 # - Which project opens is this file's open(); there is no project picker
 #   in the editor.
@@ -18,12 +22,18 @@
 #   (tools/check.ts fails if anything outside refs/ imports from it).
 
 import Base
-import ./engine/scene.bend as S
-import ./engine/camera.bend as Cam
+import ./engine/scene/scene.bend as S
+import ./engine/scene/camera.bend as Cam
 import ./projects/water/scene.bend as WaterScene
 import ./projects/character/scene.bend as CharacterScene
 import ./mannequin/scene.bend as MannequinScene
 import ./projects/animation/scene.bend as AnimationScene
+import ./engine/script/rule.bend as R
+import ./engine/scene/save.bend as Save
+import ./projects/water/saved.bend as WaterSaved
+import ./projects/character/saved.bend as CharacterSaved
+import ./projects/mannequin/saved.bend as MannequinSaved
+import ./projects/animation/saved.bend as AnimationSaved
 
 type Project is Data:
   Water{}
@@ -70,7 +80,8 @@ def preview(+slug: String) -> Project:
   pick_project(String.eq(slug, "mannequin"), Mannequin{},
   pick_project(String.eq(slug, "animation"), Animation{}, open()))))
 
-def start(p: Project) -> S.Scene:
+# A project's scene as its code makes it, before what was saved (engine/scene/save.bend).
+def scene(p: Project) -> S.Scene:
   match p:
     case Water{}:
       WaterScene.start()
@@ -80,6 +91,61 @@ def start(p: Project) -> S.Scene:
       MannequinScene.start()
     case Animation{}:
       AnimationScene.start()
+
+# What was saved in the editor for each project: the places that differ from its code.
+def saved(p: Project) -> List<&2, Save.Placed>:
+  match p:
+    case Water{}:
+      WaterSaved.places()
+    case Character{}:
+      CharacterSaved.places()
+    case Mannequin{}:
+      MannequinSaved.places()
+    case Animation{}:
+      AnimationSaved.places()
+
+# The scene a project opens with: its code's, with what was saved put back.
+def start(+p: Project) -> S.Scene:
+  Save.apply(scene(p), saved(p))
+
+# What each project's things do in Play (engine/script/rule.bend), as its code writes them.
+def code_rules(p: Project) -> List<&2, R.Rule>:
+  match p:
+    case Water{}:
+      []
+    case Character{}:
+      []
+    case Mannequin{}:
+      []
+    case Animation{}:
+      AnimationScene.rules()
+
+# Did the editor save the project's rules (engine/scene/save.bend)? Then they are its rules.
+def has_saved_rules(p: Project) -> Bool:
+  match p:
+    case Water{}:
+      WaterSaved.has_rules()
+    case Character{}:
+      CharacterSaved.has_rules()
+    case Mannequin{}:
+      MannequinSaved.has_rules()
+    case Animation{}:
+      AnimationSaved.has_rules()
+
+def saved_rules(p: Project) -> List<&2, R.Rule>:
+  match p:
+    case Water{}:
+      WaterSaved.rules()
+    case Character{}:
+      CharacterSaved.rules()
+    case Mannequin{}:
+      MannequinSaved.rules()
+    case Animation{}:
+      AnimationSaved.rules()
+
+# What each project's things do in Play: the rules the editor saved, or its code's.
+def rules(+p: Project) -> List<&2, R.Rule>:
+  Save.rules(has_saved_rules(p), saved_rules(p), code_rules(p))
 
 # The scene the editor opens with.
 def opening() -> S.Scene:

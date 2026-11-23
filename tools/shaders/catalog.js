@@ -153,7 +153,7 @@ export function scanShaders(projects, compile = compileHlsl) {
   return catalog;
 }
 
-// The catalog again, as Bend values (engine/shader/asset.bend): each project's assets with their
+// The catalog again, as Bend values (engine/render/shader/asset.bend): each project's assets with their
 // parameters, and what is wrong with the files that could not be used. The editor's Shaders screen
 // (editor/workspace/view.bend) reads these; the shader sources stay in the JSON, for the GPU.
 const bendText = (s) => JSON.stringify(String(s));
@@ -187,7 +187,7 @@ export function bendCatalog(catalog) {
 # check write this file again.
 
 import Base
-import ../../engine/shader/asset.bend as A
+import ../../engine/render/shader/asset.bend as A
 
 def neg(+x: F32) -> F32: (0.0 - x : F32)
 

@@ -5,9 +5,9 @@
 # - folder 0: Universal Animation Library, by Quaternius (CC0): the 42
 #   clips of its free Standard version, as motions (library/quaternius/,
 #   read by tools/clips.ts). They play on any character that keeps the rig
-#   standard (engine/retarget.bend).
+#   standard (engine/anim/retarget.bend).
 # - folder 1: Engine Originals: the clips made for this engine. Today, the
-#   idle and the walk written as code (engine/gait.bend).
+#   idle and the walk written as code (engine/anim/gait.bend).
 #
 # Limits now:
 # - The whole collection is compiled into the editor's page (about 3.8 MB
@@ -20,12 +20,12 @@
 #   in a tool has no way in yet but through a .glb and tools/clips.ts.
 
 import Base
-import ../engine/skeleton.bend as Sk
-import ../engine/clip.bend as C
-import ../engine/gait.bend as G
-import ../engine/retarget.bend as R
-import ../engine/library.bend as L
-import ../engine/motion.bend as M
+import ../engine/anim/skeleton.bend as Sk
+import ../engine/anim/clip.bend as C
+import ../engine/anim/gait.bend as G
+import ../engine/anim/retarget.bend as R
+import ../engine/anim/library.bend as L
+import ../engine/anim/motion.bend as M
 import ./quaternius/gen/motions.bend as Ual
 
 def captured_go(n: Nat, +i: U32) -> List<&2, L.Entry>:

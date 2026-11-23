@@ -63,11 +63,12 @@ Say which of these you read in this session and which you only remember.
 
 | Folder | What it is | Ships inside a game |
 | --- | --- | --- |
-| `engine/` | The runtime, pure Bend | Yes |
+| `engine/` | The runtime, pure Bend: one folder per system (`core/`, `scene/`, `render/`, `anim/`, `input/`, `play/`, `script/`), each with its laws | Yes |
 | `platform/web/` | The only JavaScript of the runtime: drawing, input, frames | Yes |
 | `editor/` | The editor: a tool | Never |
 | `tools/` | dev server, check, tests, importer | Never |
 | `projects/` | The engine's own test projects | No |
+| `docs/references/` | The sources each system was built from, with links and numbers | Never |
 | `mannequin/` | The standard character: its skeleton, helper rules, skin and laws | Yes, with its credit |
 | `library/` | The animation library: its catalog and each collection's motions, with credits | Yes, the clips a game uses |
 | `refs/` | Third-party assets kept only for study (none now) | Never |
@@ -83,9 +84,9 @@ Say which of these you read in this session and which you only remember.
   Unreal's: the engine opens with it, clips are made on it and shown on it,
   and other characters are checked against it and retargeted to it. This
   was decided by the project's owner; do not propose another one.
-- The rig standard is `engine/skeleton.bend` (roles, slots, laws). The
+- The rig standard is `engine/anim/skeleton.bend` (roles, slots, laws). The
   mannequin is the character that keeps it; its rest pose is the T-pose
-  (`tests/mannequin.bend`).
+  (`tests/mannequin/mannequin.bend`).
 - It is content, not engine code: a game may bring its own character, if
   that character keeps the standard.
 - Its mesh and textures are third-party work (`mannequin/CREDITS.md`). The
@@ -93,8 +94,8 @@ Say which of these you read in this session and which you only remember.
 
 ## Before a commit
 
-- `bun run check` passes: laws (the mannequin's too), types, tests, fences. It
-  finds every `.bend` file by itself.
+- `bun run check` passes: laws (every module's `PROOF.bend`, the mannequin's too),
+  types, tests, fences. It finds every `.bend` file and every `PROOF.bend` by itself.
 - A change that must not alter what is seen is measured before and after,
   not judged by eye: the editor's elements with `ui-verify`, and pictures
   of the canvas for the drawing.

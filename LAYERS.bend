@@ -37,12 +37,12 @@ type Layer is Data:
   Layer.LibrarySource{}     # library/*/source/        the originals
   Layer.UiKit{}             # node_modules/bend-ui/    Bend-UI
   Layer.GameGen{}           # .export/gen/             written by export for one game
-  Layer.Editor{}            # editor/, index.html, main.js, KEYS.bend
+  Layer.Editor{}            # editor/ (its page: editor/index.html)
   Layer.Export{}            # export/                  the build tool
   Layer.Rules{}             # LAYERS.bend              this file
   Layer.Tools{}             # tools/
-  Layer.Tests{}             # tests/, LAWS.bend, PROOF.bend, SPEC.bend
-  Layer.Docs{}              # docs/, ARCHITECTURE.html, EXPORT.html
+  Layer.Tests{}             # tests/, and every LAWS.bend and PROOF.bend
+  Layer.Docs{}              # docs/, docs/ARCHITECTURE.html, docs/EXPORT.html
   Layer.Refs{}              # refs/                    third-party study material, never shipped
   Layer.Outside{}           # a path no place names
 
@@ -66,19 +66,13 @@ def places() -> List<&2, Place>:
    Place{"node_modules/bend-ui/", Layer.UiKit{}, False{}},
    Place{".export/gen/", Layer.GameGen{}, False{}},
    Place{"editor/", Layer.Editor{}, True{}},
-   Place{"index.html", Layer.Editor{}, False{}},
-   Place{"main.js", Layer.Editor{}, False{}},
-   Place{"KEYS.bend", Layer.Editor{}, True{}},
    Place{"export/", Layer.Export{}, True{}},
    Place{"LAYERS.bend", Layer.Rules{}, True{}},
    Place{"tools/", Layer.Tools{}, False{}},
    Place{"tests/", Layer.Tests{}, True{}},
-   Place{"LAWS.bend", Layer.Tests{}, False{}},
-   Place{"PROOF.bend", Layer.Tests{}, False{}},
-   Place{"SPEC.bend", Layer.Tests{}, True{}},
    Place{"docs/", Layer.Docs{}, False{}},
-   Place{"ARCHITECTURE.html", Layer.Docs{}, False{}},
-   Place{"EXPORT.html", Layer.Docs{}, False{}},
+   Place{"docs/ARCHITECTURE.html", Layer.Docs{}, False{}},
+   Place{"docs/EXPORT.html", Layer.Docs{}, False{}},
    Place{"refs/", Layer.Refs{}, False{}}]
 
 def Layers.choose(hit: Bool, +here: Layer, +rest: Layer) -> Layer:
@@ -95,8 +89,28 @@ def Layers.find(ps: List<&2, Place>, +path: String) -> Layer:
     case Con{Place{prefix, layer, _}, t}:
       Layers.choose(String.starts_with(path, prefix), layer, Layers.find(t, path))
 
+# A module's laws and proofs (LAWS.bend, PROOF.bend, beside the code they speak about) are
+# tests, wherever they sit; the mannequin's keep their own layer.
+def Layers.is_laws(+path: String) -> Bool:
+  (String.eq(path, "LAWS.bend") || String.eq(path, "PROOF.bend")
+    || String.ends_with(path, "/LAWS.bend") || String.ends_with(path, "/PROOF.bend"))
+
+def Layers.as_laws(l: Layer) -> Layer:
+  match l:
+    case Layer.MannequinLaws{}:
+      Layer.MannequinLaws{}
+    case _:
+      Layer.Tests{}
+
+def Layers.laws_or(hit: Bool, l: Layer) -> Layer:
+  match hit:
+    case True{}:
+      Layers.as_laws(l)
+    case False{}:
+      l
+
 def layer_of(+path: String) -> Layer:
-  Layers.find(places(), path)
+  Layers.laws_or(Layers.is_laws(path), Layers.find(places(), path))
 
 def Layers.typed_or(hit: Bool, +here: Bool, +rest: Bool) -> Bool:
   match hit:
@@ -219,7 +233,7 @@ def ships(l: Layer) -> Bool:
     case Layer.MannequinLaws{}:
       False{}
     case Layer.MannequinSource{}:
-      True{}      # the skin's two textures live in source/ (main.js and export/needs.bend take
+      True{}      # the skin's two textures live in source/ (editor/main.js and export/needs.bend take
                   # them from there); only the files a game imports ship, never the whole folder
     case Layer.Library{}:
       True{}
@@ -323,18 +337,12 @@ type Debt is Data:
   Debt{from: String, to: String, why: String}
 
 def debts() -> List<&2, Debt>:
-  [Debt{"engine/world.bend", "node_modules/bend-ui/TOKENS.bend",
-     "the grid's colors are Bend-UI tokens; move them into engine/color.bend or pass them in"},
-   Debt{"engine/gizmo.bend", "node_modules/bend-ui/TOKENS.bend",
-     "the gizmo is the editor's: engine/gizmo.bend belongs in editor/"},
-   Debt{"engine/gizmo.bend", "node_modules/bend-ui/MOTION.bend",
-     "the same move as above"},
+  [Debt{"engine/scene/world.bend", "node_modules/bend-ui/TOKENS.bend",
+     "the grid's colors are Bend-UI tokens; move them into engine/core/color.bend or pass them in"},
    Debt{"projects/water/water.bend", "node_modules/bend-ui/TOKENS.bend",
      "the water's color is a Bend-UI token"},
    Debt{".export/gen/", "editor/defaults/ACCESSIBILITY.bend",
-     "every game reads the accessibility settings, which live in the editor's folder; they need a runtime home"},
-   Debt{".export/gen/", "KEYS.bend",
-     "a game walks with the editor's keymap until engine/input/ exists"}]
+     "every game reads the accessibility settings, which live in the editor's folder; they need a runtime home"}]
 
 def Debts.is(d: Debt, +from: String, +to: String) -> Bool:
   match d:

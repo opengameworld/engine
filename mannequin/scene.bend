@@ -6,7 +6,7 @@
 # on, and the rig every other character is checked against and retargeted
 # to. It is content, not engine code: a game may use it or bring its own
 # character, as long as that character keeps the rig standard
-# (engine/skeleton.bend).
+# (engine/anim/skeleton.bend).
 #
 # What is here:
 # - rig.json        how the source file is read into the standard
@@ -21,18 +21,18 @@
 #   belong to this outfit, not to the standard's core; they stay at rest
 #   until spring chains exist.
 # - No clips of its own: it plays the code-made idle and walk
-#   (engine/gait.bend).
+#   (engine/anim/gait.bend).
 # - No levels of detail: always all 171 bones.
 
 import Base
-import ../engine/scene.bend as S
-import ../engine/transform.bend as Tr
-import ../engine/figure.bend as Fig
+import ../engine/scene/scene.bend as S
+import ../engine/core/transform.bend as Tr
+import ../engine/anim/figure.bend as Fig
 import ./gen/skeleton.bend as Man
 import ./gen/rules.bend as Rules
 
 # The name of the mannequin's skin: the page that draws it gives the files
-# under this name (main.js).
+# under this name (editor/main.js).
 def skin() -> String: "mannequin"
 
 def figure() -> Fig.Figure:

@@ -7,12 +7,12 @@
 #
 # Limits now:
 # - The arm has no skin: it is drawn as lines, one per bone, colored by
-#   role (engine/pose.bend).
+#   role (engine/anim/pose.bend).
 
 import Base
-import ../../engine/scene.bend as S
-import ../../engine/transform.bend as Tr
-import ../../engine/figure.bend as Fig
+import ../../engine/scene/scene.bend as S
+import ../../engine/core/transform.bend as Tr
+import ../../engine/anim/figure.bend as Fig
 import ./arm.bend as Arm
 
 def start() -> S.Scene:

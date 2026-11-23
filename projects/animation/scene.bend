@@ -6,6 +6,9 @@
 # click on a clip of the library tries it on the mannequin, Add keeps it,
 # and the transport under the viewport plays it.
 #
+# It also holds the engine's first rule (engine/script/rule.bend): in Play, a click on the
+# mannequin turns it a quarter turn, so a click doing something is plain to see.
+#
 # Limits now:
 # - What is added lives while the page is open: nothing writes it back to
 #   this file, and a reload starts from the mannequin with no clips.
@@ -13,10 +16,15 @@
 #   standard, and the mannequin is the only one there is.
 
 import Base
-import ../../engine/scene.bend as S
-import ../../engine/transform.bend as Tr
+import ../../engine/scene/scene.bend as S
+import ../../engine/core/transform.bend as Tr
 import ../../mannequin/scene.bend as Mannequin
+import ../../engine/script/rule.bend as R
 
 def start() -> S.Scene:
   S.Scene{[
     S.Thing{"Mannequin", Tr.identity(), S.Rigged{Mannequin.figure()}}]}
+
+# What the scene's things do in Play.
+def rules() -> List<&2, R.Rule>:
+  [R.Rule{"Mannequin", R.Trigger.Clicked{}, R.Response.Turn{1.5707964}}]

@@ -1,18 +1,18 @@
 # The mannequin's laws: the engine's standard character keeps the rig
-# standard (engine/skeleton.bend), bone by bone and vertex by vertex.
+# standard (engine/anim/skeleton.bend), bone by bone and vertex by vertex.
 # `bend mannequin/PROOF.bend` must print ALL PROOFS CHECK (bun run check
 # runs it).
 #
 # Limits now:
 # - These laws look at integers and kinds. That the rest pose is a T-pose
-#   is a matter of floats, checked in tests/mannequin.bend.
+#   is a matter of floats, checked in tests/mannequin/mannequin.bend.
 
 import Base
-import ../engine/skeleton.bend as Sk
+import ../engine/anim/skeleton.bend as Sk
 import ./gen/skeleton.bend as Man
 import ./gen/weights.bend as W
-import ../engine/skin.bend as Skin
-import ../engine/helpers.bend as H
+import ../engine/anim/skin.bend as Skin
+import ../engine/anim/helpers.bend as H
 import ./gen/rules.bend as Rules
 
 # LAW: the mannequin keeps every structural law of the standard.

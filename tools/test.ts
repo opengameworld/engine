@@ -15,7 +15,7 @@ const dir = new URL("../tests/", import.meta.url);
 let failed = 0;
 let total = 0;
 
-for (const file of readdirSync(dir).filter((f) => f.endsWith(".bend")).sort()) {
+for (const file of (readdirSync(dir, { recursive: true }) as string[]).filter((f) => f.endsWith(".bend")).sort()) {
   const mod = (await import(new URL(file, dir).href)).default;
   console.log(file);
   for (let l = mod.checks(); l.$ === "Con"; l = l.tail) {

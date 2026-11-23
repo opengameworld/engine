@@ -3,10 +3,10 @@
 # from the source, breaks a law and `bend PROOF.bend` fails.
 
 import Base
-import ../../engine/vec.bend as V
-import ../../engine/world.bend as W
-import ../../engine/camera.bend as Cam
-import ../../engine/gizmo.bend as G
+import ../../engine/core/vec.bend as V
+import ../../engine/scene/world.bend as W
+import ../../engine/scene/camera.bend as Cam
+import ../viewport/gizmo.bend as G
 import ./ACCESSIBILITY.bend as A
 import ./defaults.bend as D
 

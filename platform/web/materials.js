@@ -1,6 +1,6 @@
 // WebGL material bindings. The scene owns the material and its values.
 // Limits now: imported uniforms are scalar controls and RGB colors.
-import Material from "../../engine/material.bend";
+import Material from "../../engine/render/material.bend";
 import { flat } from "./gpu.js";
 import { assetUniforms, meshPrograms } from "./shaders.js";
 

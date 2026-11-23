@@ -1,5 +1,5 @@
 {
-  "about": "How tools/clips.ts reads this collection's file into motions (engine/motion.bend).",
+  "about": "How tools/clips.ts reads this collection's file into motions (engine/anim/motion.bend).",
   "name": "Universal Animation Library",
   "credit": "Quaternius",
   "license": "CC0",

@@ -1,5 +1,5 @@
 {
-  "about": "How tools/gltf.ts reads the mannequin's source file into the engine's rig standard (engine/skeleton.bend).",
+  "about": "How tools/gltf.ts reads the mannequin's source file into the engine's rig standard (engine/anim/skeleton.bend).",
   "credit": "\"Sora (Kingdom Hearts Melody of Memory)\" (https://skfb.ly/pPNsQ) by 雨宮レン, CC BY 4.0. Character (c) Square Enix / Disney.",
   "drop": [
     "Armature",
@@ -180,7 +180,7 @@
       "name": "zipper_1"
     }
   ],
-  "rules_about": "One rule per Twist and Support bone (engine/helpers.bend): [part, driver, amount]. Roll = the driver's turn around its length; Full = its whole turn; Hold = stays at rest. Amounts set by eye.",
+  "rules_about": "One rule per Twist and Support bone (engine/anim/helpers.bend): [part, driver, amount]. Roll = the driver's turn around its length; Full = its whole turn; Hold = stays at rest. Amounts set by eye.",
   "rules": {
     "*ude1hineri spo": [
       "Roll",

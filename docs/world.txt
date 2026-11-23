@@ -7,3 +7,4 @@ The world is defined by four conventions:
 - Axes: Y points up and the system is right-handed. (X to the right, Z comes in your direction)
 - Scale: 1 world unit = 1 meter.
 - Ground Plane: The ground lies at Y = 0, visualized by a grid with lines every 1 meter and stronger lines every 10 meters.
+- Far from the origin: a position is a Place (engine/scene/place.bend), a 1 km cell plus meters inside it. Renders, physics and sound work in meters around a chosen Place, so precision holds kilometers out.

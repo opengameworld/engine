@@ -16,7 +16,7 @@ export const ROOT = join(import.meta.dir, "..");
 const SKIP = new Set([".git", "node_modules", "dist", ".export", "tothinkabout"]);
 const CODE = /\.(bend|js|mjs|ts|html)$/;
 
-// LAYERS.bend, loaded through ../bend's plugin (the engine's Bend, see not-in-bend.txt).
+// LAYERS.bend, loaded through ../bend's plugin (the engine's Bend, see docs/not-in-bend.txt).
 export async function rules() {
   const plugin = (await import(join(ROOT, "..", "bend", "bend2", "main.ts"))).default;
   Bun.plugin(plugin);

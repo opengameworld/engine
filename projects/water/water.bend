@@ -2,25 +2,25 @@
 # puts it in the World).
 #
 # This is content, not engine code: one particular water. The engine's
-# generic types are in engine/: a mesh (engine/mesh.bend) for the shape and
-# a material (engine/material.bend: a graph and the values of its
+# generic types are in engine/: a mesh (engine/render/mesh.bend) for the shape and
+# a material (engine/render/material.bend: a graph and the values of its
 # parameters) that says what color each pixel gets.
 #
 # Limits now:
 # - One flat color and no light, so the 3200 triangles do not show one by
 #   one; they will once the material moves its vertices (waves).
-# - It is opaque, like every material mesh today (engine/mesh.bend). It
+# - It is opaque, like every material mesh today (engine/render/mesh.bend). It
 #   lies on y = 0 with the grid; the grid shows over it because filled
 #   surfaces are pushed back in depth (Mesh.depth_offset).
 # - The material's graph is a single parameter. It grows into the real
 #   water graph (step 11).
 
 import Base
-import ../../engine/vec.bend as V
-import ../../engine/color.bend as C
-import ../../engine/mesh.bend as M
-import ../../engine/shader/node.bend as N
-import ../../engine/material.bend as Mat
+import ../../engine/core/vec.bend as V
+import ../../engine/core/color.bend as C
+import ../../engine/render/mesh.bend as M
+import ../../engine/render/shader/node.bend as N
+import ../../engine/render/material.bend as Mat
 import ../../node_modules/bend-ui/TOKENS.bend as T
 
 # The shape: a 20 m square cut into 40 × 40 cells, half a meter each.

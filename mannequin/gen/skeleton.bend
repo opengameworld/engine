@@ -4,10 +4,10 @@
 # "Sora (Kingdom Hearts Melody of Memory)" (https://skfb.ly/pPNsQ) by 雨宮レン, CC BY 4.0. Character (c) Square Enix / Disney.
 
 import Base
-import ../../engine/vec.bend as V
-import ../../engine/quat.bend as Q
-import ../../engine/transform.bend as Tr
-import ../../engine/skeleton.bend as Sk
+import ../../engine/core/vec.bend as V
+import ../../engine/core/quat.bend as Q
+import ../../engine/core/transform.bend as Tr
+import ../../engine/anim/skeleton.bend as Sk
 
 def neg(+x: F32) -> F32: (0.0 - x : F32)
 

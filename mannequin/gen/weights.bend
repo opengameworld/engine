@@ -4,7 +4,7 @@
 # "Sora (Kingdom Hearts Melody of Memory)" (https://skfb.ly/pPNsQ) by 雨宮レン, CC BY 4.0. Character (c) Square Enix / Disney.
 
 import Base
-import ../../engine/skin.bend as Skin
+import ../../engine/anim/skin.bend as Skin
 
 def bones() -> U32: 171
 
@@ -392,7 +392,7 @@ def part_126() -> List<&2, U32>:
 def part_127() -> List<&2, U32>:
   [17, 8, 0, 0, 62258, 3277, 0, 0, 27, 8, 17, 0, 39321, 13762, 12452, 0, 27, 8, 17, 0, 39321, 13762, 12452, 0, 27, 8, 17, 0, 30801, 18350, 16384, 0, 27, 8, 17, 0, 30801, 18350, 16384, 0, 8, 27, 17, 0, 30146, 22937, 12452, 0, 2, 3, 4, 0, 32767, 22282, 10486, 0, 2, 3, 4, 0, 32767, 22282, 10486, 0, 1, 0, 0, 0, 65535, 0, 0, 0, 11, 8, 10, 12, 35389, 17694, 11141, 1311]
 
-# Every part keeps the weight laws (engine/skin.bend, weights_ok).
+# Every part keeps the weight laws (engine/anim/skin.bend, weights_ok).
 def all_ok() -> Bool:
   (Skin.weights_ok(part_0(), bones()) &&
    Skin.weights_ok(part_1(), bones()) &&

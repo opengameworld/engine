@@ -1,6 +1,6 @@
 // The smallest pieces every WebGL2 drawing here needs: a Bend list as a flat
 // array, and a program made from two shader texts. The shaders are written
-// by Bend (engine/shader/glsl.bend, engine/material.bend); JS only hands the
+// by Bend (engine/render/shader/glsl.bend, engine/render/material.bend); JS only hands the
 // text to the GPU driver.
 //
 // Limits now:

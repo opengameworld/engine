@@ -1,13 +1,13 @@
 # Editor Defaults: the basic facts of the scene, gathered in one place of the
 # interface. It creates no value and writes nothing: every def here only hands
-# on a value whose source of truth is elsewhere (engine/world.bend for the
-# World, engine/gizmo.bend for the axis gizmo). LAWS.bend holds it to that.
+# on a value whose source of truth is elsewhere (engine/scene/world.bend for the
+# World, editor/viewport/gizmo.bend for the axis gizmo). LAWS.bend holds it to that.
 
 import Base
-import ../../engine/vec.bend as V
-import ../../engine/world.bend as W
-import ../../engine/camera.bend as Cam
-import ../../engine/gizmo.bend as G
+import ../../engine/core/vec.bend as V
+import ../../engine/scene/world.bend as W
+import ../../engine/scene/camera.bend as Cam
+import ../viewport/gizmo.bend as G
 import ./ACCESSIBILITY.bend as A
 
 # Accessibility (ACCESSIBILITY.bend). Motion is cut when the setting is on

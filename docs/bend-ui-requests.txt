@@ -7,7 +7,7 @@ the engine uses the closest Bend-UI piece, and each place says so in its
 
 1. A selectable list, and a tree
 
-   For the Scene panel (editor/panels/), the editor's list of every thing:
+   For the Scene panel (editor/scene/), the editor's list of every thing:
    a list where one item is selected, with the right semantics (listbox /
    option with aria-selected, or a tree with treeitem for parent and
    child), arrow keys to move, and a selected style. Today the engine uses
@@ -51,3 +51,30 @@ the engine uses the closest Bend-UI piece, and each place says so in its
    For the Animation screen's transport: while a clip plays, the Play
    icon is shown tinted. The transport's time bar is the native range
    input too (request 4).
+
+- Icons for stop and pause (requested by the engine, 2026-11-23). The editor's toolbar (Play,
+  Pause, Next tick) and the Animation transport tint the Play button and rename it Stop while
+  playing, and write Pause as a word, because the icon set has play but no stop or pause.
+
+- The driver hands a page mounted inside another page's root (the Scene and Details panels inside
+  the workspace, both in the engine's editor) to both pages: the outer page's on_input and
+  on_event get the inner page's messages too (web-driver.js's handle walks every app's path). In
+  the compiled JS a message of a type the outer page does not know falls into the last case of
+  its match. The engine keeps a do-nothing case last (editor/workspace/view.bend's step) until the
+  driver gives each element's message only to the page that drew it. Found 2026-11-23, when a
+  Save button's case was last and every keystroke in the Details saved.
+
+- Drag and drop in Web.bend (requested by the engine, 2026-11-23). The editor's Project window
+  (editor/project/) lists assets as Unity's does, but an asset cannot be dragged onto a thing or
+  into the Inspector: Web.bend has pointer events, not drag events with what is dragged. Today a
+  clip is used by picking it and a shader with Apply in the Inspector.
+
+- Resizable panes inside a Bend page (requested by the engine, 2026-11-23). The editor's
+  Hierarchy, Inspector and dock (editor/workspace/view.bend) have fixed sizes: panes.js adds the
+  grip to a pane outside the page's own tree, which the driver would redraw away. A pane size
+  kept in the page's state, with a grip the page draws, would let them be resized.
+
+- A tree for Bend pages (requested by the engine, 2026-11-23). TREE.bend makes a tree's rows and
+  keys, and panes.js draws them as HTML text; the editor's Hierarchy and Project tree draw the
+  same rows with Web.bend themselves (and leave TREE.bend's keys out in the Project tree). A
+  Web.bend view of TREE.bend's rows would let every Bend page share one.

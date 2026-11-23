@@ -1,7 +1,7 @@
 # The info button of Editor Defaults on screen, as a page written in Bend (Bend-UI's Web.bend and
 # UI.bend): a Bend-UI dropdown that says where the origin is, what each axis means, and whether
 # motion is reduced. It creates no value: every text and tone comes from defaults.bend, which hands
-# on engine/world.bend and ACCESSIBILITY.bend. The gizmo beside it is a canvas, drawn by defaults.js.
+# on engine/scene/world.bend and ACCESSIBILITY.bend. The gizmo beside it is a canvas, drawn by defaults.js.
 #
 #   start(still)             the button; `still` is the system asking for reduced motion
 #   render(state)            the dropdown, as a child of the editor's <aside id="editor-defaults">
@@ -14,8 +14,8 @@
 import Base
 import ../../node_modules/bend-ui/Web.bend as Web
 import ../../node_modules/bend-ui/UI.bend as Ui
-import ../../engine/vec.bend as V
-import ../../engine/world.bend as W
+import ../../engine/core/vec.bend as V
+import ../../engine/scene/world.bend as W
 import ./defaults.bend as D
 
 type St is Data:

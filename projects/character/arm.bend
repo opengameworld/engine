@@ -14,11 +14,11 @@
 # - No mesh: the arm is drawn as lines.
 
 import Base
-import ../../engine/vec.bend as V
-import ../../engine/quat.bend as Q
-import ../../engine/transform.bend as Tr
-import ../../engine/skeleton.bend as Sk
-import ../../engine/helpers.bend as H
+import ../../engine/core/vec.bend as V
+import ../../engine/core/quat.bend as Q
+import ../../engine/core/transform.bend as Tr
+import ../../engine/anim/skeleton.bend as Sk
+import ../../engine/anim/helpers.bend as H
 
 def along(+y: F32) -> Tr.Transform:
   Tr.at(V.V3{0.0, y, 0.0})

@@ -13,7 +13,7 @@ The gizmo shows X in red, Y in green and Z in blue; the + side is filled and lab
 Hovering a handle rings it. Clicking a handle turns the camera to look along that axis. Dragging the gizmo orbits the camera.
 The info button opens a Bend-UI dropdown that says where the origin is and where each axis points.
 It only receives: every value it shows comes from its source of truth.
-The sources of truth are engine/world.bend (origin, axes, tones) and engine/gizmo.bend (the gizmo).
+The sources of truth are engine/scene/world.bend (origin, axes, tones) and editor/viewport/gizmo.bend (the gizmo).
 It creates no value, changes no value and writes nothing.
 The gizmo moves only the editor camera, the way we look; it never changes the World.
 LAWS.bend states this rule for each value, and PROOF.bend proves it.

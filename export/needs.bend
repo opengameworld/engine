@@ -9,17 +9,17 @@
 #
 # Limits now:
 # - Only the opening scene is read: a thing added later at run time is not seen.
-# - The mannequin's files are named here and again in main.js (the editor's page). Both name
+# - The mannequin's files are named here and again in editor/main.js (the editor's page). Both name
 #   the same files; a test should hold them together once there is a second skin.
-# - Bend-UI always ships: its tokens reach the runtime through engine/world.bend and
-#   engine/gizmo.bend (named debts). It is listed for its credit.
+# - Bend-UI always ships: its tokens reach the runtime through engine/scene/world.bend
+#   (a named debt). It is listed for its credit.
 # - Library clips are not selected yet: no project names any (figures use the code-made idle
 #   and walk), so none ships.
 
 import Base
-import ../engine/scene.bend as S
-import ../engine/figure.bend as Fig
-import ../engine/material.bend as Mat
+import ../engine/scene/scene.bend as S
+import ../engine/anim/figure.bend as Fig
+import ../engine/render/material.bend as Mat
 import ./contract.bend as Ex
 
 type Skin is Data:

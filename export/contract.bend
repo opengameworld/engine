@@ -10,7 +10,7 @@
 #                             frame in 1.5 s, the game playable in 10 s
 #   attribution(page, works)  a work whose license asks for its credit refuses a folder without
 #                             a credits page (the mannequin is CC BY 4.0: a law)
-#   toolchain(tools, hlsl)    the pinned Bend, its module tree shaking (not-in-bend.txt), and
+#   toolchain(tools, hlsl)    the pinned Bend, its module tree shaking (docs/not-in-bend.txt), and
 #                             dxc + spirv-cross when the game uses an HLSL shader
 #   say(reason)               one line for a person
 #
@@ -341,7 +341,7 @@ def say(r: Reason) -> String:
     case Reason.WrongBend{found}:
       String.concat(["toolchain: Bend ", found, " found; the engine pins ", pinned_bend()])
     case Reason.NoTreeshake{}:
-      "toolchain: ../bend lacks the module tree shaking the engine builds with (see not-in-bend.txt)"
+      "toolchain: ../bend lacks the module tree shaking the engine builds with (see docs/not-in-bend.txt)"
     case Reason.ToolMissing{tool}:
       String.concat(["toolchain: ", tool, " is not installed, and the game uses an HLSL shader"])
 

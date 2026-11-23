@@ -1,28 +1,28 @@
 // Drawing a scene in the browser, with WebGL2. It draws what Bend returns
-// and decides nothing: the World (engine/world.bend) and the camera
-// (engine/camera.bend) give every number, the scene (engine/scene.bend) says
-// what is in the World, engine/shader/glsl.bend writes the shaders and
-// engine/material.bend gives the values of their parameters.
+// and decides nothing: the World (engine/scene/world.bend) and the camera
+// (engine/scene/camera.bend) give every number, the scene (engine/scene/scene.bend) says
+// what is in the World, engine/render/shader/glsl.bend writes the shaders and
+// engine/render/material.bend gives the values of their parameters.
 //
 // This is runtime code: a game without the editor draws with it too. It
 // knows nothing of the editor (panels, gizmo, shortcuts).
 //
 // Limits now:
-// - Every material thing is drawn as opaque (engine/mesh.bend says why).
+// - Every material thing is drawn as opaque (engine/render/mesh.bend says why).
 //   Nothing is sorted: the depth test decides what shows.
 // - A shown thing is uploaded once, from the opening scene; a thing added
 //   later is not seen (an edit of place or values is: edited()).
 // - Bone lines and skinning matrices are copied from Bend lists every frame
 //   (gpu.js's flat), one number at a time.
 
-import World from "../../engine/world.bend";
-import Scene from "../../engine/scene.bend";
-import Camera from "../../engine/camera.bend";
-import Glsl from "../../engine/shader/glsl.bend";
-import Mesh from "../../engine/mesh.bend";
-import Material from "../../engine/material.bend";
-import Transform from "../../engine/transform.bend";
-import Figure from "../../engine/figure.bend";
+import World from "../../engine/scene/world.bend";
+import Scene from "../../engine/scene/scene.bend";
+import Camera from "../../engine/scene/camera.bend";
+import Glsl from "../../engine/render/shader/glsl.bend";
+import Mesh from "../../engine/render/mesh.bend";
+import Material from "../../engine/render/material.bend";
+import Transform from "../../engine/core/transform.bend";
+import Figure from "../../engine/anim/figure.bend";
 import { flat, program as link } from "./gpu.js";
 import { createMaterials } from "./materials.js";
 
@@ -250,7 +250,7 @@ export function createRenderer(canvas, opening, { skins = {}, redraw = () => {},
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     // Characters and the scene's material things, with the depth test:
     // the nearer one shows, whatever the order. A filled surface is pushed
-    // back a little (engine/mesh.bend's depth_offset), so the grid and a
+    // back a little (engine/render/mesh.bend's depth_offset), so the grid and a
     // character's feet on the same plane show over it. Then the grid,
     // tested against all of them.
     gl.enable(gl.DEPTH_TEST);

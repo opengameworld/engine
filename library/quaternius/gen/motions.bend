@@ -4,9 +4,9 @@
 # Universal Animation Library, by Quaternius (CC0).
 
 import Base
-import ../../../engine/vec.bend as V
-import ../../../engine/quat.bend as Q
-import ../../../engine/motion.bend as M
+import ../../../engine/core/vec.bend as V
+import ../../../engine/core/quat.bend as Q
+import ../../../engine/anim/motion.bend as M
 
 def neg(+x: F32) -> F32: (0.0 - x : F32)
 
