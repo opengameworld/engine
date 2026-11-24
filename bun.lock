@@ -5,11 +5,11 @@
     "": {
       "name": "gameengine",
       "dependencies": {
-        "bend-ui": "github:isabellaherman/Bend-UI#433e547",
+        "bend-ui": "https://codeload.github.com/isabellaherman/Bend-UI/tar.gz/433e5477ee6f3ba66b2095ee90be54cdfcdbfe15",
       },
     },
   },
   "packages": {
-    "bend-ui": ["bend-ui@github:isabellaherman/Bend-UI#433e547", {}, "isabellaherman-Bend-UI-433e547"],
+    "bend-ui": ["bend-ui@https://codeload.github.com/isabellaherman/Bend-UI/tar.gz/433e5477ee6f3ba66b2095ee90be54cdfcdbfe15", {}, "sha512-fw3ypykEbMGWEbPsZ7sPi1FPgxdCpyse77pnXbS5zKiw5UAn0Wh7IxNStR/CQJmBZC5EW3hkB8DshYoHnsYJ3A=="],
   }
 }

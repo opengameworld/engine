@@ -11,6 +11,6 @@
     "export": "bun export/cli.ts"
   },
   "dependencies": {
-    "bend-ui": "github:isabellaherman/Bend-UI#433e547"
+    "bend-ui": "https://codeload.github.com/isabellaherman/Bend-UI/tar.gz/433e5477ee6f3ba66b2095ee90be54cdfcdbfe15"
   }
 }
