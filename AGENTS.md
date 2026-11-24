@@ -92,6 +92,27 @@ Say which of these you read in this session and which you only remember.
 - Its mesh and textures are third-party work (`mannequin/CREDITS.md`). The
   credit goes wherever the mannequin goes.
 
+## Dependencies from GitHub
+
+A dependency that lives on GitHub (Bend-UI today) is pinned in `package.json`
+as the tarball of one full commit, on `codeload.github.com`:
+
+    "bend-ui": "https://codeload.github.com/isabellaherman/Bend-UI/tar.gz/<40-hex commit>"
+
+Never as `github:owner/repo#<sha>` or a `git+https` URL, short or full:
+
+- Bun turns both into `github:owner/repo#<7 hex>` in `bun.lock` and fetches
+  `api.github.com/repos/<owner>/<repo>/tarball/<7 hex>` on every clean
+  install, whatever `package.json` says.
+- On 2026-11-23 that API answered 504 for the short id of Bend-UI's pinned
+  commit, for several minutes, while the full commit resolved, so a clean
+  `bun install` failed on every machine without a cache (issue #5).
+- The codeload URL keeps the full commit in `bun.lock`, never touches the API,
+  and records a `sha512` of the package, so a changed tarball fails the install.
+- A short id also stops being unique as a repository grows.
+
+To move the pin, change the commit in the URL and run `bun install`.
+
 ## Before a commit
 
 - `bun run check` passes: laws (every module's `PROOF.bend`, the mannequin's too),
