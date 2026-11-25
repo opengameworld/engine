@@ -196,8 +196,14 @@ def pose_by(c: Bool, +cl: F.Clip) -> List<&2, F32>:
 def picture(+st: W.St, +path: String) -> Web.HTML<W.Ev>:
   Ic.tile(F.kind(all(st), path), F.ext(all(st), path), pose_by(F.is_clip(F.clip_at(path)), F.clip_at(path)))
 
+# A double click opens a folder, and a script in the script editor (editor/code/), as Unity opens
+# a script from its Project window.
+def is_script(+path: String) -> Bool:
+  (String.starts_with(path, F.scripts() ++ "/") && String.ends_with(path, ".bend"))
+
 def opens(folder: Bool, +path: String) -> List<&2, Web.Attr<W.Ev>>:
-  P.pick_attrs(folder, [Web.on{Web.double_click{W.f_go{path}}}], Nil{})
+  P.pick_attrs(folder, [Web.on{Web.double_click{W.f_go{path}}}],
+    P.pick_attrs(is_script(path), [Web.on{Web.double_click{W.k_open{F.on_disk(path)}}}], Nil{}))
 
 def tile(+st: W.St, +path: String, +folder: Bool) -> Web.HTML<W.Ev>:
   Ui.button_with(W.Ev, [Ui.btn_ghost{}, Ui.btn_toggle{}], "editor-project__tile",

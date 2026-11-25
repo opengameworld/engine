@@ -1,7 +1,8 @@
 // The engine's page: opens a scene of the project PROJECT.bend names (the page's ?project= and
 // ?scene=, or the project's main scene) in the editor (editor/app.js), and gives it the
 // mannequin's skin files, so any scene with the mannequin in it draws the skin. ?at= and ?pick=
-// show a folder and an asset in the Project window (editor/app.js sets them after a Create).
+// show a folder and an asset in the Project window (editor/app.js sets them after a Create); ?code=
+// opens a script in the script editor (editor/code/).
 
 import Project from "../PROJECT.bend";
 import { startEditor } from "./app.js";
@@ -29,5 +30,8 @@ startEditor(Project.opened(project, scene), {
   name: Project.name(project),
   at: params.get("at") ?? "",
   pick: params.get("pick") ?? "",
+  // The scripts that do not compile (Play and the build wait for them), and the script to open.
+  problems: Project.problems(project),
+  code: params.get("code") ?? "",
   skins: { [Mannequin.skin()]: { info, bin, textures: [body, face] } },
 });

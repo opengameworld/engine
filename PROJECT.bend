@@ -33,6 +33,7 @@ import ./engine/scene/scene.bend as S
 import ./engine/scene/camera.bend as Cam
 import ./engine/script/rule.bend as R
 import ./engine/play/play.bend as Play
+import ./engine/script/problem.bend as Pb
 import ./projects/prefabs.bend as Pre
 import ./projects/water/project_generated.bend as WaterP
 import ./projects/character/project_generated.bend as CharacterP
@@ -237,6 +238,24 @@ def step(+p: Project, +x: Play.Session) -> Play.Session:
       Play.step_with(~MannequinP.start, ~MannequinP.update, x)
     case Animation{}:
       Play.step_with(~AnimationP.start, ~AnimationP.update, x)
+
+# The project's scripts that do not compile (engine/script/problem.bend): while there is one, Play
+# does not start (to_mode below) and the build stops (tools/project/registry.js).
+def problems(+p: Project) -> List<&2, Pb.Problem>:
+  match p:
+    case Water{}:
+      WaterP.problems()
+    case Character{}:
+      CharacterP.problems()
+    case Mannequin{}:
+      MannequinP.problems()
+    case Animation{}:
+      AnimationP.problems()
+
+# The toolbar's mode (0 editing, 1 playing, 2 paused), for this project: Play waits while one of its
+# scripts does not compile (engine/play/play.bend's to_mode_checked).
+def to_mode(+p: Project, +x: Play.Session, +want: U32) -> Play.Session:
+  Play.to_mode_checked(x, want, problems(p))
 
 # ---------- The camera ----------
 

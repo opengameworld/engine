@@ -56,12 +56,15 @@ import ../defaults/defaults.bend as D
 import ../hierarchy/make.bend as Mk
 import ../project/templates.bend as Tp
 import ../../projects/prefabs.bend as Pre
+import ../../engine/script/problem.bend as Pb
+import ../code/view.bend as Ce
+import ../code/code.bend as Cd
 
 # ---------- What editor/app.js asks ----------
 # A Bend module gives only its own defs, so what app.js asks of the state is named again here.
 
-def start(+scene: S.Scene, +still: Bool, +catalog: A.Catalog, +paths: List<&2, String>, +rules: List<&2, R.Rule>, +own: Bool, +name: String, +folder: String, +sc: String, +made: List<&2, Pre.Made>, +removed: List<&2, String>) -> Web.Update<W.St, W.Ev>:
-  W.start(scene, still, catalog, paths, rules, own, name, folder, sc, made, removed)
+def start(+scene: S.Scene, +still: Bool, +catalog: A.Catalog, +paths: List<&2, String>, +rules: List<&2, R.Rule>, +own: Bool, +name: String, +folder: String, +sc: String, +made: List<&2, Pre.Made>, +removed: List<&2, String>, +broken: List<&2, Pb.Problem>) -> Web.Update<W.St, W.Ev>:
+  W.start(scene, still, catalog, paths, rules, own, name, folder, sc, made, removed, broken)
 
 # The scene being edited, and how many times its list of things changed (editor/app.js uploads
 # them again: platform/web/draw.js's rebuild).
@@ -164,6 +167,27 @@ def failed(+before: W.St, +id: String, +message: String) -> W.St:
 def follow(+st: W.St, +s: S.Scene, +i: U32) -> W.St:
   Sh.remembered(W.follow_to(st, s, i))
 
+# The script editor (editor/code/): whether a script is open, which one, and its text (editor/app.js
+# sends the text to be checked or written, and keeps the script in the page's address).
+def code_open(+st: W.St) -> Bool:
+  Cd.is_open(W.code(st))
+
+def code_path(+st: W.St) -> String:
+  Cd.path(W.code(st))
+
+def code_text(+st: W.St) -> String:
+  Cd.text(W.code(st))
+
+# What editor/app.js tells the script editor: open a script; the checker's answer for text (found:
+# a problem of this kind (tools/script/check.ts names it), at line and col, len characters, in the
+# module `inside` or "" for the script itself).
+def code_event(+path: String) -> W.Ev:
+  W.k_open{path}
+
+def checked_event(+text: String, +found: Bool, +kind: String, +line: U32, +col: U32, +len: U32, +said: String, +inside: String, +st: W.St) -> W.Ev:
+  W.k_checked{text, found, Pb.Problem{Cd.name(W.code(st)), Pb.kind_of(kind), line, col, len, said, inside}}
+
+
 # ---------- The toolbar ----------
 
 # Play, Pause and Step, as Unity's toolbar has them. Bend-UI has no stop or pause icon: while
@@ -179,12 +203,16 @@ def play_button(editing: Bool) -> Web.HTML<W.Ev>:
 def mode_tag(+m: U32) -> List<&2, Web.HTML<W.Ev>>:
   P.pick_html(U32.is_eq(m, 0), Nil{}, [Ui.says(W.Ev, "span", "tag tag--accent", P.pick_text(U32.is_eq(m, 1), "Playing", "Paused"))])
 
+# While a script does not compile, the toolbar says so beside Play (pressing Play says why).
+def broken_tag(+st: W.St) -> List<&2, Web.HTML<W.Ev>>:
+  P.pick_html(W.scripts_compile(st), Nil{}, [Ui.says(W.Ev, "span", "tag tag--danger", "Script errors")])
+
 def play_controls(+st: W.St) -> Web.HTML<W.Ev>:
   Web.node{"div", [Web.attr{"class", "editor-play"}, Web.attr{"role", "group"}, Web.attr{"aria-label", "Play"}], List.append(&2, Web.HTML<W.Ev>, [
     play_button(U32.is_eq(W.play_mode(st), 0)),
     Ui.toggle(W.Ev, [Ui.btn_ghost{}, Ui.btn_toggle{}, Ui.btn_sm{}], "", "Pause", U32.is_eq(W.play_mode(st), 2), W.p_pause{}),
     Ui.icon_button(W.Ev, [Ui.btn_plain{}, Ui.btn_neutral{}, Ui.btn_sm{}, Ui.btn_icon{}, Ui.btn_round{}], "Next tick", "chevron-right", W.p_step{})],
-    mode_tag(W.play_mode(st)))}
+    List.append(&2, Web.HTML<W.Ev>, mode_tag(W.play_mode(st)), broken_tag(st)))}
 
 def save_button(dirty: Bool) -> Web.HTML<W.Ev>:
   match dirty:
@@ -223,7 +251,7 @@ def dock(+st: W.St) -> Web.HTML<W.Ev>:
 
 # What the Animation tab plays, over the viewport: the character, its clip, in place.
 def showing(+st: W.St) -> Web.HTML<W.Ev>:
-  Web.node{"div", [Web.attr{"class", "editor-showing"}], P.pick_html(W.is_open(st), An.showing_kids(W.has_character(st), st), Nil{})}
+  Web.node{"div", [Web.attr{"class", "editor-showing"}], P.pick_html((W.is_open(st) && Bool.not(Cd.is_open(W.code(st)))), An.showing_kids(W.has_character(st), st), Nil{})}
 
 # ---------- The page ----------
 
@@ -267,7 +295,7 @@ def styles() -> String:
   ".editor-console__line[data-tone='warning'] .editor-console__icon, .editor-console__line[data-tone='warning'] .editor-console__tone { color: var(--warning-text); }" ++
   ".editor-console__icon { flex: none; align-self: center; }" ++
   ".editor-console__tone { flex: none; font-weight: var(--weight-medium); }" ++
-  ".editor-console__text { min-width: 0; overflow-wrap: anywhere; }" ++
+  ".editor-console__text { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }" ++
   ".editor-showing { grid-column: 2; grid-row: 2; align-self: start; justify-self: start; margin: var(--space-4); z-index: var(--layer-foot); pointer-events: none; display: flex; flex-wrap: wrap; gap: var(--space-1); }" ++
   ".editor-transport { gap: var(--space-2); flex-wrap: wrap; }" ++
   ".editor-transport__time { flex: 1; min-width: var(--space-8); accent-color: var(--accent); }" ++
@@ -295,13 +323,13 @@ def styles() -> String:
   ".editor-menu-layer { position: fixed; inset: 0; z-index: var(--layer-menu); }" ++
   ".editor-context-menu { position: fixed; top: auto; z-index: var(--layer-menu); }" ++
   ".editor-inspector__choices { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-1) var(--space-2); }" ++
-  Ic.styles()
+  Ic.styles() ++ Ce.styles()
 
 # The windows, as children of the page's body, around the editor's window.
 def render(+st: W.St) -> Web.HTML<W.Ev>:
   Web.node{"body", [Web.attr{"data-editor", ""}, Web.attr{"data-motion", P.pick_text(D.reduce_motion(W.still(st)), "reduce", "")}], List.append(&2, Web.HTML<W.Ev>, [
     Web.node{"style", [], [Web.text{styles()}]},
-    toolbar(st), H.panel(st), showing(st), I.panel(st), dock(st)], Pj.context_menu(W.menu_open(W.cut(st)), st))}
+    toolbar(st), H.panel(st), showing(st), I.panel(st), dock(st)], List.append(&2, Web.HTML<W.Ev>, Ce.panel(st), Pj.context_menu(W.menu_open(W.cut(st)), st)))}
 
 # Is the page showing a time that moves by itself now? Then it is drawn every frame (editor/app.js
 # asks before drawing it again): the Animation tab's time bar, while a character is selected.
@@ -325,6 +353,8 @@ def on_input(+msg: W.Ev, +got: Web.Input) -> W.Ev:
       W.r_num{k, a, v}
     case W.f_query{_} Web.typed{v}:
       W.f_query{v}
+    case W.k_typed{_} Web.typed{v}:
+      W.k_typed{v}
     case W.f_name{_} Web.typed{v}:
       W.f_name{v}
     case W.h_key{_} Web.key{name, _, _}:
@@ -410,7 +440,7 @@ def step(+ev: W.Ev, +st: W.St) -> W.St:
     case W.f_listed{text}:
       Pj.listed(st, text)
     case W.f_text{path, text}:
-      Pj.read(st, path, text)
+      Ce.text_in(Pj.read(st, path, text), path, text)
     case W.c_log{tone, text}:
       W.logged(st, tone, text)
     case W.c_clear{}:
@@ -427,6 +457,16 @@ def step(+ev: W.Ev, +st: W.St) -> W.St:
       W.with_cut(st, W.with_menu(W.cut(st), False{}, 0.0, 0.0, 0.0))
     case W.f_open{name, force}:
       P.pick_st((force || Bool.not(W.dirty(st))), W.asked(st, "open", name), st)
+    case W.k_open{path}:
+      Ce.opened(st, path)
+    case W.k_typed{text}:
+      Ce.typed(st, text)
+    case W.k_checked{text, found, p}:
+      Ce.checked(st, text, found, p)
+    case W.k_save{}:
+      Ce.save(st)
+    case W.k_close{force}:
+      Ce.close(st, force)
     case W.a_left{}:
       st
 

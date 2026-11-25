@@ -48,6 +48,7 @@ console.log(`${typed.length} files compile`);
 step("tests");
 await $`bun tools/test.ts`;
 await $`bun test tests/tools/shader-catalog.test.js`;
+await $`bun test tests/tools/script-check.test.ts`;
 
 // Study-only characters (refs/): their own laws, when there are any. Each has a PROOF.bend next to its generated skeleton.
 if (existsSync("refs")) {

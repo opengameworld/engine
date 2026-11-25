@@ -20,6 +20,8 @@ import ../../editor/workspace/state.bend as W
 import ../../editor/workspace/view.bend as Work
 import ../../editor/inspector/rules.bend as Ru
 import ../../projects/prefabs.bend as Pre
+import ../../engine/script/problem.bend as Pb
+import ../../editor/code/code.bend as Cd
 
 type Check is Data:
   Check{name: String, ok: Bool}
@@ -33,11 +35,38 @@ def state_of(u: Web.Update<W.St, W.Ev>) -> W.St:
       next
 
 def opened() -> W.St:
-  state_of(Work.start(two(), False{}, A.none(), ["scenes/Test.bend", "shaders/"], [], False{}, "Test", "test", "Test", [], []))
+  state_of(Work.start(two(), False{}, A.none(), ["scenes/Test.bend", "shaders/"], [], False{}, "Test", "test", "Test", [], [], []))
 
 # The state after an event.
 def after(+ev: W.Ev, +st: W.St) -> W.St:
   state_of(Work.on_event(ev, st))
+
+# The script editor: a project with a script that does not compile, and a script open in the editor.
+def bad() -> Pb.Problem:
+  Pb.Problem{"Mover", Pb.Fault.Type{}, 8, 3, 2, "expected S.Scene, found F32", ""}
+
+def broken() -> W.St:
+  state_of(Work.start(two(), False{}, A.none(), ["scenes/Test.bend", "scripts/Mover.bend"], [], False{}, "Test", "test", "Test", [], [], [bad()]))
+
+def code_opened() -> W.St:
+  after(W.k_open{"scripts/Mover.bend"}, opened())
+
+def code_read() -> W.St:
+  after(Work.text_event("scripts/Mover.bend", "def x"), code_opened())
+
+def code_key(+text: String) -> W.Ev:
+  Work.on_input(W.k_typed{""}, Web.typed{text})
+
+def code_typed() -> W.St:
+  after(code_key("def y"), code_read())
+
+# The Console's first line.
+def first_line_of(ls: List<&2, W.Line>) -> String:
+  match ls:
+    case Nil{}:
+      ""
+    case Con{h, _}:
+      W.line_text(h)
 
 # A keystroke as the driver sends it: the field's message, filled with the text.
 def typed(+text: String) -> W.Ev:
@@ -141,4 +170,19 @@ def checks() -> List<&2, Check>:
    Check{"a scene does not open over what is not saved", U32.is_eq(W.ask_n(W.ask(after(W.f_open{"Beach", False{}}, after(W.h_make{0}, opened())))), 0)},
    Check{"Discard and open opens anyway", String.eq(W.ask_path(W.ask(after(W.f_open{"Beach", True{}}, after(W.h_make{0}, opened())))), "Beach")},
    Check{"a right click opens the menu", W.menu_open(W.cut(after(Work.menu_event(10.0, 20.0, 800.0), opened())))},
-   Check{"choosing in the menu closes it", Bool.not(W.menu_open(W.cut(after(W.f_new{"scene"}, after(Work.menu_event(10.0, 20.0, 800.0), opened())))))}]
+   Check{"choosing in the menu closes it", Bool.not(W.menu_open(W.cut(after(W.f_new{"scene"}, after(Work.menu_event(10.0, 20.0, 800.0), opened())))))},
+   Check{"the Console reports a script that does not compile when the project opens", U32.is_eq(lines(broken()), 1)},
+   Check{"the Console line names the script, the kind of error and its line", String.eq(first_line_of(W.log(broken())), "Mover.bend — Type error on line 8, column 3: expected S.Scene, found F32")},
+   Check{"the editor opens on the Console when a script does not compile", U32.is_eq(W.dock(broken()), 1)},
+   Check{"Play does not start while a script does not compile", U32.is_eq(W.play_mode(after(W.p_play{}, broken())), 0)},
+   Check{"Play refused says why in the Console", U32.is_eq(lines(after(W.p_play{}, broken())), 2)},
+   Check{"Play starts when every script compiles", U32.is_eq(W.play_mode(after(W.p_play{}, opened())), 1)},
+   Check{"opening a script asks for its text", (String.eq(W.ask_what(W.ask(code_opened())), "read") && String.eq(W.ask_path(W.ask(code_opened())), "scripts/Mover.bend"))},
+   Check{"its text arriving fills the editor and asks for a check", (String.eq(Work.code_text(code_read()), "def x") && String.eq(W.ask_what(W.ask(code_read())), "check"))},
+   Check{"a keystroke while a check is on its way asks nothing new", U32.is_eq(W.ask_n(W.ask(code_typed())), W.ask_n(W.ask(code_read())))},
+   Check{"an answer for an older text asks for the new one", U32.is_eq(W.ask_n(W.ask(after(W.k_checked{"def x", False{}, Cd.no_problem()}, code_typed()))), (W.ask_n(W.ask(code_typed())) + 1 : U32))},
+   Check{"an answer for the text shown is the problem shown", Cd.failing(W.code(after(W.k_checked{"def x", True{}, bad()}, code_read())))},
+   Check{"Save asks to write the script", String.eq(W.ask_what(W.ask(after(W.k_save{}, code_typed()))), "write")},
+   Check{"Save waits while the scene has changes not saved", Bool.not(String.eq(W.ask_what(W.ask(after(W.k_save{}, after(code_key("def y"), after(Work.text_event("scripts/Mover.bend", "def x"), after(W.k_open{"scripts/Mover.bend"}, after(W.h_make{0}, opened()))))))), "write"))},
+   Check{"Close with changes not saved asks first", (Cd.is_open(W.code(after(W.k_close{False{}}, code_typed()))) && Cd.closing(W.code(after(W.k_close{False{}}, code_typed()))))},
+   Check{"Discard and close closes", Bool.not(Cd.is_open(W.code(after(W.k_close{True{}}, code_typed()))))}]

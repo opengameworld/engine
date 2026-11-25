@@ -40,3 +40,6 @@ projects/*/project_generated.bend*
 # study pages (artifacts), kept local
 tothinkabout/
 .export/
+
+# the script checker's drafts (tools/script/check.ts)
+projects/*/.checking-*/

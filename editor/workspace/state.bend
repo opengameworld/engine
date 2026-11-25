@@ -1,10 +1,13 @@
 # The workspace's state: what every window of the editor shares (the scene, the thing selected,
 # the system asking for less motion) and what each window remembers (the desk: the dock's tab,
 # the Project window's files, the Console's lines, the scene's rules, whether there is something
-# to save, what the Inspector shows; the clip picked; the shader catalog; Play), and the one kind
-# of event every window sends. Each window (editor/hierarchy/, editor/inspector/, editor/project/,
-# editor/console/, editor/animation/, editor/shaders/) reads and changes it;
-# editor/workspace/view.bend puts the windows in their places and says what an event does.
+# to save, what the Inspector shows; the clip picked; the shader catalog; Play; the script editor),
+# and the one kind of event every window sends. Each window (editor/hierarchy/, editor/inspector/,
+# editor/project/, editor/console/, editor/animation/, editor/shaders/, editor/code/) reads and
+# changes it; editor/workspace/view.bend puts the windows in their places and says what an event does.
+#
+# Play waits while a script of the project does not compile (engine/script/problem.bend): pressing
+# it then says so in the Console and opens it, as Unity answers Play with a compiler error.
 #
 # Limits now:
 # - The windows share one kind of event (Ev): a new window adds its events here.
@@ -16,7 +19,9 @@ import ../../engine/scene/scene.bend as S
 import ../../engine/anim/figure.bend as Fig
 import ../../engine/render/shader/asset.bend as A
 import ../../engine/script/rule.bend as R
+import ../../engine/script/problem.bend as Pb
 import ../scene/panels.bend as O
+import ../code/code.bend as Cd
 import ../../projects/prefabs.bend as Pre
 
 # The animation library's clip picked in the Project window (its collection and place in it,
@@ -69,9 +74,10 @@ type Desk is Data:
   Desk{dock: U32, files: Files, log: List<&2, Line>, rules: List<&2, R.Rule>, own: Bool, dirty: Bool, asset: Bool, ask: Ask, name: String, cut: Cut}
 
 # The workspace: the scene, the thing selected, the system asking for less motion, the desk, the
-# animation library's clip picked, the shader catalog and Play.
+# animation library's clip picked, the shader catalog, Play, and the script editor (with the
+# project's scripts that do not compile).
 type St is Data:
-  Screen{scene: S.Scene, selected: U32, still: Bool, desk: Desk, lib: Lib, shade: Shade, run: Run}
+  Screen{scene: S.Scene, selected: U32, still: Bool, desk: Desk, lib: Lib, shade: Shade, run: Run, code: Cd.Code}
 
 type Ev is Data:
   a_tab{n: U32}                      # the dock's tab: Project (0), Console (1) or Animation (2)
@@ -118,6 +124,11 @@ type Ev is Data:
   f_menu{x: F32, y: F32, h: F32}     # a right click in the Project window, and the page's height
   f_menu_close{}                     # the right click's menu closed
   f_open{name: String, force: Bool}  # open a scene; force: drop what is not saved
+  k_open{path: String}               # open a script in the script editor ("scripts/Mover.bend")
+  k_typed{text: String}              # a keystroke in the script editor: its whole text now
+  k_checked{text: String, found: Bool, problem: Pb.Problem}   # Bend's checker answered for text (editor/app.js)
+  k_save{}                           # Save the script (its button)
+  k_close{force: Bool}               # Close the script editor; force: drop what is not saved
 
 def no_ask() -> Ask:
   Ask{0, "", ""}
@@ -130,38 +141,56 @@ def problem_lines(ps: List<&2, A.Problem>) -> List<&2, Line>:
     case +h <> t:
       Line{"warning", A.problem_label(h) ++ " (" ++ A.path(h) ++ "): " ++ A.message(h)} <> problem_lines(t)
 
+# The scripts that do not compile, as Console lines: the engine reports each one when the
+# project opens (tools/project/registry.js found them).
+def script_lines(ps: List<&2, Pb.Problem>) -> List<&2, Line>:
+  match ps:
+    case Nil{}:
+      Nil{}
+    case +h <> t:
+      Line{"error", Pb.said(h)} <> script_lines(t)
+
+# The dock's tab when the editor opens: the Console when a script does not compile, so it is seen.
+def first_tab(broken: Bool) -> U32:
+  match broken:
+    case True{}:
+      1
+    case False{}:
+      0
+
 # The workspace on a project: the scene as it opens, the system's reduced motion, the project's
 # shader catalog and files, the scene's rules and whether they are the editor's own, the project's
-# name and folder, the scene's name, and what the editor made and deleted in it.
-def start(+scene: S.Scene, +still: Bool, +catalog: A.Catalog, +paths: List<&2, String>, +rules: List<&2, R.Rule>, +own: Bool, +name: String, +folder: String, +sc: String, +made: List<&2, Pre.Made>, +removed: List<&2, String>) -> Web.Update<St, Ev>:
-  Web.update{Screen{scene, 0, still, Desk{0, Files{folder, paths, ["Assets"], "Assets", "", "", False{}, "", ""}, problem_lines(A.problems(catalog)), rules, own, False{}, False{}, no_ask(), name, Cut{sc, made, removed, 0, False{}, 0.0, 0.0, "", 0.0}}, Lib{0, 0, False{}, False{}}, Shade{catalog, scene}, Run{0, 0, 0}}, Web.none{}}
+# name and folder, the scene's name, what the editor made and deleted in it, and the project's
+# scripts that do not compile.
+def start(+scene: S.Scene, +still: Bool, +catalog: A.Catalog, +paths: List<&2, String>, +rules: List<&2, R.Rule>, +own: Bool, +name: String, +folder: String, +sc: String, +made: List<&2, Pre.Made>, +removed: List<&2, String>, +broken: List<&2, Pb.Problem>) -> Web.Update<St, Ev>:
+  Web.update{Screen{scene, 0, still, Desk{first_tab(Pb.any(broken)), Files{folder, paths, ["Assets"], "Assets", "", "", False{}, "", ""}, List.append(&2, Line, script_lines(broken), problem_lines(A.problems(catalog))), rules, own, False{}, False{}, no_ask(), name, Cut{sc, made, removed, 0, False{}, 0.0, 0.0, "", 0.0}}, Lib{0, 0, False{}, False{}}, Shade{catalog, scene}, Run{0, 0, 0}, Cd.start(broken)}, Web.none{}}
 
 # ---------- The state's parts ----------
 
 def scene(+st: St) -> S.Scene:
   match st:
-    case Screen{s, _, _, _, _, _, _}:
+    case Screen{s, _, _, _, _, _, _, _}:
       s
 
 def selected(+st: St) -> U32:
   match st:
-    case Screen{_, i, _, _, _, _, _}:
+    case Screen{_, i, _, _, _, _, _, _}:
       i
 
 def still(+st: St) -> Bool:
   match st:
-    case Screen{_, _, b, _, _, _, _}:
+    case Screen{_, _, b, _, _, _, _, _}:
       b
 
 def desk(+st: St) -> Desk:
   match st:
-    case Screen{_, _, _, d, _, _, _}:
+    case Screen{_, _, _, d, _, _, _, _}:
       d
 
 def with_desk(+st: St, +d: Desk) -> St:
   match st:
-    case Screen{s, i, b, _, l, h, r}:
-      Screen{s, i, b, d, l, h, r}
+    case Screen{s, i, b, _, l, h, r, c}:
+      Screen{s, i, b, d, l, h, r, c}
 
 # ----- The desk's parts
 
@@ -449,28 +478,28 @@ def with_text(+f: Files, +x: String) -> Files:
 
 def shade(+st: St) -> Shade:
   match st:
-    case Screen{_, _, _, _, _, h, _}:
+    case Screen{_, _, _, _, _, h, _, _}:
       h
 
 def with_shade(+st: St, +h: Shade) -> St:
   match st:
-    case Screen{s, i, b, n, l, _, r}:
-      Screen{s, i, b, n, l, h, r}
+    case Screen{s, i, b, n, l, _, r, c}:
+      Screen{s, i, b, n, l, h, r, c}
 
 def lib(+st: St) -> Lib:
   match st:
-    case Screen{_, _, _, _, l, _, _}:
+    case Screen{_, _, _, _, l, _, _, _}:
       l
 
 def with_scene(+st: St, +s: S.Scene) -> St:
   match st:
-    case Screen{_, i, b, o, l, h, r}:
-      Screen{s, i, b, o, l, h, r}
+    case Screen{_, i, b, o, l, h, r, c}:
+      Screen{s, i, b, o, l, h, r, c}
 
 def with_lib(+st: St, +l: Lib) -> St:
   match st:
-    case Screen{s, i, b, o, _, h, r}:
-      Screen{s, i, b, o, l, h, r}
+    case Screen{s, i, b, o, _, h, r, c}:
+      Screen{s, i, b, o, l, h, r, c}
 
 def folder(+l: Lib) -> U32:
   match l:
@@ -494,8 +523,8 @@ def mirror(+l: Lib) -> Bool:
 
 def follow_to(+st: St, +s: S.Scene, +i: U32) -> St:
   match st:
-    case Screen{_, _, b, o, l, h, r}:
-      Screen{s, i, b, o, l, h, r}
+    case Screen{_, _, b, o, l, h, r, c}:
+      Screen{s, i, b, o, l, h, r, c}
 
 def motion_event(+still: Bool) -> Ev:
   a_motion{still}
@@ -547,20 +576,36 @@ def opened(+st: St, +n: U32) -> St:
 
 def stilled(+st: St, +b: Bool) -> St:
   match st:
-    case Screen{s, i, _, o, l, h, r}:
-      Screen{s, i, b, o, l, h, r}
+    case Screen{s, i, _, o, l, h, r, c}:
+      Screen{s, i, b, o, l, h, r, c}
 
 # A thing selected (in the Hierarchy or the viewport): the Inspector shows it again.
 def chosen(+st: St, +i: U32) -> St:
   match st:
-    case Screen{s, _, b, o, l, h, r}:
-      with_asset(Screen{s, i, b, o, unpicked(l), h, r}, False{})
+    case Screen{s, _, b, o, l, h, r, c}:
+      with_asset(Screen{s, i, b, o, unpicked(l), h, r, c}, False{})
+
+# ---------- The script editor ----------
+
+def code(+st: St) -> Cd.Code:
+  match st:
+    case Screen{_, _, _, _, _, _, _, c}:
+      c
+
+def with_code(+st: St, +c: Cd.Code) -> St:
+  match st:
+    case Screen{s, i, b, o, l, h, r, _}:
+      Screen{s, i, b, o, l, h, r, c}
+
+# Do the project's scripts compile? (When the page opened.)
+def scripts_compile(+st: St) -> Bool:
+  Bool.not(Pb.any(Cd.broken(code(st))))
 
 # ---------- Play ----------
 
 def run(+st: St) -> Run:
   match st:
-    case Screen{_, _, _, _, _, _, r}:
+    case Screen{_, _, _, _, _, _, r, _}:
       r
 
 def W.mode_of(+r: Run) -> U32:
@@ -586,8 +631,8 @@ def steps(+st: St) -> U32:
 
 def with_run(+st: St, +r: Run) -> St:
   match st:
-    case Screen{s, i, b, o, l, h, _}:
-      Screen{s, i, b, o, l, h, r}
+    case Screen{s, i, b, o, l, h, _, c}:
+      Screen{s, i, b, o, l, h, r, c}
 
 def W.pick(c: Bool, +a: U32, +b: U32) -> U32:
   match c:
@@ -596,9 +641,24 @@ def W.pick(c: Bool, +a: U32, +b: U32) -> U32:
     case False{}:
       b
 
-# Play pressed: Play while editing, Stop while playing or paused.
-def played(+st: St) -> St:
+def W.toggled(+st: St) -> St:
   with_run(st, Run{W.pick(U32.is_eq(play_mode(st), 0), 1, 0), steps(st), saves(st)})
+
+# Play refused: a script does not compile. The Console says so, and opens.
+def W.refused(+st: St) -> St:
+  with_dock(logged(st, "error", "Play waits until every script compiles: fix the errors above, save, and press Play again."), 1)
+
+def W.play_if(broken: Bool, +st: St) -> St:
+  match broken:
+    case True{}:
+      W.refused(st)
+    case False{}:
+      W.toggled(st)
+
+# Play pressed: Play while editing, Stop while playing or paused. While a script of the project
+# does not compile, Play does not start (engine/play/play.bend's to_mode_checked says the same).
+def played(+st: St) -> St:
+  W.play_if((U32.is_eq(play_mode(st), 0) && Pb.any(Cd.broken(code(st)))), st)
 
 # Pause pressed: pause while playing, go on while paused, nothing while editing.
 def paused(+st: St) -> St:

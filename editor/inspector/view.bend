@@ -9,7 +9,8 @@
 #                                   Mirror, and Add to the character); a shader (its file, and
 #                                   Apply to the thing selected); a scene (Open, as a double click
 #                                   opens one in Unity; with something not saved, Save first or
-#                                   Discard, as Unity asks); a script (when it runs, and its text);
+#                                   Discard, as Unity asks); a script (when it runs, its text, and
+#                                   Edit script, which opens it in the script editor, editor/code/);
 #                                   a folder; any other project file (its text)
 #
 # A rule is a script made in the editor: when the thing is clicked in Play, or when Play starts,
@@ -21,7 +22,8 @@
 #   project's code.
 # - A component cannot be removed, except a Rule; Delete removes the whole thing
 #   (editor/hierarchy/make.bend).
-# - A file's text is shown as it is, without colors, and cannot be edited here.
+# - A file's text is shown as it is, without colors, and cannot be edited here (a script is
+#   edited in the script editor).
 
 import Base
 import ../../node_modules/bend-ui/Web.bend as Web
@@ -214,7 +216,8 @@ def scene_body(+st: W.St, +path: String) -> List<&2, Web.HTML<W.Ev>>:
     P.pick_html(String.eq(name, W.scene_name(W.cut(st))), [P.help("This scene is open.")], open_buttons(W.dirty(st), name)))
 
 def script_body(+st: W.St, +path: String) -> List<&2, Web.HTML<W.Ev>>:
-  List.append(&2, Web.HTML<W.Ev>, [P.help("Runs in Play: start once, on the first tick; update every tick, after the rules. Every script of the project runs, in the order of the file names.")], file_body(st, path))
+  List.append(&2, Web.HTML<W.Ev>, [P.help("Runs in Play: start once, on the first tick; update every tick, after the rules. Every script of the project runs, in the order of the file names."),
+    Ui.box(W.Ev, "div", "editor-inspector__choices", [], [Ui.button(W.Ev, [Ui.btn_filled{}, Ui.btn_sm{}], "Edit script", W.k_open{F.on_disk(path)})])], file_body(st, path))
 
 def asset_by(+k: F.Sort, +st: W.St, +path: String) -> List<&2, Web.HTML<W.Ev>>:
   match k:

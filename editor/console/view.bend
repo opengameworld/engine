@@ -2,9 +2,11 @@
 # editor's errors, warnings and messages. A line says its tone with an icon and a word, not with
 # color alone.
 #
-# What writes a line: a shader file that could not be used (its catalog's problems, when the
-# project opens), a shader the drawing code could not link, Save (where it wrote, or why it could
-# not), and a folder made or refused.
+# What writes a line: a script that does not compile (each one, when the project opens, and Play
+# refused because of it: engine/script/problem.bend), a shader file that could not be used (its
+# catalog's problems, when the project opens), a shader the drawing code could not link, Save
+# (where it wrote, or why it could not), and a folder made or refused. A line keeps the line
+# breaks of what it says (Bend's messages have several lines).
 #
 # Limits now:
 # - A line has no time and no source link; the same line said twice shows twice (Unity's

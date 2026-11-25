@@ -31,3 +31,12 @@ def Laws.a_click_rule_waits_for_a_click():
 
 def Laws.a_click_on_no_thing_answers_nothing():
   {==}
+
+def Laws.no_problem_no_wait():
+  {==}
+
+def Laws.a_problem_says_where():
+  {==}
+
+def Laws.a_syntax_error_says_so():
+  {==}

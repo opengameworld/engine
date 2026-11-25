@@ -84,3 +84,12 @@ the engine uses the closest Bend-UI piece, and each place says so in its
   `contextmenu` event, and nothing stops the browser's own menu, so editor/app.js listens for it
   and hands Bend the place (Work.menu_event). A DomEvent `context_menu{msg}` whose handler prevents
   the browser's menu, with point{x, y} from the page's corner, would let the page do it alone.
+
+- A code field (requested by the engine, 2026-11-25). The script editor (editor/code/) lets a
+  person type Bend with its colors, its line numbers and the place of a problem underlined. Bend-UI
+  has code blocks (syntax.js, SYNTAX.bend) to read code, not to type it, so the editor lays a text
+  field with clear letters over a drawing of the same text (editor/code/text.bend). Two things it
+  cannot do: Web.bend's `input` hands the field's whole value but not where the caret or the
+  selection is, so Bend cannot indent at the caret on Tab (Tab leaves the field), nor keep the
+  caret in view itself. A `typed` that carries selectionStart and selectionEnd, and a command that
+  sets them, would let a Bend page indent, and a code field in Bend-UI would let every page share it.

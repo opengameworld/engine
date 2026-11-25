@@ -5,6 +5,7 @@ import Base
 import ../scene/scene.bend as S
 import ./play.bend as Play
 import ../input/keyboard.bend as Kb
+import ../script/problem.bend as Pb
 
 # ---------- Play mode ----------
 
@@ -68,3 +69,15 @@ law toolbar_play_then_stop_is_the_scene:
 law asking_for_edit_while_editing_changes_nothing:
   for s: S.Scene
   {Play.to_mode(Play.edit(s), 0) == Play.edit(s) : Play.Session}
+
+# LAW: while a script does not compile, Play does not start: the session stays in Edit.
+law no_play_while_a_script_does_not_compile:
+  for s: S.Scene
+  for p: Pb.Problem
+  for ps: List<&2, Pb.Problem>
+  {Play.to_mode_checked(Play.edit(s), 1, p <> ps) == Play.edit(s) : Play.Session}
+
+# LAW: with every script compiling, Play starts as the toolbar asks.
+law play_starts_when_every_script_compiles:
+  for s: S.Scene
+  {Play.to_mode_checked(Play.edit(s), 1, []) == Play.to_mode(Play.edit(s), 1) : Play.Session}

@@ -14,7 +14,8 @@
 // and Step (editor/workspace/) change its mode; keys reach it only in Play.
 //
 // The workspace asks for what a page cannot do by itself, and this file does it with the dev
-// server (tools/dev.ts): Save writes the scene's places and rules, a new folder is made in the
+// server (tools/dev.ts): Save writes the scene's places and rules, a script is checked as it is typed
+// and written when saved (editor/code/), a new folder is made in the
 // project, a project file is read for the Inspector. How it went is a line in the Console.
 //
 // Limits now:
@@ -48,7 +49,7 @@ import { createLoop, fitCanvas } from "../platform/web/loop.js";
 // start() when none). `skins` gives, for each figure's skin name, the files
 // to draw it with (platform/web/draw.js says their shape).
 export function startEditor(opening, { skins = {}, camera = null, shaders = {}, folder = "", name = "", rules = [], ownRules = false, base = opening,
-  project = null, scene: sceneName = "", made = { $: "Nil" }, removed = { $: "Nil" }, at = "", pick = "" } = {}) {
+  project = null, scene: sceneName = "", made = { $: "Nil" }, removed = { $: "Nil" }, at = "", pick = "", problems = { $: "Nil" }, code = "" } = {}) {
   theme({ mode: "dark", radius: "pill" });   // every button and segmented in the layout is a pill
 
   const canvas = document.getElementById("scene");
@@ -102,7 +103,7 @@ export function startEditor(opening, { skins = {}, camera = null, shaders = {}, 
   const offline = (what) => (e) => say("error", `${what} needs \`bun run dev\` (${e.message}).`);
 
   const work = mount(document.body, {
-    init: () => Work.start(scene, still.matches, Catalog.of(folder), Files.of(folder), rules, ownRules, name, folder, sceneName, made, removed),
+    init: () => Work.start(scene, still.matches, Catalog.of(folder), Files.of(folder), rules, ownRules, name, folder, sceneName, made, removed, problems),
     render: Work.render, on_event: Work.on_event, on_input: Work.on_input,
   }, {
     adopt: true,
@@ -122,10 +123,16 @@ export function startEditor(opening, { skins = {}, camera = null, shaders = {}, 
         if (what === "read") post("/read", { path }).then((text) => work.dispatch(Work.text_event(path, text)), () => {});
         if (what === "create") create(st);
         if (what === "open") location.assign(link({ scene: path }));
+        if (what === "check") check(path, Work.code_text(st));
+        if (what === "write") write(path, Work.code_text(st));
       }
+      // The script open stays in the page's address, so a reload (after Save) opens it again.
+      if (Work.code_open(st) !== Work.code_open(before) || Work.code_path(st) !== Work.code_path(before))
+        history.replaceState(null, "", link({ code: Work.code_open(st) ? Work.code_path(st) : "" }));
       if (Work.rules(st) !== Work.rules(before)) session = Play.with_rules(session, Work.rules(st));
       if (Work.play_mode(st) !== Work.play_mode(before) || Work.steps(st) !== Work.steps(before)) {
-        session = Play.to_mode(session, Work.play_mode(st));
+        // A project whose script does not compile stays in Edit (PROJECT.bend's to_mode).
+        session = project ? Project.to_mode(project, session, Work.play_mode(st)) : Play.to_mode(session, Work.play_mode(st));
         if (Work.steps(st) !== Work.steps(before)) session = project ? Project.step(project, session) : Play.step(session);
         moved(Play.shown(session));
         redrawAll();
@@ -179,6 +186,27 @@ export function startEditor(opening, { skins = {}, camera = null, shaders = {}, 
     }, offline("Creating"));
   }
 
+  // The script editor (editor/code/): the text goes to Bend's checker (the dev server's /check,
+  // tools/script/check.ts), and its answer back to Bend, with the text it was for. Without the
+  // dev server, the answer says so.
+  function check(path, text) {
+    const answer = (p) => work.dispatch(Work.checked_event(text, !!p, p?.kind ?? "type", p?.line ?? 0, p?.col ?? 0, p?.len ?? 0, p?.text ?? "", p?.where ?? "", work.state));
+    post("/check", { path, text }).then((t) => answer(JSON.parse(t)), (e) => answer({ text: `Checking needs \`bun run dev\` (${e.message}).` }));
+  }
+
+  // Save: the dev server writes the script; the engine restarts to compile it (its registry checks
+  // it again), and the page opens again on it, as after a Create.
+  function write(path, text) {
+    post("/write", { path, text }).then(async () => {
+      say("info", `Saved ${path}. The engine restarts to compile it.`);
+      const shown = link({ code: path });
+      for (let tries = 0; tries < 40; tries++) {
+        await new Promise((ok) => setTimeout(ok, 500));
+        if (await fetch(shown, { method: "HEAD" }).then((r) => r.ok, () => false)) { location.replace(shown); return; }
+      }
+    }, offline("Saving the script"));
+  }
+
   // A right click in the Project window opens Create there (Web.bend has no context-menu event
   // yet: docs/bend-ui-requests.txt). Bend says what the menu holds.
   document.addEventListener("contextmenu", (e) => {
@@ -190,6 +218,8 @@ export function startEditor(opening, { skins = {}, camera = null, shaders = {}, 
   // The page opened on a file just made: the Project window shows its folder, and it.
   if (at) work.dispatch(Work.go_event(at));
   if (pick) work.dispatch(Work.pick_event(pick));
+  // The page opened on a script (?code=, after its Save or a reload): the script editor opens it.
+  if (code) work.dispatch(Work.code_event(code));
 
   // The scene or the selection changed outside the page: it gets them, and is drawn again when
   // asked (`draw`), or when Bend says it shows a time that moves every frame.

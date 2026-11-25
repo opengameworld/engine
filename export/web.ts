@@ -26,8 +26,10 @@ async function loader() {
 async function files() {
   Bun.plugin(await loader());
   // PROJECT.bend imports each project's registry, which is generated (tools/project/registry.js).
-  const { writeRegistries } = await import("../tools/project/registry.js");
-  writeRegistries(join(ROOT, "projects"));
+  // A script that does not compile stops the export: a game is never built without one.
+  const { writeRegistries, said } = await import("../tools/project/registry.js");
+  const { problems } = await writeRegistries(join(ROOT, "projects"));
+  if (problems.length) throw new Error(`a script does not compile, so the game is not exported:\n${problems.map(said).join("\n")}`);
   return (await import("./files.bend")).default;
 }
 

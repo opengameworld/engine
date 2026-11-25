@@ -25,7 +25,7 @@ export async function rules() {
 
 export function codeFiles(dir = ROOT): string[] {
   return readdirSync(dir).sort().flatMap((n) => {
-    if (SKIP.has(n)) return [];
+    if (SKIP.has(n) || n.startsWith(".checking")) return [];   // .checking-<pid>: the script checker's drafts
     const p = join(dir, n);
     return statSync(p).isDirectory() ? codeFiles(p) : CODE.test(n) ? [relative(ROOT, p)] : [];
   });

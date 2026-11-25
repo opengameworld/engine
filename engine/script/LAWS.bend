@@ -7,6 +7,7 @@ import ../core/transform.bend as Tr
 import ../scene/scene.bend as S
 import ./rule.bend as R
 import ./respond.bend as Resp
+import ./problem.bend as Pb
 
 # LAW: when nothing happened, no rule does anything.
 law nothing_happened_nothing_changes:
@@ -39,3 +40,15 @@ law a_click_rule_waits_for_a_click:
 law a_click_on_no_thing_answers_nothing:
   {Resp.respond(S.Scene{[S.Thing{"a", Tr.identity(), S.Hidden{}}]}, [R.Rule{"a", R.Trigger.Clicked{}, R.Response.Move{V.V3{1.0, 0.0, 0.0}}}], [R.Happening.Clicked{3}])
    == S.Scene{[S.Thing{"a", Tr.identity(), S.Hidden{}}]} : S.Scene}
+
+# LAW: a project with no problems lets Play start.
+law no_problem_no_wait:
+  {Pb.any([]) == False{} : Bool}
+
+# LAW: the Console names the script, the kind of error, its line, and what is wrong.
+law a_problem_says_where:
+  {Pb.said(Pb.Problem{"Mover", Pb.Fault.Type{}, 12, 3, 2, "expected S.Scene, found F32", ""}) == "Mover.bend — Type error on line 12, column 3: expected S.Scene, found F32" : String}
+
+# LAW: a syntax error is said as one.
+law a_syntax_error_says_so:
+  {Pb.said(Pb.Problem{"Mover", Pb.kind_of("syntax"), 7, 1, 3, "expected a term, found 'def'", ""}) == "Mover.bend — Syntax error on line 7, column 1: expected a term, found 'def'" : String}

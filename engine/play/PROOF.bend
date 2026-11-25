@@ -42,3 +42,9 @@ def Laws.toolbar_play_then_stop_is_the_scene(s):
 
 def Laws.asking_for_edit_while_editing_changes_nothing(s):
   {==}
+
+def Laws.no_play_while_a_script_does_not_compile(s, p, ps):
+  {==}
+
+def Laws.play_starts_when_every_script_compiles(s):
+  {==}

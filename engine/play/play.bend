@@ -35,6 +35,7 @@ import ../anim/locomotion.bend as Loco
 import ./tick.bend as Tick
 import ./game.bend as Game
 import ../script/rule.bend as R
+import ../script/problem.bend as Pb
 import ../input/pointer.bend as Ptr
 import ../scene/pick.bend as Pick
 import ../core/vec.bend as V
@@ -200,6 +201,18 @@ def Play.toward(m: Mode, +want: U32, +x: Session) -> Session:
 
 def to_mode(+x: Session, +want: U32) -> Session:
   Play.toward(mode(x), want, x)
+
+def Play.allowed(broken: Bool, +want: U32) -> U32:
+  match broken:
+    case True{}:
+      0
+    case False{}:
+      want
+
+# to_mode, for a project whose scripts may not compile (engine/script/problem.bend): while one
+# does not, the session stays in Edit, as Unity does not enter Play mode with a compiler error.
+def to_mode_checked(+x: Session, +want: U32, ps: List<&2, Pb.Problem>) -> Session:
+  to_mode(x, Play.allowed(Pb.any(ps), want))
 
 # ---------- Ticks ----------
 

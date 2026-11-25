@@ -20,7 +20,8 @@ const SKIP = new Set([".DS_Store", "Thumbs.db"]);
 export function listProject(folder, root = resolve("projects")) {
   const out = [];
   const walk = (dir, above) => {
-    const names = readdirSync(dir).filter((n) => !SKIP.has(n)).sort();
+    // A name starting with "." is not the project's (the script checker's drafts: tools/script/check.ts).
+    const names = readdirSync(dir).filter((n) => !SKIP.has(n) && !n.startsWith(".")).sort();
     if (names.length === 0 && above) out.push(above + "/");
     for (const name of names) {
       const path = above ? `${above}/${name}` : name;
