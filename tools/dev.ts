@@ -74,6 +74,8 @@ if (process.env.WSL_DISTRO_NAME && /^\/mnt\/[a-z](?:\/|$)/i.test(process.cwd()))
     const paths = sources.flatMap((glob) => [...glob.scanSync({ dot: true })]);
     for (const file of paths) {
       if (file.split("/").includes("node_modules")) continue;
+      // Match the native watcher: start() writes these, so they must not restart it.
+      if (file.endsWith("catalog_generated.bend") || file.endsWith("files_generated.bend") || file.endsWith("project_generated.bend")) continue;
       const stat = statSync(file, { throwIfNoEntry: false });
       if (stat) files.set(file, `${stat.mtimeMs}:${stat.ctimeMs}:${stat.size}`);
     }
@@ -101,6 +103,8 @@ if (process.env.WSL_DISTRO_NAME && /^\/mnt\/[a-z](?:\/|$)/i.test(process.cwd()))
 }
 
 // The editor's Save (editor/app.js): a project's folder and the text Bend wrote for it.
+// PROJECT.bend imports these registries even before start() serves the editor.
+writeRegistries();
 await rules();   // loads Bend's plugin, so the .bend files below can be imported
 const Project = (await import(join(ROOT, "PROJECT.bend"))).default;
 const Save = (await import(join(ROOT, "engine/scene/save.bend"))).default;

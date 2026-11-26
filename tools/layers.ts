@@ -13,7 +13,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, normalize, relative } from "node:path";
 
 export const ROOT = join(import.meta.dir, "..");
-const SKIP = new Set([".git", "node_modules", "dist", ".export", "tothinkabout"]);
+const SKIP = new Set([".git", "node_modules", ".cache", "dist", ".export", "tothinkabout"]);
 const CODE = /\.(bend|js|mjs|ts|html)$/;
 
 // LAYERS.bend, loaded through ../bend's plugin (the engine's Bend, see docs/not-in-bend.txt).
