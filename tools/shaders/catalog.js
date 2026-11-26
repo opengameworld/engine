@@ -119,36 +119,41 @@ function shaderFiles(directory, prefix = "") {
   return paths;
 }
 
+// One project's shaders, from any project folder: the assets in its shaders/ folder, and what is wrong with the files that could not be used.
+export function scanProject(dir, compile = compileHlsl) {
+  const directory = resolve(dir, "shaders");
+  const assets = [], diagnostics = [];
+  let files;
+  try {
+    files = shaderFiles(directory).sort();
+  } catch (error) {
+    if (error.code !== "ENOENT") diagnostics.push({ path: "shaders", message: error.message });
+    files = [];
+  }
+  const available = new Set(files);
+  for (const path of files) {
+    const kind = classify(path);
+    if (!kind) {
+      const shader = path.slice(0, -5);
+      if (path.endsWith(".json") && classify(shader) && !available.has(shader)) {
+        diagnostics.push({ path, message: `Shader source "${shader}" is missing.` });
+      }
+      continue;
+    }
+    try {
+      assets.push({ id: path, ...loadAsset(directory, path, kind, available, compile) });
+    } catch (error) {
+      diagnostics.push({ path, message: error.message });
+    }
+  }
+  return { assets, diagnostics };
+}
+
 export function scanShaders(projects, compile = compileHlsl) {
   const catalog = Object.create(null);
   for (const project of readdirSync(projects, { withFileTypes: true })) {
     if (!project.isDirectory()) continue;
-    const directory = resolve(projects, project.name, "shaders");
-    const assets = [], diagnostics = [];
-    let files;
-    try {
-      files = shaderFiles(directory).sort();
-    } catch (error) {
-      if (error.code !== "ENOENT") diagnostics.push({ path: "shaders", message: error.message });
-      files = [];
-    }
-    const available = new Set(files);
-    for (const path of files) {
-      const kind = classify(path);
-      if (!kind) {
-        const shader = path.slice(0, -5);
-        if (path.endsWith(".json") && classify(shader) && !available.has(shader)) {
-          diagnostics.push({ path, message: `Shader source "${shader}" is missing.` });
-        }
-        continue;
-      }
-      try {
-        assets.push({ id: path, ...loadAsset(directory, path, kind, available, compile) });
-      } catch (error) {
-        diagnostics.push({ path, message: error.message });
-      }
-    }
-    catalog[project.name] = { assets, diagnostics };
+    catalog[project.name] = scanProject(resolve(projects, project.name), compile);
   }
   return catalog;
 }
@@ -171,7 +176,8 @@ function bendControl(p) {
     default: return "A.AsNumber{}";
   }
 }
-export function bendCatalog(catalog) {
+// engine: the import prefix from the generated file's folder to the engine's root.
+export function bendCatalog(catalog, engine = "../../") {
   const projects = Object.keys(catalog).sort();
   const name = (project) => `project_${project.replace(/[^a-zA-Z0-9]/g, "_")}`;
   const defs = projects.map((project) => {
@@ -187,7 +193,7 @@ export function bendCatalog(catalog) {
 # check write this file again.
 
 import Base
-import ../../engine/render/shader/asset.bend as A
+import ${engine}engine/render/shader/asset.bend as A
 
 def neg(+x: F32) -> F32: (0.0 - x : F32)
 
@@ -205,10 +211,10 @@ def of(+folder: String) -> A.Catalog:
 `;
 }
 
-export function writeShaderCatalog() {
-  const directory = resolve("editor/shaders");
+// Writes the samples' catalog (every folder under projects) into directory, as JSON and as Bend.
+export function writeShaderCatalog(projects = resolve("projects"), directory = resolve("editor/shaders"), engine = "../../") {
   const output = resolve(directory, "catalog.generated.json");
-  const catalog = scanShaders(resolve("projects"));
+  const catalog = scanShaders(projects);
   mkdirSync(directory, { recursive: true });
   const temporary = `${output}.${process.pid}.tmp`;
   writeFileSync(temporary, `${JSON.stringify(catalog, null, 2)}\n`);
@@ -216,12 +222,12 @@ export function writeShaderCatalog() {
   // A file that could not be used still has the name its settings give it: the editor lists it by that name.
   for (const [project, { diagnostics }] of Object.entries(catalog)) {
     for (const d of diagnostics) {
-      try { d.label = JSON.parse(readFileSync(resolve("projects", project, "shaders", `${d.path}.json`), "utf8")).label; } catch {}
+      try { d.label = JSON.parse(readFileSync(resolve(projects, project, "shaders", `${d.path}.json`), "utf8")).label; } catch {}
       if (typeof d.label !== "string" || !d.label.trim()) delete d.label;
     }
   }
   const bend = resolve(directory, "catalog_generated.bend");
-  writeFileSync(`${bend}.${process.pid}.tmp`, bendCatalog(catalog));
+  writeFileSync(`${bend}.${process.pid}.tmp`, bendCatalog(catalog, engine));
   renameSync(`${bend}.${process.pid}.tmp`, bend);
   for (const [project, { diagnostics }] of Object.entries(catalog)) {
     for (const { path, message } of diagnostics) console.warn(`[${project}/shaders/${path}] ${message}`);

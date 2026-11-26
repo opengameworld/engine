@@ -8,6 +8,9 @@
 // those folders is in the project. `bun run dev`, `check`, `build` and `export` write it; the dev
 // server writes it again after the editor creates a scene or a script.
 //
+// writeRegistry takes any project folder, where to write, and where its imports point (SAMPLE for the
+// engine's own projects), so a project outside the engine gets its registry the same way.
+//
 // What the registry gives (PROJECT.bend calls it for each project):
 //   scenes()             the scenes' names, by file name
 //   opened(name)         the scene as it opens: its code, minus the things deleted in the editor,
@@ -45,7 +48,12 @@ function byIndex(name, type, cases, none) {
   return out + `    case _:\n      ${none}\n`;
 }
 
-export function registryText(dir) {
+// Where the registry's imports point, each as an import prefix from the registry file's folder. A sample
+// in projects/<name>/ writes its registry beside its scenes; a project outside the engine writes it in
+// its gen/ folder and reaches the engine as a Bend package (docs/architecture/projects/README.md).
+export const SAMPLE = { project: "./", engine: "../../", prefabs: "../prefabs.bend" };
+
+export function registryText(dir, at = SAMPLE) {
   const scenes = names(join(dir, "scenes"), ".bend");
   const scripts = names(join(dir, "scripts"), ".bend");
   const saved = scenes.map((n) => existsSync(join(dir, "scenes", "saved", `${n}.bend`)));
@@ -53,16 +61,16 @@ export function registryText(dir) {
 # bun run dev, check, build and export write it again. (tools/project/registry.js says what each def is.)
 
 import Base
-import ../../engine/scene/scene.bend as S
-import ../../engine/scene/save.bend as Save
-import ../../engine/script/rule.bend as R
-import ../prefabs.bend as Pre
+import ${at.engine}engine/scene/scene.bend as S
+import ${at.engine}engine/scene/save.bend as Save
+import ${at.engine}engine/script/rule.bend as R
+import ${at.prefabs} as Pre
 `;
   scenes.forEach((n, i) => {
-    t += `import ./scenes/${n}.bend as Scene${i}\n`;
-    if (saved[i]) t += `import ./scenes/saved/${n}.bend as Saved${i}\n`;
+    t += `import ${at.project}scenes/${n}.bend as Scene${i}\n`;
+    if (saved[i]) t += `import ${at.project}scenes/saved/${n}.bend as Saved${i}\n`;
   });
-  scripts.forEach((n, i) => { t += `import ./scripts/${n}.bend as Script${i}\n`; });
+  scripts.forEach((n, i) => { t += `import ${at.project}scripts/${n}.bend as Script${i}\n`; });
   t += `\ndef scenes() -> List<&2, String>:\n  [${scenes.map(quote).join(", ")}]\n\n`;
   t += `def Reg.pick(c: Bool, +a: U32, +b: U32) -> U32:\n  match c:\n    case True{}:\n      a\n    case False{}:\n      b\n\n`;
   t += `# A scene's place among scenes() (${scenes.length} for a name that is not one).\ndef index(+name: String) -> U32:\n  `;
@@ -103,17 +111,21 @@ def update(+s: S.Scene, +dt: F32) -> S.Scene:
   return t;
 }
 
-// Writes every project's registry; says whether any changed (a scene, script or saved file came
+// Writes one project's registry at out; says whether it changed (a scene, script or saved file came
 // or went), so the dev server knows the page's code must be compiled again.
+export function writeRegistry(dir, out = join(dir, "project_generated.bend"), at = SAMPLE) {
+  const text = registryText(dir, at);
+  if (existsSync(out) && readFileSync(out, "utf8") === text) return false;
+  writeFileSync(`${out}.${process.pid}.tmp`, text);
+  renameSync(`${out}.${process.pid}.tmp`, out);
+  return true;
+}
+
+// Writes every sample's registry; says whether any changed.
 export function writeRegistries(root = resolve("projects")) {
   let changed = false;
   for (const p of readdirSync(root).filter((d) => statSync(join(root, d)).isDirectory()).sort()) {
-    const out = join(root, p, "project_generated.bend");
-    const text = registryText(join(root, p));
-    if (existsSync(out) && readFileSync(out, "utf8") === text) continue;
-    changed = true;
-    writeFileSync(`${out}.${process.pid}.tmp`, text);
-    renameSync(`${out}.${process.pid}.tmp`, out);
+    if (writeRegistry(join(root, p))) changed = true;
   }
   return changed;
 }
