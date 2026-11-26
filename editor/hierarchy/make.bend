@@ -18,6 +18,7 @@ import ../../engine/scene/scene.bend as S
 import ../../engine/scene/save.bend as Save
 import ../../engine/core/transform.bend as Tr
 import ../../engine/script/rule.bend as R
+import ../../engine/scene/reach.bend as Rc
 import ../../projects/prefabs.bend as Pre
 import ../workspace/state.bend as W
 import ../workspace/pieces.bend as P
@@ -156,8 +157,8 @@ def made_now(ms: List<&2, Pre.Made>, +s: S.Scene) -> List<&2, Pre.Made>:
 # the things deleted, and the rules when they are the editor's own.
 def save_text(+st: W.St, +base: S.Scene, +now: S.Scene) -> String:
   +c = W.cut(st)
-  Save.text(W.project_folder(W.files(st)), W.scene_name(c), Save.changed(base, now), Pre.lines(made_now(W.made(c), now)), W.removed(c), W.own_rules(st), W.rules(st))
+  Save.text(Rc.sample(), W.project_folder(W.files(st)), W.scene_name(c), Save.changed(base, now), Pre.lines(made_now(W.made(c), now)), W.removed(c), W.own_rules(st), W.rules(st))
 
-# Where the scene's saved file goes.
+# Where the scene's saved file goes, inside the project's folder.
 def save_path(+st: W.St) -> String:
-  Save.file(W.project_folder(W.files(st)), W.scene_name(W.cut(st)))
+  Save.file(W.scene_name(W.cut(st)))

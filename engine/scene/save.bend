@@ -4,7 +4,7 @@
 # writes what differs from it, as Godot's .tscn stores only "properties [not] equal to the
 # default value" and a Unity prefab instance stores its overrides. The difference is a list of
 # places: for each thing whose place (Transform) was changed, its name and its place now. The
-# file is projects/<name>/scenes/saved/<Scene>.bend, beside the scene's code (a folder of its
+# file is scenes/saved/<Scene>.bend in the project's folder, beside the scene's code (a folder of its
 # own: a Bend import path takes plain names, so "<Scene>.saved.bend" cannot be imported); the project's
 # registry (tools/project/registry.js) applies it to the scene when the scene opens, so what was
 # saved is what opens.
@@ -13,7 +13,8 @@
 # (made), and things of the code that were deleted by name (removed), as a Unity prefab instance
 # keeps its added and removed objects beside its overrides.
 #
-# Bend writes the file's text (text) and says where it goes (file); the editor's dev server only
+# Bend writes the file's text (text), with imports that reach the engine as engine/scene/reach.bend
+# says, and where it goes (file); the editor's dev server only
 # writes it to disk (tools/dev.ts), because a browser page cannot write a file in every browser
 # (showSaveFilePicker is Chromium only, per MDN). References: docs/references/play-save-undo.md.
 #
@@ -36,6 +37,7 @@ import ../core/quat.bend as Q
 import ../core/transform.bend as Tr
 import ./scene.bend as S
 import ../script/rule.bend as R
+import ./reach.bend as Rc
 
 type Placed is Data:
   Placed{name: String, place: Tr.Transform}
@@ -216,7 +218,9 @@ def Save.rule_lines(rs: List<&2, R.Rule>) -> String:
 # The text of a scene's saved file: the places that differ from the code, the things made in the
 # editor (projects/prefabs.bend's lines, already written), the things of the code deleted, and the
 # rules when the editor holds its own (own: the editor's rules replace the code's).
-def text(+folder: String, +scene: String, +ps: List<&2, Placed>, +made: String, +removed: List<&2, String>, +own: Bool, +rs: List<&2, R.Rule>) -> String:
+# The file sits two folders below the project's (scenes/saved/), and reaches the engine as r says.
+def text(r: Rc.Reach, +folder: String, +scene: String, +ps: List<&2, Placed>, +made: String, +removed: List<&2, String>, +own: Bool, +rs: List<&2, R.Rule>) -> String:
+  +e = Rc.prefix(r, 2n)
   String.concat([
     "# Saved by the editor for the scene \"", scene, "\" of the project \"", folder, "\"\n",
     "# (engine/scene/save.bend). Do not edit by hand: Save in the editor writes it again. places()\n",
@@ -224,12 +228,12 @@ def text(+folder: String, +scene: String, +ps: List<&2, Placed>, +made: String, 
     "# removed() the things of the code deleted, and, when has_rules() is True, rules() are the\n",
     "# scene's rules in place of the code's.\n\n",
     "import Base\n",
-    "import ../../../../engine/core/vec.bend as V\n",
-    "import ../../../../engine/core/quat.bend as Q\n",
-    "import ../../../../engine/core/transform.bend as Tr\n",
-    "import ../../../../engine/scene/save.bend as Save\n",
-    "import ../../../../engine/script/rule.bend as R\n",
-    "import ../../../prefabs.bend as Pre\n\n",
+    "import ", e, "engine/core/vec.bend as V\n",
+    "import ", e, "engine/core/quat.bend as Q\n",
+    "import ", e, "engine/core/transform.bend as Tr\n",
+    "import ", e, "engine/scene/save.bend as Save\n",
+    "import ", e, "engine/script/rule.bend as R\n",
+    "import ", e, "projects/prefabs.bend as Pre\n\n",
     "def places() -> List<&2, Save.Placed>:\n",
     "  [", String.drop(Save.lines(ps), 3n), "]\n\n",
     "def made() -> List<&2, Pre.Made>:\n",
@@ -248,9 +252,9 @@ def rules(own: Bool, saved: List<&2, R.Rule>, code: List<&2, R.Rule>) -> List<&2
     case False{}:
       code
 
-# Where a scene's saved file goes, from the repository's root.
-def file(+folder: String, +scene: String) -> String:
-  "projects/" ++ folder ++ "/scenes/saved/" ++ scene ++ ".bend"
+# Where a scene's saved file goes, inside its project's folder.
+def file(+scene: String) -> String:
+  "scenes/saved/" ++ scene ++ ".bend"
 
 # A transform as Bend reads it back (projects/prefabs.bend writes the things made with it).
 def place_text(+t: Tr.Transform) -> String:

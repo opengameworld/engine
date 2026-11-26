@@ -6,6 +6,7 @@ import ./scene.bend as S
 import ../core/transform.bend as Tr
 import ../../projects/water/scenes/Water.bend as Content
 import ./place.bend as Pl
+import ./reach.bend as Rc
 
 # ---------- Scene ----------
 
@@ -42,4 +43,10 @@ law nothing_saved_changes_nothing:
 
 # LAW: a scene's saved file lives beside the scene, in its project's scenes/.
 law a_save_goes_beside_its_scene:
-  {Save.file("water", "Water") == "projects/water/scenes/saved/Water.bend" : String}
+  {Save.file("Water") == "scenes/saved/Water.bend" : String}
+
+# LAW: a sample climbs to the engine's root by relative path, two folders plus the file's own depth;
+# a project outside the engine names the package at any depth.
+law reach_prefixes:
+  {[Rc.prefix(Rc.sample(), 0n), Rc.prefix(Rc.sample(), 1n), Rc.prefix(Rc.sample(), 2n), Rc.prefix(Rc.Reach.Package{"opengame-engine@0.4.0.0"}, 2n)]
+   == ["../../", "../../../", "../../../../", "opengame-engine@0.4.0.0/"] : List<&2, String>}

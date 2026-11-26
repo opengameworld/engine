@@ -132,7 +132,7 @@ def checks() -> List<&2, Check>:
    Check{"deleting a thing made forgets it", Bool.not(String.contains(Work.save_text(after(W.h_delete{}, after(W.h_make{1}, opened())), two(), W.scene(after(W.h_delete{}, after(W.h_make{1}, opened())))), "Pre.Made{"))},
    Check{"deleting a thing deletes its rules", U32.is_eq(count(after(W.h_delete{}, with_rule())), 0)},
    Check{"Delete on the Hierarchy deletes", Nat.is_eq(S.count(W.scene(after(key("delete"), opened()))), 1n)},
-   Check{"the scene saves beside itself", String.eq(Work.save_path(opened()), "projects/test/scenes/saved/Test.bend")},
+   Check{"the scene saves beside itself", String.eq(Work.save_path(opened()), "scenes/saved/Test.bend")},
    Check{"Create > Script asks for the script's files", String.eq(W.ask_what(W.ask(after(W.f_make{}, after(Work.on_input(W.f_name{""}, Web.typed{"Spin"}), after(W.f_new{"script"}, opened()))))), "create")},
    Check{"a new script is a file in scripts/", String.eq(Work.created_file(after(W.f_make{}, after(Work.on_input(W.f_name{""}, Web.typed{"Spin"}), after(W.f_new{"script"}, opened())))), "Assets/scripts/Spin.bend")},
    Check{"a script waits for Save while something is not saved", U32.is_eq(W.ask_n(W.ask(after(W.f_make{}, after(Work.on_input(W.f_name{""}, Web.typed{"Spin"}), after(W.f_new{"script"}, after(W.h_make{0}, opened())))))), 0)},

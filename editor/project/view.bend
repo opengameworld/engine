@@ -44,6 +44,7 @@ import ../animation/view.bend as An
 import ../shaders/view.bend as Sh
 import ./files.bend as F
 import ./templates.bend as Tp
+import ../../engine/scene/reach.bend as Rc
 import ../icons/icons.bend as I
 import ../icons/view.bend as Ic
 
@@ -275,7 +276,7 @@ def made(+st: W.St) -> W.St:
 
 # What a Create of a scene, a script or a shader writes, each file inside the project's folder.
 def create_files(+st: W.St) -> List<&2, Tp.Written>:
-  Tp.files(W.making(W.cut(st)), W.ask_path(W.ask(st)))
+  Tp.files(Rc.sample(), W.making(W.cut(st)), W.ask_path(W.ask(st)))
 
 # Where the Project window shows the new file once the page opens again: its folder, and itself.
 def created_at(+st: W.St) -> String:

@@ -43,3 +43,6 @@ def Laws.nothing_saved_changes_nothing(s):
 
 def Laws.a_save_goes_beside_its_scene():
   {==}
+
+def Laws.reach_prefixes():
+  {==}

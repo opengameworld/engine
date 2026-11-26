@@ -156,7 +156,7 @@ Bun.serve({
     if (typeof text !== "string" || typeof scene !== "string" || !/^[A-Za-z][A-Za-z0-9_]*$/.test(scene)
       || !existsSync(join(ROOT, "projects", folder, "scenes", `${scene}.bend`)))
       return new Response("no such scene", { status: 400, headers: cors });
-    const path = Save.file(folder, scene);
+    const path = `projects/${folder}/${Save.file(scene)}`;
     written.set(path.replace(/^projects\//, ""), Date.now());
     await Bun.write(join(ROOT, path), text);
     console.log(`saved ${path}`);
