@@ -110,6 +110,7 @@ def create_items() -> List<&2, Web.HTML<W.Ev>>:
   [create_item("folder", "Folder", F.Sort.Folder{}),
    create_item("scene", "Scene", F.Sort.Scene{}),
    create_item("script", "Script", F.Sort.Script{}),
+   create_item("system", "System", F.Sort.Script{}),
    create_item("shader", "Shader", F.Sort.Shader{})]
 
 def create_menu() -> Web.HTML<W.Ev>:
@@ -145,7 +146,7 @@ def context_menu(open: Bool, +st: W.St) -> List<&2, Web.HTML<W.Ev>>:
        Web.node{"div", List.append(&2, Web.Attr<W.Ev>, [Web.attr{"class", "menu editor-context-menu"}, Web.attr{"role", "menu"}, Web.attr{"aria-label", "Create"}], menu_place(c)), create_items()}]
 
 def what_label(+what: String) -> String:
-  P.pick_text(String.eq(what, "scene"), "Scene name", P.pick_text(String.eq(what, "script"), "Script name", P.pick_text(String.eq(what, "shader"), "Shader name", "Folder name")))
+  P.pick_text(String.eq(what, "scene"), "Scene name", P.pick_text(String.eq(what, "script"), "Script name", P.pick_text(String.eq(what, "system"), "System name", P.pick_text(String.eq(what, "shader"), "Shader name", "Folder name"))))
 
 # A scene, a script or a shader restarts the engine: with something not saved, they wait for Save.
 def waits(+st: W.St, +what: String) -> Bool:
@@ -199,7 +200,7 @@ def picture(+st: W.St, +path: String) -> Web.HTML<W.Ev>:
 # A double click opens a folder, and a script in the script editor (editor/code/), as Unity opens
 # a script from its Project window.
 def is_script(+path: String) -> Bool:
-  (String.starts_with(path, F.scripts() ++ "/") && String.ends_with(path, ".bend"))
+  ((String.starts_with(path, F.scripts() ++ "/") || String.starts_with(path, F.systems() ++ "/")) && String.ends_with(path, ".bend"))
 
 def opens(folder: Bool, +path: String) -> List<&2, Web.Attr<W.Ev>>:
   P.pick_attrs(folder, [Web.on{Web.double_click{W.f_go{path}}}],

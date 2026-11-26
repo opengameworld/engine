@@ -22,6 +22,7 @@ import ../../engine/script/rule.bend as R
 import ../../engine/script/problem.bend as Pb
 import ../scene/panels.bend as O
 import ../code/code.bend as Cd
+import ../../engine/script/attach.bend as At
 import ../../projects/prefabs.bend as Pre
 
 # The animation library's clip picked in the Project window (its collection and place in it,
@@ -100,6 +101,7 @@ type Ev is Data:
   p_step{}                           # one tick, while paused
   p_save{}                           # write the edited scene's places and rules to the project
   d_typed{edit: O.Edit, text: String}   # a number typed in the Inspector (Transform, Animation)
+  d_tags{text: String}               # the Tags of the thing selected, typed in the Inspector
   h_key{name: String}                # a key on the Hierarchy
   r_add{}                            # Add Component: a Rule
   r_drop{k: U32}                     # rule k removed
@@ -129,6 +131,14 @@ type Ev is Data:
   k_checked{text: String, found: Bool, problem: Pb.Problem}   # Bend's checker answered for text (editor/app.js)
   k_save{}                           # Save the script (its button)
   k_close{force: Bool}               # Close the script editor; force: drop what is not saved
+  x_add{name: String}                # Add Component > Script: this script, on the thing selected
+  x_drop{k: U32}                     # its script k removed
+  x_num{k: U32, field: String, text: String}   # a number typed in a field of script k
+  x_int{k: U32, field: String, text: String}   # a whole number typed in a field of script k
+  x_flag{k: U32, field: String, on: Bool}      # a switch of script k pressed
+  x_text{k: U32, field: String, text: String}  # a text typed in a field of script k
+  x_vec{k: U32, field: String, axis: U32, text: String}   # an axis of a V3 field of script k
+  x_ref{k: U32, field: String, n: U32}         # a reference of script k set to the scene's thing n
 
 def no_ask() -> Ask:
   Ask{0, "", ""}
@@ -162,8 +172,8 @@ def first_tab(broken: Bool) -> U32:
 # shader catalog and files, the scene's rules and whether they are the editor's own, the project's
 # name and folder, the scene's name, what the editor made and deleted in it, and the project's
 # scripts that do not compile.
-def start(+scene: S.Scene, +still: Bool, +catalog: A.Catalog, +paths: List<&2, String>, +rules: List<&2, R.Rule>, +own: Bool, +name: String, +folder: String, +sc: String, +made: List<&2, Pre.Made>, +removed: List<&2, String>, +broken: List<&2, Pb.Problem>) -> Web.Update<St, Ev>:
-  Web.update{Screen{scene, 0, still, Desk{first_tab(Pb.any(broken)), Files{folder, paths, ["Assets"], "Assets", "", "", False{}, "", ""}, List.append(&2, Line, script_lines(broken), problem_lines(A.problems(catalog))), rules, own, False{}, False{}, no_ask(), name, Cut{sc, made, removed, 0, False{}, 0.0, 0.0, "", 0.0}}, Lib{0, 0, False{}, False{}}, Shade{catalog, scene}, Run{0, 0, 0}, Cd.start(broken)}, Web.none{}}
+def start(+scene: S.Scene, +still: Bool, +catalog: A.Catalog, +paths: List<&2, String>, +rules: List<&2, R.Rule>, +own: Bool, +name: String, +folder: String, +sc: String, +made: List<&2, Pre.Made>, +removed: List<&2, String>, +broken: List<&2, Pb.Problem>, +offers: List<&2, At.Offer>) -> Web.Update<St, Ev>:
+  Web.update{Screen{scene, 0, still, Desk{first_tab(Pb.any(broken)), Files{folder, paths, ["Assets"], "Assets", "", "", False{}, "", ""}, List.append(&2, Line, script_lines(broken), problem_lines(A.problems(catalog))), rules, own, False{}, False{}, no_ask(), name, Cut{sc, made, removed, 0, False{}, 0.0, 0.0, "", 0.0}}, Lib{0, 0, False{}, False{}}, Shade{catalog, scene}, Run{0, 0, 0}, Cd.start(broken, offers)}, Web.none{}}
 
 # ---------- The state's parts ----------
 

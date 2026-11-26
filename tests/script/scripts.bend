@@ -12,6 +12,7 @@ import ../../engine/core/transform.bend as Tr
 import ../../engine/scene/scene.bend as S
 import ../../engine/play/play.bend as Play
 import ../../engine/play/tick.bend as Tick
+import ../../engine/script/run.bend as Run
 
 type Check is Data:
   Check{name: String, ok: Bool}
@@ -20,11 +21,11 @@ def close(+a: F32, +b: F32) -> Bool:
   F32.is_lt(F32.abs((a - b : F32)), 0.001)
 
 def box() -> S.Scene:
-  S.Scene{[S.Thing{"Box", Tr.identity(), S.Hidden{}}]}
+  S.scene([S.thing("Box", Tr.identity(), S.Hidden{})])
 
-def raise(t: S.Thing, +by: F32) -> S.Thing:
-  S.Thing{n, +p, l} = t
-  S.Thing{n, Tr.with_position(p, V.add(Tr.position(p), V.V3{0.0, by, 0.0})), l}
+def raise(+t: S.Thing, +by: F32) -> S.Thing:
+  +p = S.place(t)
+  S.with_place(t, Tr.with_position(p, V.add(Tr.position(p), V.V3{0.0, by, 0.0})))
 
 # The script: start raises the Box by 1 m, update by 1 m per second.
 def start(+s: S.Scene) -> S.Scene:
@@ -38,7 +39,7 @@ def frames(n: Nat, +x: Play.Session, +dt: F32) -> Play.Session:
     case 0n:
       x
     case 1n+k:
-      frames(k, Play.frame_with(~start, ~update, x, dt, False{}), dt)
+      frames(k, Play.frame_with(~start, ~update, ~Run.none, x, dt, False{}), dt)
 
 def height(+x: Play.Session) -> F32:
   V.y(Tr.position(S.place(S.at(Play.shown(x), 0))))
@@ -52,4 +53,4 @@ def checks() -> List<&2, Check>:
    Check{"one second of ticks: start once, update sixty times", close(height(frames(60n, playing(), Tick.step())), 2.0)},
    Check{"while editing, scripts do not run", close(height(frames(10n, Play.edit(box()), Tick.step())), 0.0)},
    Check{"Stop gives back the scene as it was edited", close(height(Play.to_mode(frames(30n, playing(), Tick.step()), 0)), 0.0)},
-   Check{"Step runs one tick with the scripts", close(height(Play.step_with(~start, ~update, Play.to_mode(playing(), 2))), (1.0 + Tick.step() : F32))}]
+   Check{"Step runs one tick with the scripts", close(height(Play.step_with(~start, ~update, ~Run.none, Play.to_mode(playing(), 2))), (1.0 + Tick.step() : F32))}]

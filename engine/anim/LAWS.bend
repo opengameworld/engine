@@ -135,11 +135,11 @@ law walking_never_moves_a_shown_thing:
   for m: Mat.Material
   for i: Loco.Input
   for dt: F32
-  {Loco.drive_thing(S.Thing{n, p, S.Shown{sh, m}}, i, dt) == S.Thing{n, p, S.Shown{sh, m}} : S.Thing}
+  {Loco.drive_thing(S.thing(n, p, S.Shown{sh, m}), i, dt) == S.thing(n, p, S.Shown{sh, m}) : S.Thing}
 
 law walking_never_moves_a_hidden_thing:
   for n: String
   for p: Tr.Transform
   for i: Loco.Input
   for dt: F32
-  {Loco.drive_thing(S.Thing{n, p, S.Hidden{}}, i, dt) == S.Thing{n, p, S.Hidden{}} : S.Thing}
+  {Loco.drive_thing(S.thing(n, p, S.Hidden{}), i, dt) == S.thing(n, p, S.Hidden{}) : S.Thing}

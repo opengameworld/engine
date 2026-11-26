@@ -49,7 +49,7 @@ import { createLoop, fitCanvas } from "../platform/web/loop.js";
 // start() when none). `skins` gives, for each figure's skin name, the files
 // to draw it with (platform/web/draw.js says their shape).
 export function startEditor(opening, { skins = {}, camera = null, shaders = {}, folder = "", name = "", rules = [], ownRules = false, base = opening,
-  project = null, scene: sceneName = "", made = { $: "Nil" }, removed = { $: "Nil" }, at = "", pick = "", problems = { $: "Nil" }, code = "" } = {}) {
+  project = null, scene: sceneName = "", made = { $: "Nil" }, removed = { $: "Nil" }, at = "", pick = "", problems = { $: "Nil" }, code = "", offers = { $: "Nil" } } = {}) {
   theme({ mode: "dark", radius: "pill" });   // every button and segmented in the layout is a pill
 
   const canvas = document.getElementById("scene");
@@ -103,7 +103,7 @@ export function startEditor(opening, { skins = {}, camera = null, shaders = {}, 
   const offline = (what) => (e) => say("error", `${what} needs \`bun run dev\` (${e.message}).`);
 
   const work = mount(document.body, {
-    init: () => Work.start(scene, still.matches, Catalog.of(folder), Files.of(folder), rules, ownRules, name, folder, sceneName, made, removed, problems),
+    init: () => Work.start(scene, still.matches, Catalog.of(folder), Files.of(folder), rules, ownRules, name, folder, sceneName, made, removed, problems, offers),
     render: Work.render, on_event: Work.on_event, on_input: Work.on_input,
   }, {
     adopt: true,

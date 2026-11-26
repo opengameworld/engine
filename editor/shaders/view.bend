@@ -107,7 +107,7 @@ def keep_go(nows: List<&2, S.Thing>, olds: List<&2, S.Thing>) -> List<&2, S.Thin
 
 # The state with every graph material of the scene remembered.
 def remembered(+st: W.St) -> W.St:
-  W.with_shade(st, W.Shade{catalog(st), S.Scene{keep_go(S.things(W.scene(st)), S.things(graphs(st)))}})
+  W.with_shade(st, W.Shade{catalog(st), S.with_things(W.scene(st), keep_go(S.things(W.scene(st)), S.things(graphs(st))))})
 
 def any_shown(xs: List<&2, S.Thing>) -> Bool:
   match xs:

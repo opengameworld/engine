@@ -15,8 +15,8 @@ import ../../../engine/core/transform.bend as Tr
 import ../water.bend as Water
 
 def start() -> S.Scene:
-  S.Scene{[
-    S.Thing{"Water", Tr.identity(), S.Shown{Water.shape(), Water.material()}}]}
+  S.scene([
+    S.thing("Water", Tr.identity(), S.Shown{Water.shape(), Water.material()})])
 
 # What the scene's things do in Play (engine/script/rule.bend).
 def rules() -> List<&2, R.Rule>:

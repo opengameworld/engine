@@ -65,25 +65,25 @@ law a_problem_elsewhere_marks_nothing_here:
 
 # LAW: a script's name is its file's.
 law a_script_is_named_by_its_file:
-  {C.name(C.opening(C.start([]), "scripts/Mover.bend")) == "Mover" : String}
+  {C.name(C.opening(C.start([], []), "scripts/Mover.bend")) == "Mover" : String}
 
 # LAW: a script just opened has nothing to save.
 law a_script_just_read_has_nothing_to_save:
-  {C.dirty(C.arrived(C.opening(C.start([]), "scripts/Mover.bend"), "def x")) == False{} : Bool}
+  {C.dirty(C.arrived(C.opening(C.start([], []), "scripts/Mover.bend"), "def x")) == False{} : Bool}
 
 # LAW: a keystroke is something to save.
 law a_keystroke_is_something_to_save:
-  {C.dirty(C.typed(C.arrived(C.opening(C.start([]), "scripts/Mover.bend"), "def x"), "def y")) == True{} : Bool}
+  {C.dirty(C.typed(C.arrived(C.opening(C.start([], []), "scripts/Mover.bend"), "def x"), "def y")) == True{} : Bool}
 
 # LAW: an answer for an older text asks again: the last text typed is always checked.
 law an_old_answer_asks_again:
-  {C.asking(C.answered(C.typed(C.arrived(C.opening(C.start([]), "scripts/Mover.bend"), "a"), "b"), "a", False{}, C.no_problem())) == True{} : Bool}
+  {C.asking(C.answered(C.typed(C.arrived(C.opening(C.start([], []), "scripts/Mover.bend"), "a"), "b"), "a", False{}, C.no_problem())) == True{} : Bool}
 
 # LAW: an answer for the text in the box ends the checking.
 law the_answer_for_the_text_ends_it:
-  {C.asking(C.answered(C.typed(C.arrived(C.opening(C.start([]), "scripts/Mover.bend"), "a"), "b"), "b", False{}, C.no_problem())) == False{} : Bool}
+  {C.asking(C.answered(C.typed(C.arrived(C.opening(C.start([], []), "scripts/Mover.bend"), "a"), "b"), "b", False{}, C.no_problem())) == False{} : Bool}
 
 # LAW: closing keeps the project's problems: Play still waits for them.
 law closing_keeps_the_projects_problems:
   for p: Pb.Problem
-  {Pb.any(C.broken(C.shut(C.opening(C.start([p]), "scripts/Mover.bend")))) == True{} : Bool}
+  {Pb.any(C.broken(C.shut(C.opening(C.start([p], []), "scripts/Mover.bend")))) == True{} : Bool}

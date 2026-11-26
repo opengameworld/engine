@@ -29,6 +29,7 @@ import ../../library/catalog.bend as Cat
 def assets() -> String: "Assets"
 def scenes() -> String: "Assets/scenes"
 def scripts() -> String: "Assets/scripts"
+def systems() -> String: "Assets/systems"
 def shaders() -> String: "Assets/shaders"
 def library() -> String: "Library"
 def animations() -> String: "Library/Animations"
@@ -304,7 +305,7 @@ def kind(+paths: List<&2, String>, +path: String) -> Sort:
   pick_kind(is_folder(paths, path), Sort.Folder{},
   pick_kind(String.starts_with(path, scenes() ++ "/saved/"), Sort.Saved{},
   pick_kind((String.starts_with(path, scenes() ++ "/") && String.ends_with(path, ".bend")), Sort.Scene{},
-  pick_kind((String.starts_with(path, scripts() ++ "/") && String.ends_with(path, ".bend")), Sort.Script{},
+  pick_kind(((String.starts_with(path, scripts() ++ "/") || String.starts_with(path, systems() ++ "/")) && String.ends_with(path, ".bend")), Sort.Script{},
   pick_kind(String.starts_with(path, animations() ++ "/"), Sort.Clip{},
   pick_kind(any_end(path, shader_ends()), Sort.Shader{},
   pick_kind(String.ends_with(path, ".bend"), Sort.Module{}, Sort.Other{})))))))
@@ -419,7 +420,7 @@ def is_word(+n: String) -> Bool:
 
 # Where a new thing of this kind goes ("folder" in the folder shown).
 def target(+what: String, +at: String) -> String:
-  pick_s(String.eq(what, "scene"), scenes(), pick_s(String.eq(what, "script"), scripts(), pick_s(String.eq(what, "shader"), shaders(), at)))
+  pick_s(String.eq(what, "scene"), scenes(), pick_s(String.eq(what, "script"), scripts(), pick_s(String.eq(what, "system"), systems(), pick_s(String.eq(what, "shader"), shaders(), at))))
 
 # The file a new scene, script or shader is (its main file, for a shader).
 def new_file(+what: String, +n: String) -> String:

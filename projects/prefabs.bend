@@ -39,7 +39,7 @@ def look(+k: Prefab) -> S.Look:
 
 def thing(+m: Made) -> S.Thing:
   Made{n, k, p} = m
-  S.Thing{n, p, look(k)}
+  S.thing(n, p, look(k))
 
 def name_of(+m: Made) -> String:
   Made{n, _, _} = m
@@ -56,10 +56,16 @@ def things(ms: List<&2, Made>) -> List<&2, S.Thing>:
     case +h <> t:
       thing(h) <> things(t)
 
-# The scene with the things made in the editor, after its own.
-def add(s: S.Scene, +ms: List<&2, Made>) -> S.Scene:
-  S.Scene{xs} = s
-  S.Scene{List.append(&2, S.Thing, xs, things(ms))}
+def Pre.added(xs: List<&2, S.Thing>, +s: S.Scene) -> S.Scene:
+  match xs:
+    case Nil{}:
+      s
+    case Con{+h, t}:
+      Pre.added(t, S.add(s, h))
+
+# The scene with the things made in the editor, after its own, each with a new id from the scene.
+def add(+s: S.Scene, +ms: List<&2, Made>) -> S.Scene:
+  Pre.added(things(ms), s)
 
 def kind_text(+k: Prefab) -> String:
   match k:

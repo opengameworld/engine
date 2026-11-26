@@ -17,8 +17,8 @@ import ../../../engine/anim/figure.bend as Fig
 import ../arm.bend as Arm
 
 def start() -> S.Scene:
-  S.Scene{[
-    S.Thing{"Arm", Tr.identity(), S.Rigged{Fig.make(Arm.skeleton(), "", Arm.rules())}}]}
+  S.scene([
+    S.thing("Arm", Tr.identity(), S.Rigged{Fig.make(Arm.skeleton(), "", Arm.rules())})])
 
 # What the scene's things do in Play (engine/script/rule.bend).
 def rules() -> List<&2, R.Rule>:

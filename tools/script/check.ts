@@ -1,34 +1,39 @@
 // Checks a script's text with Bend's own checker, and says where the first error is.
 //
-// A script is checked as the engine will use it. Its text goes to a draft beside a probe, and
-// the probe is checked: the probe imports the draft and calls start(s) and update(s, dt) the way
-// each project's registry calls them (tools/project/registry.js, engine/play/game.bend). So a
-// script that type-checks but does not keep that shape fails here, before the registry would fail
-// to compile. The checker is Bend's (../bend/bend2/bend.ts: book_load, then book_valid, as
-// `bend <file> --check-only` does). It is called in this process, not run as a command, because
-// its error keeps the exact span (Err.spn: the file's text, its namespace, and the offsets where
-// the error begins and ends), which the command only prints as text with no file name.
+// A project has two kinds of script (tools/project/registry.js):
+//   scripts/<Name>.bend   a script attached to things (engine/script/me.bend): its State, initial(),
+//                         runs(), start(me, s) and update(me, s, dt)
+//   systems/<Name>.bend   a system over the whole scene: start(s) and update(s, dt)
+//
+// A script is checked as the engine will use it. Its text goes to a draft beside a probe, and the
+// probe is checked: the probe imports the draft and calls it the way the project's registry does,
+// with the very code the registry writes (tools/script/shape.js). So a script that type-checks
+// but does not keep its shape fails here, before the registry would fail to compile. The checker is
+// Bend's (../bend/bend2/bend.ts: book_load, then book_valid, as `bend <file> --check-only` does). It
+// is called in this process, not run as a command, because its error keeps the exact span
+// (Err.spn: the file's text, its namespace, and the offsets where the error begins and ends), which
+// the command only prints as text with no file name.
 //
 // The draft and the probe go in projects/<folder>/.checking-<pid>/, a hidden folder at the depth
-// of scripts/. Every relative import of the script (../../../engine/..., ../../prefabs.bend,
-// ../<file>.bend) resolves there as it does from scripts/. A name starting with "." is not the
-// project's: the registry, the Project window's list, the dev server's watcher and git leave it
-// out, as Unity ignores hidden files and folders.
+// of scripts/. Every relative import of the script (../../../engine/..., ../messages.bend,
+// ../messages_generated.bend) resolves there as it does from scripts/. A name starting with "." is
+// not the project's: the registry, the Project window's list, the dev server's watcher and git leave
+// it out, as Unity ignores hidden files and folders.
 //
-//   checkScript(folder, name, text)   the first problem, or null when the text checks
-//   checkSaved(folder, name)          the same, for the file on disk
+//   checkScript(folder, name, text, kind)   the first problem, or null when the text checks;
+//                                           kind is "scripts" (attached, the default) or "systems"
+//   checkSaved(folder, name, kind)          the same, for the file on disk
 //
 // A problem is { kind, line, col, len, text, where }:
 //   kind    what sort of error it is, from where Bend stopped (engine/script/problem.bend names
 //           each): "syntax" (reading the text), "import" (an import line, or the file it names),
-//           "type" (checking the code), "shape" (start or update is missing, or is not what the
-//           engine calls), "unfinished" (a ? hole left in the code)
+//           "type" (checking the code), "shape" (a def the engine calls is missing, or is not what
+//           it calls, or a field is of a kind it cannot keep), "unfinished" (a ? hole left)
 //   line, col   counted from 1 (0: no place); len is how many characters to mark on that line (at
 //           least 1, never past its end, as Bend's own underline does)
 //   text    what is wrong, in one line: Bend's "expected ..., found ..." with the script's own
 //           names (S.Scene, not the module's path), without the list of the names in scope
 //   where   "" when the error is in the script, or the repository path of the module it is in
-//           (an engine module the script imports)
 //
 // Limits now:
 // - Bend stops at its first error, so there is one problem at a time (Godot lists them all).
@@ -41,19 +46,27 @@
 import { mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import { ROOT } from "../layers";
+import { fieldsOf, stateCode } from "./shape.js";
 
 export type Kind = "syntax" | "import" | "type" | "shape" | "unfinished";
 export type Problem = { kind: Kind; line: number; col: number; len: number; text: string; where: string };
+export type Folder = "scripts" | "systems";
 
 const Bend = await import(join(ROOT, "..", "bend", "bend2", "bend.ts"));
 
-// What the engine calls in Play (engine/play/game.bend), as the probe calls it.
+// What the engine calls, def by def, as the probes call it.
 const SHAPE: Record<string, string> = {
-  start: "def start(+s: S.Scene) -> S.Scene",
-  update: "def update(+s: S.Scene, +dt: F32) -> S.Scene",
+  "systems.start": "def start(+s: S.Scene) -> S.Scene",
+  "systems.update": "def update(+s: S.Scene, +dt: F32) -> S.Scene",
+  "scripts.start": "def start(+me: Me.Me, +s: State) -> Me.Me & State",
+  "scripts.update": "def update(+me: Me.Me, +s: State, +dt: F32) -> Me.Me & State",
+  "scripts.initial": "def initial() -> State",
+  "scripts.runs": "def runs() -> Me.Runs",
+  "scripts.State": "type State is Data: with State{...} on the next line",
 };
 
-function probeText(name: string): string {
+// The probe for a system.
+function systemProbe(name: string): string {
   return [
     "import Base",
     "import ../../../engine/scene/scene.bend as S",
@@ -67,7 +80,34 @@ function probeText(name: string): string {
     "",
   ].join("\n");
 }
-const PROBE_UPDATE_LINE = 8;   // the line of probeText's def Probe.update
+
+// The probe for an attached script: the registry's own code for it (tools/script/shape.js).
+function scriptProbe(name: string, fields: Array<{ name: string; kind: string }>): string {
+  return [
+    "import Base",
+    "import ../../../engine/script/me.bend as Me",
+    "import ../../../engine/script/value.bend as Val",
+    `import ./${name}.bend as Script0`,
+    "",
+    stateCode("Script0", 0, fields),
+    "def Probe.runs() -> Me.Runs:",
+    "  Script0.runs()",
+    "",
+  ].join("\n");
+}
+
+// Which def of the engine's an error in the probe is about: the probe's def the line falls in.
+function defAt(probe: string, line: number, folder: Folder): string {
+  const lines = probe.split("\n").slice(0, line);
+  const last = [...lines].reverse().find((l) => l.startsWith("def "));
+  const d = last ? /^def ([A-Za-z0-9_.]+)/.exec(last)![1]! : "";
+  if (folder === "systems") return d === "Probe.update" ? "update" : "start";
+  if (d.endsWith(".started") || d.endsWith(".packed")) return "update";
+  if (d.endsWith(".go")) return /\.start\(/.test(probe.split("\n")[line - 1] ?? "") ? "start" : "update";
+  if (d.endsWith(".defaults")) return "initial";
+  if (d === "Probe.runs") return "runs";
+  return "State";
+}
 
 // Line and column (from 1) of an offset in a text, and how much of that line to mark.
 function place(str: string, beg: number, end: number) {
@@ -81,9 +121,10 @@ function place(str: string, beg: number, end: number) {
   };
 }
 
-// Where `def <name>` is in the script, for a problem the probe found with it.
+// Where `def <name>` (or `type State`) is in the script, for a problem the probe found with it.
 function defPlace(text: string, def: string) {
-  const m = new RegExp(`^def\\s+(${def})\\b`, "m").exec(text);
+  const re = def === "State" ? /^type\s+(State)\b/m : new RegExp(`^def\\s+(${def})\\b`, "m");
+  const m = re.exec(text);
   if (!m) return { line: 0, col: 0, len: 0 };
   return place(text, m.index + m[0].length - def.length, m.index + m[0].length);
 }
@@ -110,7 +151,7 @@ function readKind(e: any): Kind {
   return /^(an import|no such file|a fresh alias)/.test(exp) ? "import" : "syntax";
 }
 
-function problemOf(e: any, kind: Kind, name: string, text: string, folder: string): Problem {
+function problemOf(e: any, kind: Kind, name: string, text: string, folder: string, kindOf: Folder, probe: string): Problem {
   if (!e || e.$ !== "Err") return { kind, line: 0, col: 0, len: 0, text: local(String(e?.message ?? e).replace(/^Error:\s*/, "")), where: "" };
   if (!e.spn) return { kind, line: 0, col: 0, len: 0, text: message(e), where: "" };
   const f = e.spn.file;
@@ -118,9 +159,10 @@ function problemOf(e: any, kind: Kind, name: string, text: string, folder: strin
   if (f.ns === name) return { kind, ...at, text: message(e), where: "" };
   // The probe (the root, namespace ""): the script does not keep the shape the engine calls.
   if (f.ns === "") {
-    const def = at.line >= PROBE_UPDATE_LINE ? "update" : "start";
+    const def = defAt(probe, at.line, kindOf);
     const there = defPlace(text, def);
-    const said = there.line ? `${def} must be ${SHAPE[def]}` : `the script has no ${def}; it must have ${SHAPE[def]}`;
+    const what = SHAPE[`${kindOf}.${def}`]!;
+    const said = there.line ? `${def} must be ${what}` : `the script has no ${def}; it must have ${what}`;
     return { kind: "shape", ...there, text: `${said} (the engine calls it in Play)`, where: "" };
   }
   // A module the script imports: its path in the repository.
@@ -130,22 +172,33 @@ function problemOf(e: any, kind: Kind, name: string, text: string, folder: strin
 
 let queue: Promise<unknown> = Promise.resolve();
 
-async function checkNow(folder: string, name: string, text: string): Promise<Problem | null> {
+async function checkNow(folder: string, name: string, text: string, kindOf: Folder): Promise<Problem | null> {
+  let probe: string;
+  if (kindOf === "scripts") {
+    const r = fieldsOf(text) as { fields?: Array<{ name: string; kind: string }>; error?: string; line?: number };
+    if (r.error) {
+      const at = r.line ? place(text, text.split("\n").slice(0, r.line - 1).join("\n").length + (r.line > 1 ? 1 : 0), text.length) : { line: 0, col: 0, len: 0 };
+      return { kind: "shape", line: at.line, col: r.line ? 1 : 0, len: r.line ? Math.max(1, (text.split("\n")[r.line - 1] ?? "").length) : 0, text: r.error, where: "" };
+    }
+    probe = scriptProbe(name, r.fields!);
+  } else {
+    probe = systemProbe(name);
+  }
   const dir = join(ROOT, "projects", folder, `.checking-${process.pid}`);
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, `${name}.bend`), text);
-  writeFileSync(join(dir, `${name}.probe`), probeText(name));
+  writeFileSync(join(dir, `${name}.probe`), probe);
   const book = Bend.book_nil();
   try {
     try {
       await Bend.book_load(book, join(dir, `${name}.probe`), "", new Map());
     } catch (e) {
-      return problemOf(e, readKind(e), name, text, folder);
+      return problemOf(e, readKind(e), name, text, folder, kindOf, probe);
     }
     try {
       Bend.book_valid(book);
     } catch (e) {
-      return problemOf(e, "type", name, text, folder);
+      return problemOf(e, "type", name, text, folder, kindOf, probe);
     }
     if (book.hols > 0) return { kind: "unfinished", line: 0, col: 0, len: 0, text: `${book.hols} hole${book.hols === 1 ? "" : "s"} (?) left in the code`, where: "" };
     return null;
@@ -155,20 +208,21 @@ async function checkNow(folder: string, name: string, text: string): Promise<Pro
 }
 
 // One check at a time: they share the draft folder.
-export function checkScript(folder: string, name: string, text: string): Promise<Problem | null> {
-  const run = queue.then(() => checkNow(folder, name, text));
+export function checkScript(folder: string, name: string, text: string, kindOf: Folder = "scripts"): Promise<Problem | null> {
+  const run = queue.then(() => checkNow(folder, name, text, kindOf));
   queue = run.catch(() => {});
   return run;
 }
 
-export function checkSaved(folder: string, name: string): Promise<Problem | null> {
-  return checkScript(folder, name, readFileSync(join(ROOT, "projects", folder, "scripts", `${name}.bend`), "utf8"));
+export function checkSaved(folder: string, name: string, kindOf: Folder = "scripts"): Promise<Problem | null> {
+  return checkScript(folder, name, readFileSync(join(ROOT, "projects", folder, kindOf, `${name}.bend`), "utf8"), kindOf);
 }
 
-// `bun tools/script/check.ts <folder> <Name>`: checks the saved script, prints the problem as JSON.
+// `bun tools/script/check.ts <folder> <Name> [scripts|systems]`: checks the saved script, prints
+// the problem as JSON.
 if (import.meta.main) {
-  const [folder, name] = process.argv.slice(2);
-  const p = await checkSaved(folder!, name!);
+  const [folder, name, kindOf] = process.argv.slice(2);
+  const p = await checkSaved(folder!, name!, (kindOf as Folder) ?? "scripts");
   console.log(JSON.stringify(p));
   process.exit(p ? 1 : 0);
 }

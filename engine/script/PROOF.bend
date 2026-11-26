@@ -40,3 +40,30 @@ def Laws.a_problem_says_where():
 
 def Laws.a_syntax_error_says_so():
   {==}
+
+def Laws.a_field_set_is_read_back():
+  {==}
+
+def Laws.setting_a_field_keeps_the_others():
+  {==}
+
+def Laws.saved_values_go_over_the_defaults():
+  {==}
+
+def Laws.a_field_not_saved_keeps_its_default():
+  {==}
+
+def Laws.a_message_to_an_id_is_for_it():
+  {==}
+
+def Laws.a_message_to_an_id_is_for_no_other():
+  {==}
+
+def Laws.a_message_to_a_tag_is_for_its_things():
+  {==}
+
+def Laws.a_message_to_a_tag_is_for_no_other():
+  {==}
+
+def Laws.things_with_no_script_do_not_change(dt):
+  {==}

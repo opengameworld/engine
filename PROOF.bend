@@ -19,6 +19,8 @@ def Laws.every_project_opens_complete(p):
       {==}
     case P.Animation{}:
       {==}
+    case P.Arena{}:
+      {==}
 
 def Laws.shipped_never_imports_editor(a):
   match a:

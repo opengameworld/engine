@@ -32,17 +32,16 @@ def Resp.look_play(l: S.Look, +clip: U32) -> S.Look:
     case S.Hidden{}:
       S.Hidden{}
 
-def apply(+d: R.Response, t: S.Thing) -> S.Thing:
+def apply(+d: R.Response, +t: S.Thing) -> S.Thing:
   match d:
     case R.Response.Move{by}:
-      S.Thing{n, +p, l} = t
-      S.Thing{n, Tr.with_position(p, V.add(Tr.position(p), by)), l}
+      +p = S.place(t)
+      S.with_place(t, Tr.with_position(p, V.add(Tr.position(p), by)))
     case R.Response.Turn{a}:
-      S.Thing{n, +p, l} = t
-      S.Thing{n, Tr.with_rotation(p, Q.mul(Q.axis_angle(V.V3{0.0, 1.0, 0.0}, a), Tr.rotation(p))), l}
+      +p = S.place(t)
+      S.with_place(t, Tr.with_rotation(p, Q.mul(Q.axis_angle(V.V3{0.0, 1.0, 0.0}, a), Tr.rotation(p))))
     case R.Response.Play{c}:
-      S.Thing{n, p, l} = t
-      S.Thing{n, p, Resp.look_play(l, c)}
+      S.with_look(t, Resp.look_play(S.look(t), c))
 
 def Resp.if_named(hit: Bool, +d: R.Response, t: S.Thing) -> S.Thing:
   match hit:
@@ -60,8 +59,7 @@ def Resp.on_named(xs: List<&2, S.Thing>, +name: String, +d: R.Response) -> List<
       Resp.if_named(String.eq(S.name(h), name), d, h) <> Resp.on_named(t, name, d)
 
 def Resp.do(+s: S.Scene, +r: R.Rule) -> S.Scene:
-  S.Scene{xs} = s
-  S.Scene{Resp.on_named(xs, R.thing(r), R.does(r))}
+  S.with_things(s, Resp.on_named(S.things(s), R.thing(r), R.does(r)))
 
 def Resp.clicked(+h: R.Happening, +name: String, +s: S.Scene) -> Bool:
   match h:

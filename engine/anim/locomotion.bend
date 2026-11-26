@@ -70,35 +70,33 @@ def toward(+v: F32, +target: F32, +by: F32) -> F32:
 
 # One tick of the actions.
 def run(+t: S.Thing, i: Input, +dt: F32) -> S.Thing:
-  S.Thing{+n, +p, +l} = t
   Input{+w, +tn} = i
-  +fig = S.figure(l)
+  +p = S.place(t)
+  +fig = S.figure(S.look(t))
   +top = C.speed(Fig.walk(fig))
   +v = toward(Fig.param(fig, "speed"), (w * top : F32), (accel() * dt : F32))
   +h = (heading(p) + tn * turn_rate() * dt : F32)
   +pos = V.add(Tr.position(p), V.scale(ahead(h), (v * dt : F32)))
-  S.Thing{n, Tr.with_rotation(Tr.with_position(p, pos), facing(h)), S.Rigged{Fig.set_param(fig, "speed", F32.abs(v))}}
+  S.with_look(S.with_place(t, Tr.with_rotation(Tr.with_position(p, pos), facing(h))), S.Rigged{Fig.set_param(fig, "speed", F32.abs(v))})
+
+def Loco.when_rigged(rigged: Bool, +t: S.Thing, +i: Input, +dt: F32) -> S.Thing:
+  match rigged:
+    case True{}:
+      run(t, i, dt)
+    case False{}:
+      t
 
 # One thing, driven: a character walks, anything else stays as it is.
-def drive_thing(t: S.Thing, +i: Input, +dt: F32) -> S.Thing:
-  match t:
-    case S.Thing{n, p, l}:
-      match l:
-        case S.Rigged{f}:
-          run(S.Thing{n, p, S.Rigged{f}}, i, dt)
-        case S.Shown{sh, m}:
-          S.Thing{n, p, S.Shown{sh, m}}
-        case S.Hidden{}:
-          S.Thing{n, p, S.Hidden{}}
+def drive_thing(+t: S.Thing, +i: Input, +dt: F32) -> S.Thing:
+  Loco.when_rigged(S.is_rigged(t), t, i, dt)
 
 def drive_go(xs: List<&2, S.Thing>, +i: Input, +dt: F32) -> List<&2, S.Thing>:
   match xs:
     case Nil{}:
       Nil{}
-    case h <> t:
+    case +h <> t:
       drive_thing(h, i, dt) <> drive_go(t, i, dt)
 
 # Every character in the scene, driven by the same input.
-def drive(s: S.Scene, +i: Input, +dt: F32) -> S.Scene:
-  S.Scene{xs} = s
-  S.Scene{drive_go(xs, i, dt)}
+def drive(+s: S.Scene, +i: Input, +dt: F32) -> S.Scene:
+  S.with_things(s, drive_go(S.things(s), i, dt))

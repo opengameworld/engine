@@ -27,7 +27,7 @@ type Check is Data:
   Check{name: String, ok: Bool}
 
 def two() -> S.Scene:
-  S.Scene{[S.Thing{"Box", Tr.identity(), S.Hidden{}}, S.Thing{"Lamp", Tr.identity(), S.Hidden{}}]}
+  S.scene([S.thing("Box", Tr.identity(), S.Hidden{}), S.thing("Lamp", Tr.identity(), S.Hidden{})])
 
 def state_of(u: Web.Update<W.St, W.Ev>) -> W.St:
   match u:
@@ -35,7 +35,7 @@ def state_of(u: Web.Update<W.St, W.Ev>) -> W.St:
       next
 
 def opened() -> W.St:
-  state_of(Work.start(two(), False{}, A.none(), ["scenes/Test.bend", "shaders/"], [], False{}, "Test", "test", "Test", [], [], []))
+  state_of(Work.start(two(), False{}, A.none(), ["scenes/Test.bend", "shaders/"], [], False{}, "Test", "test", "Test", [], [], [], []))
 
 # The state after an event.
 def after(+ev: W.Ev, +st: W.St) -> W.St:
@@ -46,7 +46,7 @@ def bad() -> Pb.Problem:
   Pb.Problem{"Mover", Pb.Fault.Type{}, 8, 3, 2, "expected S.Scene, found F32", ""}
 
 def broken() -> W.St:
-  state_of(Work.start(two(), False{}, A.none(), ["scenes/Test.bend", "scripts/Mover.bend"], [], False{}, "Test", "test", "Test", [], [], [bad()]))
+  state_of(Work.start(two(), False{}, A.none(), ["scenes/Test.bend", "scripts/Mover.bend"], [], False{}, "Test", "test", "Test", [], [], [bad()], []))
 
 def code_opened() -> W.St:
   after(W.k_open{"scripts/Mover.bend"}, opened())

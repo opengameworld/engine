@@ -125,3 +125,10 @@ def disabled(off: Bool) -> List<&2, Web.Attr<W.Ev>>:
 
 def labeled(+label: String, +id: String, +control: Web.HTML<W.Ev>, +note: String) -> Web.HTML<W.Ev>:
   Ui.box(W.Ev, "div", "field", [], [Web.node{"span", [Web.attr{"class", "field__label"}, Web.attr{"id", id}], [Web.text{label}]}, control, help(note)])
+
+def pick_f(c: Bool, +a: F32, +b: F32) -> F32:
+  match c:
+    case True{}:
+      a
+    case False{}:
+      b

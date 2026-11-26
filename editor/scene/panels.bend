@@ -221,17 +221,16 @@ def set_look(l: S.Look, +name: String, +k: U32, +x: F32) -> S.Look:
     case S.Rigged{+f}:
       S.Rigged{Fig.with_params(f, set_values(Fig.params(f), name, k, x))}
 
-def edit_thing(t: S.Thing, e: Edit, +x: F32) -> S.Thing:
-  S.Thing{n, +p, l} = t
+def edit_thing(+t: S.Thing, e: Edit, +x: F32) -> S.Thing:
   match e:
     case Pos{a}:
-      S.Thing{n, Tr.with_position(p, set_axis(Tr.position(p), a, x)), l}
+      S.with_place(t, Tr.with_position(S.place(t), set_axis(Tr.position(S.place(t)), a, x)))
     case Rot{a}:
-      S.Thing{n, Tr.with_rotation(p, Q.from_degrees(set_axis(Q.to_degrees(Tr.rotation(p)), a, x))), l}
+      S.with_place(t, Tr.with_rotation(S.place(t), Q.from_degrees(set_axis(Q.to_degrees(Tr.rotation(S.place(t))), a, x))))
     case Size{a}:
-      S.Thing{n, Tr.with_scale(p, set_axis(Tr.scale(p), a, x)), l}
+      S.with_place(t, Tr.with_scale(S.place(t), set_axis(Tr.scale(S.place(t)), a, x)))
     case Val{name, k}:
-      S.Thing{n, p, set_look(l, name, k, x)}
+      S.with_look(t, set_look(S.look(t), name, k, x))
 
 # The scene after typing x into a field of thing i.
 def apply(+s: S.Scene, +i: U32, e: Edit, +x: F32) -> S.Scene:

@@ -156,7 +156,7 @@ def made_now(ms: List<&2, Pre.Made>, +s: S.Scene) -> List<&2, Pre.Made>:
 # the things deleted, and the rules when they are the editor's own.
 def save_text(+st: W.St, +base: S.Scene, +now: S.Scene) -> String:
   +c = W.cut(st)
-  Save.text(W.project_folder(W.files(st)), W.scene_name(c), Save.changed(base, now), Pre.lines(made_now(W.made(c), now)), W.removed(c), W.own_rules(st), W.rules(st))
+  Save.text(W.project_folder(W.files(st)), W.scene_name(c), Save.changed(base, now), Pre.lines(made_now(W.made(c), now)), W.removed(c), W.own_rules(st), W.rules(st), Save.tags_changed(base, now), Save.attachments(now))
 
 # Where the scene's saved file goes.
 def save_path(+st: W.St) -> String:

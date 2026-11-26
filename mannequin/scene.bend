@@ -39,5 +39,5 @@ def figure() -> Fig.Figure:
   Fig.make(Man.skeleton(), skin(), Rules.rules())
 
 def start() -> S.Scene:
-  S.Scene{[
-    S.Thing{"Mannequin", Tr.identity(), S.Rigged{figure()}}]}
+  S.scene([
+    S.thing("Mannequin", Tr.identity(), S.Rigged{figure()})])

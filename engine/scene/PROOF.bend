@@ -31,15 +31,39 @@ def unsaved(xs: List<&2, S.Thing>) -> {xs == Save.Save.things(xs, []) : List<&2,
       {==}
     case h <> t:
       match h:
-        case S.Thing{n, p, l}:
-          %unsaved(t) : {S.Thing{n, p, l} <> t == S.Thing{n, p, l} <> _ : List<&2, S.Thing>}
+        case S.Thing{i, n, p, l, g, a, b}:
+          %unsaved(t) : {S.Thing{i, n, p, l, g, a, b} <> t == S.Thing{i, n, p, l, g, a, b} <> _ : List<&2, S.Thing>}
           {==}
 
 def Laws.nothing_saved_changes_nothing(s):
   match s:
-    case S.Scene{xs}:
-      %unsaved(xs) : {S.Scene{_} == S.Scene{xs} : S.Scene}
+    case S.Scene{xs, k}:
+      %unsaved(xs) : {S.Scene{_, k} == S.Scene{xs, k} : S.Scene}
       {==}
 
 def Laws.a_save_goes_beside_its_scene():
+  {==}
+
+def Laws.a_scene_numbers_its_things():
+  {==}
+
+def Laws.a_thing_is_found_by_its_id():
+  {==}
+
+def Laws.a_thing_removed_is_not_found():
+  {==}
+
+def Laws.a_freed_index_comes_back_newer():
+  {==}
+
+def Laws.an_old_id_never_names_a_new_thing():
+  {==}
+
+def Laws.removing_twice_is_removing_once():
+  {==}
+
+def Laws.moving_keeps_ids():
+  {==}
+
+def Laws.a_thing_has_its_tags():
   {==}

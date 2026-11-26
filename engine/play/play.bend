@@ -34,6 +34,9 @@ import ../input/actions.bend as Act
 import ../anim/locomotion.bend as Loco
 import ./tick.bend as Tick
 import ./game.bend as Game
+import ../script/run.bend as Sr
+import ../script/me.bend as Me
+import ../script/value.bend as Val
 import ../script/rule.bend as R
 import ../script/problem.bend as Pb
 import ../input/pointer.bend as Ptr
@@ -223,13 +226,13 @@ type Run is Data:
 # What happened is answered by the first tick only, as what was pressed is.
 # The project's scripts run in each tick (engine/play/game.bend's tick_with): start and update
 # are passed down as templates.
-def Play.ticks(~start: @+s: S.Scene -> S.Scene, ~update: @+s: S.Scene -> @+dt: F32 -> S.Scene, n: Nat, +r: Run, +cs: List<&2, Act.Context>, +rs: List<&2, R.Rule>, +hs: List<&2, R.Happening>) -> Run:
+def Play.ticks(~start: @+s: S.Scene -> S.Scene, ~update: @+s: S.Scene -> @+dt: F32 -> S.Scene, ~run: @+name: String -> @+first: Bool -> @+me: Me.Me -> @+v: Val.Value -> @+dt: F32 -> Me.Me & Val.Value, n: Nat, +r: Run, +cs: List<&2, Act.Context>, +rs: List<&2, R.Rule>, +hs: List<&2, R.Happening>) -> Run:
   match n:
     case 0n:
       r
     case 1n+p:
       Run{s, k} = r
-      Play.ticks(~start, ~update, p, Run{Game.tick_with(~start, ~update, s, Loco.read(k, cs), rs, hs), Kb.ticked(k)}, cs, rs, [])
+      Play.ticks(~start, ~update, ~run, p, Run{Game.tick_with(~start, ~update, ~run, s, Loco.read(k, cs), rs, hs), Kb.ticked(k)}, cs, rs, [])
 
 # After the ticks of a frame: what happened was answered by the first tick, if one ran; a frame
 # that ran no tick keeps it for the next.
@@ -246,17 +249,17 @@ def Play.run_of(+r: Run, +x: Session, +c: Tick.Clock, +ran: Bool) -> Session:
   Session{m, e, s, k, c, cs, Play.answered(ran, sc)}
 
 # Step: exactly one tick, while paused.
-def Play.stepped(~start: @+s: S.Scene -> S.Scene, ~update: @+s: S.Scene -> @+dt: F32 -> S.Scene, paused: Bool, +x: Session) -> Session:
+def Play.stepped(~start: @+s: S.Scene -> S.Scene, ~update: @+s: S.Scene -> @+dt: F32 -> S.Scene, ~run: @+name: String -> @+first: Bool -> @+me: Me.Me -> @+v: Val.Value -> @+dt: F32 -> Me.Me & Val.Value, paused: Bool, +x: Session) -> Session:
   match paused:
     case True{}:
       Session{m, e, r, k, c, cs, sc} = x
-      Play.run_of(Play.ticks(~start, ~update, 1n, Run{r, k}, cs, Play.rules_of(sc), Play.pending_of(sc)), x, c, True{})
+      Play.run_of(Play.ticks(~start, ~update, ~run, 1n, Run{r, k}, cs, Play.rules_of(sc), Play.pending_of(sc)), x, c, True{})
     case False{}:
       x
 
 # Step, with a project's scripts (PROJECT.bend's step passes them).
-def step_with(~start: @+s: S.Scene -> S.Scene, ~update: @+s: S.Scene -> @+dt: F32 -> S.Scene, +x: Session) -> Session:
-  Play.stepped(~start, ~update, is_paused(x), x)
+def step_with(~start: @+s: S.Scene -> S.Scene, ~update: @+s: S.Scene -> @+dt: F32 -> S.Scene, ~run: @+name: String -> @+first: Bool -> @+me: Me.Me -> @+v: Val.Value -> @+dt: F32 -> Me.Me & Val.Value, +x: Session) -> Session:
+  Play.stepped(~start, ~update, ~run, is_paused(x), x)
 
 def Play.no_start(+s: S.Scene) -> S.Scene:
   s
@@ -266,18 +269,18 @@ def Play.no_update(+s: S.Scene, +dt: F32) -> S.Scene:
 
 # Step, with no scripts.
 def step(+x: Session) -> Session:
-  step_with(~Play.no_start, ~Play.no_update, x)
+  step_with(~Play.no_start, ~Play.no_update, ~Sr.none, x)
 
 # The editor's clock while editing (what the editor did before Play existed): characters'
 # clocks run only when motion is allowed, or when someone pressed Play on a clip.
 def Play.edit_frame(+s: S.Scene, +dt: F32, +reduce: Bool) -> S.Scene:
   S.play(S.advance(s, dt, reduce), dt, reduce)
 
-def Play.playing_frame(~start: @+s: S.Scene -> S.Scene, ~update: @+s: S.Scene -> @+dt: F32 -> S.Scene, +x: Session, +dt: F32) -> Session:
+def Play.playing_frame(~start: @+s: S.Scene -> S.Scene, ~update: @+s: S.Scene -> @+dt: F32 -> S.Scene, ~run: @+name: String -> @+first: Bool -> @+me: Me.Me -> @+v: Val.Value -> @+dt: F32 -> Me.Me & Val.Value, +x: Session, +dt: F32) -> Session:
   Session{m, e, r, k, c, cs, sc} = x
   +now = Tick.advance(c, dt)
   +n = Tick.steps(now)
-  Play.run_of(Play.ticks(~start, ~update, U32.to_nat(n), Run{r, k}, cs, Play.rules_of(sc), Play.pending_of(sc)), x, Tick.spent(now, n), U32.is_gt(n, 0))
+  Play.run_of(Play.ticks(~start, ~update, ~run, U32.to_nat(n), Run{r, k}, cs, Play.rules_of(sc), Play.pending_of(sc)), x, Tick.spent(now, n), U32.is_gt(n, 0))
 
 def Play.edit_of(+x: Session, +dt: F32, +reduce: Bool) -> Session:
   Session{m, e, _, k, c, cs, sc} = x
@@ -285,22 +288,22 @@ def Play.edit_of(+x: Session, +dt: F32, +reduce: Bool) -> Session:
   Session{m, s, s, k, c, cs, sc}
 
 # One browser frame of `dt` seconds.
-def Play.frame_in(~start: @+s: S.Scene -> S.Scene, ~update: @+s: S.Scene -> @+dt: F32 -> S.Scene, m: Mode, +x: Session, +dt: F32, +reduce: Bool) -> Session:
+def Play.frame_in(~start: @+s: S.Scene -> S.Scene, ~update: @+s: S.Scene -> @+dt: F32 -> S.Scene, ~run: @+name: String -> @+first: Bool -> @+me: Me.Me -> @+v: Val.Value -> @+dt: F32 -> Me.Me & Val.Value, m: Mode, +x: Session, +dt: F32, +reduce: Bool) -> Session:
   match m:
     case Mode.Edit{}:
       Play.edit_of(x, dt, reduce)
     case Mode.Playing{}:
-      Play.playing_frame(~start, ~update, x, dt)
+      Play.playing_frame(~start, ~update, ~run, x, dt)
     case Mode.Paused{}:
       x
 
 # One browser frame, with a project's scripts (PROJECT.bend's frame passes them).
-def frame_with(~start: @+s: S.Scene -> S.Scene, ~update: @+s: S.Scene -> @+dt: F32 -> S.Scene, +x: Session, +dt: F32, +reduce: Bool) -> Session:
-  Play.frame_in(~start, ~update, mode(x), x, dt, reduce)
+def frame_with(~start: @+s: S.Scene -> S.Scene, ~update: @+s: S.Scene -> @+dt: F32 -> S.Scene, ~run: @+name: String -> @+first: Bool -> @+me: Me.Me -> @+v: Val.Value -> @+dt: F32 -> Me.Me & Val.Value, +x: Session, +dt: F32, +reduce: Bool) -> Session:
+  Play.frame_in(~start, ~update, ~run, mode(x), x, dt, reduce)
 
 # One browser frame, with no scripts.
 def frame(+x: Session, +dt: F32, +reduce: Bool) -> Session:
-  frame_with(~Play.no_start, ~Play.no_update, x, dt, reduce)
+  frame_with(~Play.no_start, ~Play.no_update, ~Sr.none, x, dt, reduce)
 
 # Does a frame change what is drawn? Then the page draws every frame.
 def Play.runs_in(m: Mode, +x: Session, +reduce: Bool) -> Bool:

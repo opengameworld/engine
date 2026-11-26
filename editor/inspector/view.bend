@@ -3,7 +3,8 @@
 #   a thing (Hierarchy, viewport)   its components, one section each: Transform; Material for a
 #                                   shown thing (editor/shaders/); Animation for a character
 #                                   (editor/scene/); one Rule for each rule that names it
-#                                   (engine/script/rule.bend, editor/inspector/rules.bend); then Add
+#                                   (engine/script/rule.bend, editor/inspector/rules.bend); one for
+#                                   each script attached (editor/inspector/scripts.bend); then Add
 #                                   Component
 #   an asset (Project window)       what it is: a clip (where it comes from, how it plays, Root,
 #                                   Mirror, and Add to the character); a shader (its file, and
@@ -41,6 +42,7 @@ import ../animation/view.bend as An
 import ../shaders/view.bend as Sh
 import ../project/files.bend as F
 import ./rules.bend as Ru
+import ./scripts.bend as Xs
 import ../hierarchy/make.bend as Mk
 
 # ---------- A rule ----------
@@ -134,13 +136,14 @@ def rule_sections(rs: List<&2, R.Rule>, +k: U32, +name: String, +st: W.St, +rigg
     case +h <> t:
       List.append(&2, Web.HTML<W.Ev>, P.pick_html(String.eq(R.thing(h), name), [rule_section(h, k, st, rigged)], Nil{}), rule_sections(t, (k + 1 : U32), name, st, rigged))
 
-def add_component() -> Web.HTML<W.Ev>:
+# Add Component: a Rule, or one of the project's scripts (editor/inspector/scripts.bend). Off in Play.
+def add_component(+st: W.St) -> Web.HTML<W.Ev>:
   Ui.box(W.Ev, "div", "editor-inspector__add", [], [
     Ui.dropdown(W.Ev,
-      Ui.trigger_with(W.Ev, [Ui.btn_bordered{}, Ui.btn_neutral{}, Ui.btn_sm{}, Ui.btn_wide{}], "", [Web.attr{"type", "button"}], [
+      Ui.trigger_with(W.Ev, [Ui.btn_bordered{}, Ui.btn_neutral{}, Ui.btn_sm{}, Ui.btn_wide{}], "", Web.attr{"type", "button"} <> P.disabled(Bool.not(Mk.is_editing(st))), [
         Ui.icon_with(W.Ev, [Ui.icon_sm{}], "", [], "plus"), Web.node{"span", [], [Web.text{"Add Component"}]}]),
-      Ui.menu_with(W.Ev, [], "", [Web.attr{"role", "menu"}, Web.attr{"aria-label", "Add Component"}], [
-        Ui.menu_item(W.Ev, "mouse-pointer-click", "Rule", W.r_add{})]))])
+      Ui.menu_with(W.Ev, [], "", [Web.attr{"role", "menu"}, Web.attr{"aria-label", "Add Component"}],
+        Ui.menu_item(W.Ev, "mouse-pointer-click", "Rule", W.r_add{}) <> Xs.menu_items(st)))])
 
 # ---------- A thing ----------
 
@@ -165,9 +168,10 @@ def thing_body(has: Bool, +st: W.St) -> List<&2, Web.HTML<W.Ev>>:
       List.append(&2, Web.HTML<W.Ev>, [
         Ui.box(W.Ev, "div", "editor-inspector__head", [], [
           Ui.says(W.Ev, "span", "item-title", S.name(t)), Ui.says(W.Ev, "span", "tag", look_name(t))]),
-        Sc.transform(st)],
+        Sc.transform(st), Sc.tags(st)],
       List.append(&2, Web.HTML<W.Ev>, look_sections(st, t),
-      List.append(&2, Web.HTML<W.Ev>, rule_sections(W.rules(st), 0, S.name(t), st, S.is_rigged(t)), [add_component(), delete_button(st)])))
+      List.append(&2, Web.HTML<W.Ev>, Xs.sections(st),
+      List.append(&2, Web.HTML<W.Ev>, rule_sections(W.rules(st), 0, S.name(t), st, S.is_rigged(t)), [add_component(st), delete_button(st)]))))
 
 # ---------- An asset ----------
 

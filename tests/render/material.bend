@@ -8,7 +8,7 @@ type Check is Data:
   Check{name: String, ok: Bool}
 
 def thing(name: String) -> S.Thing:
-  S.Thing{name, Tr.identity(), S.Shown{Mesh.plane(1.0, 1), Mat.imported("waves.frag.glsl")}}
+  S.thing(name, Tr.identity(), S.Shown{Mesh.plane(1.0, 1), Mat.imported("waves.frag.glsl")})
 
 def material_at(s: S.Scene, i: U32) -> Mat.Material:
   S.material(S.look(S.at(s, i)))
@@ -20,7 +20,7 @@ def has_overrides(m: Mat.Material) -> Bool:
   Bool.not(List.is_empty(&2, Mat.Value, Mat.values(m)))
 
 def edited() -> S.Scene:
-  +original = {S.Scene{[thing("Lake"), thing("Sea")]} : S.Scene}
+  +original = {S.scene([thing("Lake"), thing("Sea")]) : S.Scene}
   S.with_material(original, 0, instance_with_value())
 
 def checks() -> List<&2, Check>:

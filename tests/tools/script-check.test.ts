@@ -13,7 +13,8 @@ const HEAD = "import Base\nimport ../../../engine/scene/scene.bend as S\n\n";
 const START = "def start(+s: S.Scene) -> S.Scene:\n  s\n\n";
 const GOOD = HEAD + START + "def update(+s: S.Scene, +dt: F32) -> S.Scene:\n  s\n";
 
-const check = (text: string) => checkScript("animation", "Mover", text);
+// A system (systems/): start(s) and update(s, dt) over the whole scene.
+const check = (text: string) => checkScript("animation", "Mover", text, "systems");
 
 test("a script that keeps the engine's shape has no problem", async () => {
   expect(await check(GOOD)).toBeNull();
@@ -52,14 +53,14 @@ test("the draft folder is gone after a check", async () => {
 });
 
 test("the registry leaves a script that does not compile out, and lists its problem", async () => {
-  const dir = join(ROOT, "projects", "animation", "scripts");
+  const dir = join(ROOT, "projects", "animation", "systems");
   const made = !existsSync(dir);
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "Zbroken.bend"), HEAD + START + "def update(+s: S.Scene, +dt: F32) -> S.Scene:\n  dt\n");
   writeFileSync(join(dir, "Zgood.bend"), GOOD);
   try {
     const reg = await registryOf(join(ROOT, "projects", "animation"));
-    expect(reg.text).toContain("import ./scripts/Zgood.bend as Script0");
+    expect(reg.text).toContain("import ./systems/Zgood.bend as System0");
     expect(reg.text).not.toContain("Zbroken.bend");
     expect(reg.text).toContain('Pb.Problem{"Zbroken", Pb.kind_of("type"), 8, 3, 2, "expected S.Scene, found F32", ""}');
     expect(reg.problems).toHaveLength(1);
@@ -68,4 +69,32 @@ test("the registry leaves a script that does not compile out, and lists its prob
     rmSync(join(dir, "Zgood.bend"));
     if (made) rmSync(dir, { recursive: true });
   }
+});
+
+// A script attached to things (scripts/): its State, initial(), runs(), start(me, s), update(me, s, dt).
+const ME = "import Base\nimport ../../../engine/script/me.bend as Me\nimport ../../../engine/core/vec.bend as V\n\n";
+const OBJECT = ME + "type State is Data:\n  State{speed: F32}\n\ndef initial() -> State:\n  State{1.0}\n\ndef runs() -> Me.Runs:\n  Me.both()\n\n" +
+  "def start(+me: Me.Me, +s: State) -> Me.Me & State:\n  (me, s)\n\ndef update(+me: Me.Me, +s: State, +dt: F32) -> Me.Me & State:\n  State{v} = s\n  (Me.moved(me, V.V3{(v * dt : F32), 0.0, 0.0}), State{v})\n";
+const attached = (text: string) => checkScript("animation", "Mover", text);
+
+test("an attached script that keeps its shape has no problem", async () => {
+  expect(await attached(OBJECT)).toBeNull();
+});
+
+test("a field of a kind the engine cannot keep is a shape error on the State's line", async () => {
+  const p = await attached(OBJECT.replace("State{speed: F32}", "State{speed: List<F32>}"));
+  expect(p).toMatchObject({ kind: "shape", line: 6 });
+  expect(p!.text).toContain("F32, U32, Bool, String, V.V3 or Id.Id");
+});
+
+test("an attached script without runs says what the engine calls", async () => {
+  const p = await attached(OBJECT.replace("def runs() -> Me.Runs:\n  Me.both()\n\n", ""));
+  expect(p).toMatchObject({ kind: "shape" });
+  expect(p!.text).toContain("def runs() -> Me.Runs");
+});
+
+test("an update with the old shape (a system's) is marked on its def", async () => {
+  const p = await attached(OBJECT.replace("def update(+me: Me.Me, +s: State, +dt: F32) -> Me.Me & State:\n  State{v} = s\n  (Me.moved(me, V.V3{(v * dt : F32), 0.0, 0.0}), State{v})", "def update(+s: State, +dt: F32) -> State:\n  s"));
+  expect(p).toMatchObject({ kind: "shape", line: 17 });
+  expect(p!.text).toContain("def update(+me: Me.Me, +s: State, +dt: F32) -> Me.Me & State");
 });

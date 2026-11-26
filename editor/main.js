@@ -32,6 +32,7 @@ startEditor(Project.opened(project, scene), {
   pick: params.get("pick") ?? "",
   // The scripts that do not compile (Play and the build wait for them), and the script to open.
   problems: Project.problems(project),
+  offers: Project.offers(project),
   code: params.get("code") ?? "",
   skins: { [Mannequin.skin()]: { info, bin, textures: [body, face] } },
 });

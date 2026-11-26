@@ -33,16 +33,17 @@ def Pick.placed(vs: List<&2, F32>, +t: Tr.Transform, +b: R.Box) -> R.Box:
       b
 
 # The box around a thing in the World (empty for a hidden thing).
-def box(t: S.Thing) -> R.Box:
-  match t:
-    case S.Thing{n, p, l}:
-      match l:
-        case S.Shown{sh, m}:
-          Pick.placed(M.vertices(sh), p, R.nothing())
-        case S.Rigged{f}:
-          R.around6(Fig.lines(f, p))
-        case S.Hidden{}:
-          R.nothing()
+def Pick.box_of(l: S.Look, +p: Tr.Transform) -> R.Box:
+  match l:
+    case S.Shown{sh, m}:
+      Pick.placed(M.vertices(sh), p, R.nothing())
+    case S.Rigged{f}:
+      R.around6(Fig.lines(f, p))
+    case S.Hidden{}:
+      R.nothing()
+
+def box(+t: S.Thing) -> R.Box:
+  Pick.box_of(S.look(t), S.place(t))
 
 # What a pick found: nothing, or the thing at a place of the list, at a distance along the ray.
 type Hit is Data:

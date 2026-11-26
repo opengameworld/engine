@@ -44,22 +44,22 @@ def frozen_things(xs: List<&2, S.Thing>, dt: F32) -> {xs == S.advance_go(xs, dt,
       {==}
     case h <> t:
       match h:
-        case S.Thing{n, p, l}:
+        case S.Thing{i, n, p, l, g, a, b}:
           match l:
             case S.Hidden{}:
-              %frozen_things(t, dt) : {S.Thing{n, p, S.Hidden{}} <> t == S.Thing{n, p, S.Hidden{}} <> _ : List<&2, S.Thing>}
+              %frozen_things(t, dt) : {S.Thing{i, n, p, S.Hidden{}, g, a, b} <> t == S.Thing{i, n, p, S.Hidden{}, g, a, b} <> _ : List<&2, S.Thing>}
               {==}
             case S.Shown{sh, m}:
-              %frozen_things(t, dt) : {S.Thing{n, p, S.Shown{sh, m}} <> t == S.Thing{n, p, S.Shown{sh, m}} <> _ : List<&2, S.Thing>}
+              %frozen_things(t, dt) : {S.Thing{i, n, p, S.Shown{sh, m}, g, a, b} <> t == S.Thing{i, n, p, S.Shown{sh, m}, g, a, b} <> _ : List<&2, S.Thing>}
               {==}
             case S.Rigged{f}:
-              %frozen_things(t, dt) : {S.Thing{n, p, S.Rigged{f}} <> t == S.Thing{n, p, S.Rigged{f}} <> _ : List<&2, S.Thing>}
+              %frozen_things(t, dt) : {S.Thing{i, n, p, S.Rigged{f}, g, a, b} <> t == S.Thing{i, n, p, S.Rigged{f}, g, a, b} <> _ : List<&2, S.Thing>}
               {==}
 
 def Laws.reduce_motion_freezes_scenes(s, dt):
   match s:
-    case S.Scene{xs}:
-      %frozen_things(xs, dt) : {S.Scene{_} == S.Scene{xs} : S.Scene}
+    case S.Scene{xs, k}:
+      %frozen_things(xs, dt) : {S.Scene{_, k} == S.Scene{xs, k} : S.Scene}
       {==}
 
 def Laws.weights_that_sum_to_the_whole_hold():

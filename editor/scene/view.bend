@@ -7,7 +7,7 @@
 # name over X Y Z, as Unity's Inspector lays them out. A value's name is shown with a capital
 # first letter, as Unity shows a field's name.
 #
-# Typing a place (Transform) while editing marks the scene as changed: Save writes places.
+# Typing a place (Transform) or tags while editing marks the scene as changed: Save writes both.
 #
 # Limits now:
 # - The field being typed in keeps its text while you type; Bend's own reading of the value shows
@@ -131,3 +131,48 @@ def write(+st: W.St, got: Maybe<&2, F32>, +e: O.Edit) -> W.St:
 # number changes nothing.
 def typed(+st: W.St, +e: O.Edit, +text: String) -> W.St:
   write(st, F32.read(text), e)
+
+# ---------- Tags ----------
+
+# A thing's tags as one line of text, and back: words between commas, trimmed, none empty.
+def Tg.joined(gs: List<&2, String>) -> String:
+  match gs:
+    case Nil{}:
+      ""
+    case Con{+h, Nil{}}:
+      h
+    case Con{+h, t}:
+      h ++ ", " ++ Tg.joined(t)
+
+def Tg.cons_unless(empty: Bool, +w: String, rest: List<&2, String>) -> List<&2, String>:
+  match empty:
+    case True{}:
+      rest
+    case False{}:
+      w <> rest
+
+def Tg.words(ws: List<&2, String>) -> List<&2, String>:
+  match ws:
+    case Nil{}:
+      []
+    case Con{+h, t}:
+      Tg.cons_unless(String.is_empty(String.trim(h)), String.trim(h), Tg.words(t))
+
+def tags_of(+text: String) -> List<&2, String>:
+  Tg.words(String.split(text, ','))
+
+# The Tags of the thing selected: the words scripts find it by (engine/script/world.bend's tagged,
+# as Unity's tags and Godot's groups).
+def tags(+st: W.St) -> Web.HTML<W.Ev>:
+  P.section("Tags", W.still(st), [
+    Ui.box(W.Ev, "div", "editor-inspector__line", [], [
+      Web.node{"label", [Web.attr{"class", "field__label"}, Web.attr{"for", "inspector-tags"}], [Web.text{"Tags"}]},
+      Ui.input_with(W.Ev, [Ui.input_sm{}], "", [Web.attr{"id", "inspector-tags"}, Web.attr{"value", Tg.joined(S.tags(thing(st)))},
+        Web.attr{"placeholder", "enemy, boss"}, Web.attr{"aria-describedby", "inspector-tags-help"},
+        Web.on{Web.input{W.d_tags{""}}}, Web.on{Web.change{W.a_left{}}}])]),
+    Web.node{"p", [Web.attr{"class", "editor-anim__help"}, Web.attr{"id", "inspector-tags-help"}], [Web.text{"Words scripts find this thing by. Separate them with commas."}]}])
+
+# Tags typed: the thing selected has them; while editing, Save has something to write.
+def tagged(+st: W.St, +text: String) -> W.St:
+  +now = W.with_scene(st, S.put(W.scene(st), W.selected(st), S.with_tags(thing(st), tags_of(text))))
+  P.pick_st(U32.is_eq(W.play_mode(st), 0), W.with_dirty(now, True{}), now)

@@ -59,12 +59,15 @@ import ../../projects/prefabs.bend as Pre
 import ../../engine/script/problem.bend as Pb
 import ../code/view.bend as Ce
 import ../code/code.bend as Cd
+import ../../engine/script/attach.bend as At
+import ../../engine/script/value.bend as Val
+import ../inspector/scripts.bend as Xs
 
 # ---------- What editor/app.js asks ----------
 # A Bend module gives only its own defs, so what app.js asks of the state is named again here.
 
-def start(+scene: S.Scene, +still: Bool, +catalog: A.Catalog, +paths: List<&2, String>, +rules: List<&2, R.Rule>, +own: Bool, +name: String, +folder: String, +sc: String, +made: List<&2, Pre.Made>, +removed: List<&2, String>, +broken: List<&2, Pb.Problem>) -> Web.Update<W.St, W.Ev>:
-  W.start(scene, still, catalog, paths, rules, own, name, folder, sc, made, removed, broken)
+def start(+scene: S.Scene, +still: Bool, +catalog: A.Catalog, +paths: List<&2, String>, +rules: List<&2, R.Rule>, +own: Bool, +name: String, +folder: String, +sc: String, +made: List<&2, Pre.Made>, +removed: List<&2, String>, +broken: List<&2, Pb.Problem>, +offers: List<&2, At.Offer>) -> Web.Update<W.St, W.Ev>:
+  W.start(scene, still, catalog, paths, rules, own, name, folder, sc, made, removed, broken, offers)
 
 # The scene being edited, and how many times its list of things changed (editor/app.js uploads
 # them again: platform/web/draw.js's rebuild).
@@ -347,12 +350,22 @@ def on_input(+msg: W.Ev, +got: Web.Input) -> W.Ev:
       W.s_number{n, k, v}
     case W.s_graph{n, k, _} Web.typed{v}:
       W.s_graph{n, k, v}
+    case W.d_tags{_} Web.typed{v}:
+      W.d_tags{v}
     case W.d_typed{e, _} Web.typed{v}:
       W.d_typed{e, v}
     case W.r_num{k, a, _} Web.typed{v}:
       W.r_num{k, a, v}
     case W.f_query{_} Web.typed{v}:
       W.f_query{v}
+    case W.x_num{k, f, _} Web.typed{v}:
+      W.x_num{k, f, v}
+    case W.x_int{k, f, _} Web.typed{v}:
+      W.x_int{k, f, v}
+    case W.x_text{k, f, _} Web.typed{v}:
+      W.x_text{k, f, v}
+    case W.x_vec{k, f, a, _} Web.typed{v}:
+      W.x_vec{k, f, a, v}
     case W.k_typed{_} Web.typed{v}:
       W.k_typed{v}
     case W.f_name{_} Web.typed{v}:
@@ -407,6 +420,8 @@ def step(+ev: W.Ev, +st: W.St) -> W.St:
       W.stepped(st)
     case W.p_save{}:
       W.saved(st)
+    case W.d_tags{text}:
+      Sc.tagged(st, text)
     case W.d_typed{e, text}:
       Sc.typed(st, e, text)
     case W.h_key{name}:
@@ -467,6 +482,22 @@ def step(+ev: W.Ev, +st: W.St) -> W.St:
       Ce.save(st)
     case W.k_close{force}:
       Ce.close(st, force)
+    case W.x_add{name}:
+      Xs.added(st, name)
+    case W.x_drop{k}:
+      Xs.dropped(st, k)
+    case W.x_num{k, f, text}:
+      Xs.numbered(st, k, f, text)
+    case W.x_int{k, f, text}:
+      Xs.counted(st, k, f, text)
+    case W.x_flag{k, f, on}:
+      Xs.set_field(st, k, f, Val.Value.Flag{on})
+    case W.x_text{k, f, text}:
+      Xs.set_field(st, k, f, Val.Value.Text{text})
+    case W.x_vec{k, f, a, text}:
+      Xs.axised(st, k, f, a, text)
+    case W.x_ref{k, f, n}:
+      Xs.referred(st, k, f, n)
     case W.a_left{}:
       st
 

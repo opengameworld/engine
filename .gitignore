@@ -43,3 +43,6 @@ tothinkabout/
 
 # the script checker's drafts (tools/script/check.ts)
 projects/*/.checking-*/
+
+# generated from each project's messages.bend (tools/script/shape.js)
+projects/*/messages_generated.bend*

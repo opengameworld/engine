@@ -21,8 +21,8 @@ import ../../../mannequin/scene.bend as Mannequin
 import ../../../engine/script/rule.bend as R
 
 def start() -> S.Scene:
-  S.Scene{[
-    S.Thing{"Mannequin", Tr.identity(), S.Rigged{Mannequin.figure()}}]}
+  S.scene([
+    S.thing("Mannequin", Tr.identity(), S.Rigged{Mannequin.figure()})])
 
 # What the scene's things do in Play.
 def rules() -> List<&2, R.Rule>:

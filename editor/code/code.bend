@@ -15,16 +15,26 @@
 
 import Base
 import ../../engine/script/problem.bend as Pb
+import ../../engine/script/attach.bend as At
+
+# What the page knows of the project's scripts when it opened: the ones that do not compile, and
+# the ones a thing may carry (Add Component > Script), with their fields and where they run.
+type Proj is Data:
+  Proj{broken: List<&2, Pb.Problem>, offers: List<&2, At.Offer>}
 
 type Code is Data:
-  Code{open: Bool, path: String, text: String, saved: String, loaded: Bool, asking: Bool, checked: String, found: Bool, problem: Pb.Problem, closing: Bool, broken: List<&2, Pb.Problem>}
+  Code{open: Bool, path: String, text: String, saved: String, loaded: Bool, asking: Bool, checked: String, found: Bool, problem: Pb.Problem, closing: Bool, project: Proj}
 
 def no_problem() -> Pb.Problem:
   Pb.Problem{"", Pb.Fault.Type{}, 0, 0, 0, "", ""}
 
-# No script open, and the project's problems as the page opened.
-def start(+broken: List<&2, Pb.Problem>) -> Code:
-  Code{False{}, "", "", "", False{}, False{}, "", False{}, no_problem(), False{}, broken}
+def project(+c: Code) -> Proj:
+  Code{_, _, _, _, _, _, _, _, _, _, p} = c
+  p
+
+# No script open; the project's problems and its scripts as the page opened.
+def start(+broken: List<&2, Pb.Problem>, +offers: List<&2, At.Offer>) -> Code:
+  Code{False{}, "", "", "", False{}, False{}, "", False{}, no_problem(), False{}, Proj{broken, offers}}
 
 def is_open(+c: Code) -> Bool:
   Code{o, _, _, _, _, _, _, _, _, _, _} = c
@@ -72,9 +82,20 @@ def closing(+c: Code) -> Bool:
   Code{_, _, _, _, _, _, _, _, _, x, _} = c
   x
 
-def broken(+c: Code) -> List<&2, Pb.Problem>:
-  Code{_, _, _, _, _, _, _, _, _, _, b} = c
+def Cd.broken_of(+p: Proj) -> List<&2, Pb.Problem>:
+  Proj{b, _} = p
   b
+
+def Cd.offers_of(+p: Proj) -> List<&2, At.Offer>:
+  Proj{_, o} = p
+  o
+
+def broken(+c: Code) -> List<&2, Pb.Problem>:
+  Cd.broken_of(project(c))
+
+# The scripts a thing of the project may carry.
+def offers(+c: Code) -> List<&2, At.Offer>:
+  Cd.offers_of(project(c))
 
 # The script's name: its file's, without scripts/ and .bend.
 def name(+c: Code) -> String:
@@ -96,24 +117,24 @@ def failing(+c: Code) -> Bool:
 
 # A script opened: its text is asked for.
 def opening(+c: Code, +p: String) -> Code:
-  Code{True{}, p, "", "", False{}, False{}, "", False{}, no_problem(), False{}, broken(c)}
+  Code{True{}, p, "", "", False{}, False{}, "", False{}, no_problem(), False{}, project(c)}
 
 # Its text came: it is the text saved too, and it is checked.
 def arrived(+c: Code, +t: String) -> Code:
-  Code{True{}, path(c), t, t, True{}, True{}, "", False{}, no_problem(), False{}, broken(c)}
+  Code{True{}, path(c), t, t, True{}, True{}, "", False{}, no_problem(), False{}, project(c)}
 
 # A keystroke: the text is what the box holds now; a check is asked, or is already on its way.
 def typed(+c: Code, +t: String) -> Code:
-  Code{True{}, path(c), t, saved(c), True{}, True{}, checked(c), found(c), problem(c), False{}, broken(c)}
+  Code{True{}, path(c), t, saved(c), True{}, True{}, checked(c), found(c), problem(c), False{}, project(c)}
 
 # A check answered for text t: what it found. When the text changed since, it is checked again.
 def answered(+c: Code, +t: String, +f: Bool, +p: Pb.Problem) -> Code:
-  Code{is_open(c), path(c), text(c), saved(c), loaded(c), Bool.not(String.eq(text(c), t)), t, f, p, closing(c), broken(c)}
+  Code{is_open(c), path(c), text(c), saved(c), loaded(c), Bool.not(String.eq(text(c), t)), t, f, p, closing(c), project(c)}
 
 # Close pressed with changes not saved: Save or Discard waits.
 def asks_close(+c: Code) -> Code:
-  Code{is_open(c), path(c), text(c), saved(c), loaded(c), asking(c), checked(c), found(c), problem(c), True{}, broken(c)}
+  Code{is_open(c), path(c), text(c), saved(c), loaded(c), asking(c), checked(c), found(c), problem(c), True{}, project(c)}
 
 # Closed: no script open.
 def shut(+c: Code) -> Code:
-  start(broken(c))
+  Code{False{}, "", "", "", False{}, False{}, "", False{}, no_problem(), False{}, project(c)}

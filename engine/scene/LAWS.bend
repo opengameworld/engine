@@ -6,6 +6,7 @@ import ./scene.bend as S
 import ../core/transform.bend as Tr
 import ../../projects/water/scenes/Water.bend as Content
 import ./place.bend as Pl
+import ./id.bend as Id
 
 # ---------- Scene ----------
 
@@ -15,7 +16,7 @@ law scene_materials_are_complete:
 
 # LAW: a hidden thing needs no material, so it never makes a scene incomplete.
 law hidden_thing_is_complete:
-  {S.complete(S.Scene{[S.Thing{"empty", Tr.identity(), S.Hidden{}}]}) == True{} : Bool}
+  {S.complete(S.scene([S.thing("empty", Tr.identity(), S.Hidden{})])) == True{} : Bool}
 
 # ---------- Places (the open World's coordinates) ----------
 
@@ -43,3 +44,47 @@ law nothing_saved_changes_nothing:
 # LAW: a scene's saved file lives beside the scene, in its project's scenes/.
 law a_save_goes_beside_its_scene:
   {Save.file("water", "Water") == "projects/water/scenes/saved/Water.bend" : String}
+
+# ---------- Ids (engine/scene/id.bend) ----------
+
+def two() -> S.Scene:
+  S.scene([S.thing("a", Tr.identity(), S.Hidden{}), S.thing("b", Tr.identity(), S.Hidden{})])
+
+def found(m: Maybe<&2, S.Thing>) -> Bool:
+  match m:
+    case Some{_}:
+      True{}
+    case None{}:
+      False{}
+
+# LAW: a scene gives its things their ids in the order of the list.
+law a_scene_numbers_its_things:
+  {Id.same(S.id(S.at(two(), 1)), Id.Id{1, 0}) == True{} : Bool}
+
+# LAW: a thing is found by its id.
+law a_thing_is_found_by_its_id:
+  {found(S.find(two(), Id.Id{1, 0})) == True{} : Bool}
+
+# LAW: a thing removed is not found by its id any more (a reference to it reads as nothing).
+law a_thing_removed_is_not_found:
+  {found(S.find(S.remove(two(), Id.Id{0, 0}), Id.Id{0, 0})) == False{} : Bool}
+
+# LAW: a thing added after one was removed takes its index with a new generation...
+law a_freed_index_comes_back_newer:
+  {Id.same(S.id(S.at(S.add(S.remove(two(), Id.Id{0, 0}), S.thing("c", Tr.identity(), S.Hidden{})), 1)), Id.Id{0, 1}) == True{} : Bool}
+
+# LAW: ...so the old id never names the new thing.
+law an_old_id_never_names_a_new_thing:
+  {found(S.find(S.add(S.remove(two(), Id.Id{0, 0}), S.thing("c", Tr.identity(), S.Hidden{})), Id.Id{0, 0})) == False{} : Bool}
+
+# LAW: removing an id that is not alive changes nothing.
+law removing_twice_is_removing_once:
+  {S.count(S.remove(S.remove(two(), Id.Id{0, 0}), Id.Id{0, 0})) == 1n : Nat}
+
+# LAW: things that change place keep their ids.
+law moving_keeps_ids:
+  {Id.same(S.id(S.at(S.advance(two(), 1.0, False{}), 1)), Id.Id{1, 0}) == True{} : Bool}
+
+# LAW: a thing's tags are found.
+law a_thing_has_its_tags:
+  {S.has_tag(S.with_tags(S.thing("a", Tr.identity(), S.Hidden{}), ["enemy", "boss"]), "boss") == True{} : Bool}

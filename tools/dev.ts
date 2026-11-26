@@ -180,11 +180,11 @@ Bun.serve({
       await restartNow(`projects/${folder}/${files[0].path}`, files.map((f: any) => `${folder}/${f.path}`));
       return new Response("created", { headers: cors });
     }
-    // A script of the project, by its path (scripts/<Name>.bend), and its text.
-    const script = typeof body.path === "string" ? /^scripts\/([A-Za-z][A-Za-z0-9_]*)\.bend$/.exec(body.path) : null;
+    // A script (scripts/<Name>.bend) or a system (systems/<Name>.bend) of the project, and its text.
+    const script = typeof body.path === "string" ? /^(scripts|systems)\/([A-Za-z][A-Za-z0-9_]*)\.bend$/.exec(body.path) : null;
     if (route === "/check" || route === "/write") {
       if (!script || typeof body.text !== "string") return new Response("not a script of the project", { status: 400, headers: cors });
-      if (route === "/check") return Response.json(await checkScript(folder, script[1]!, body.text), { headers: cors });
+      if (route === "/check") return Response.json(await checkScript(folder, script[2]!, body.text, script[1] as "scripts" | "systems"), { headers: cors });
       // Write: a script that is there already. The engine restarts before the answer, and its
       // registry checks the script again.
       const full = join(ROOT, "projects", folder, body.path);

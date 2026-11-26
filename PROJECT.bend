@@ -34,17 +34,22 @@ import ./engine/scene/camera.bend as Cam
 import ./engine/script/rule.bend as R
 import ./engine/play/play.bend as Play
 import ./engine/script/problem.bend as Pb
+import ./engine/script/me.bend as Me
+import ./engine/script/value.bend as Val
+import ./engine/script/attach.bend as At
 import ./projects/prefabs.bend as Pre
 import ./projects/water/project_generated.bend as WaterP
 import ./projects/character/project_generated.bend as CharacterP
 import ./projects/mannequin/project_generated.bend as MannequinP
 import ./projects/animation/project_generated.bend as AnimationP
+import ./projects/arena/project_generated.bend as ArenaP
 
 type Project is Data:
   Water{}
   Character{}
   Mannequin{}
   Animation{}
+  Arena{}
 
 # Which project opens. Change this one line.
 def open() -> Project: Animation{}
@@ -59,6 +64,8 @@ def name(p: Project) -> String:
       "Mannequin"
     case Animation{}:
       "Animation"
+    case Arena{}:
+      "Arena"
 
 def folder(p: Project) -> String:
   match p:
@@ -70,6 +77,8 @@ def folder(p: Project) -> String:
       "mannequin"
     case Animation{}:
       "animation"
+    case Arena{}:
+      "arena"
 
 # The scene a project opens with (a file of its scenes/).
 def main(p: Project) -> String:
@@ -82,6 +91,8 @@ def main(p: Project) -> String:
       "Mannequin"
     case Animation{}:
       "Animation"
+    case Arena{}:
+      "Arena"
 
 def pick_project(c: Bool, a: Project, b: Project) -> Project:
   match c:
@@ -95,7 +106,8 @@ def preview(+slug: String) -> Project:
   pick_project(String.eq(slug, "water"), Water{},
   pick_project(String.eq(slug, "character"), Character{},
   pick_project(String.eq(slug, "mannequin"), Mannequin{},
-  pick_project(String.eq(slug, "animation"), Animation{}, open()))))
+  pick_project(String.eq(slug, "animation"), Animation{},
+  pick_project(String.eq(slug, "arena"), Arena{}, open())))))
 
 # ---------- Scenes (each project's registry) ----------
 
@@ -109,6 +121,8 @@ def scenes(p: Project) -> List<&2, String>:
       MannequinP.scenes()
     case Animation{}:
       AnimationP.scenes()
+    case Arena{}:
+      ArenaP.scenes()
 
 def has(xs: List<&2, String>, +x: String) -> Bool:
   match xs:
@@ -139,6 +153,8 @@ def code(+p: Project, +sc: String) -> S.Scene:
       MannequinP.code(sc)
     case Animation{}:
       AnimationP.code(sc)
+    case Arena{}:
+      ArenaP.code(sc)
 
 # A scene as it opens: its code with what the editor saved put back.
 def opened(+p: Project, +sc: String) -> S.Scene:
@@ -151,6 +167,8 @@ def opened(+p: Project, +sc: String) -> S.Scene:
       MannequinP.opened(sc)
     case Animation{}:
       AnimationP.opened(sc)
+    case Arena{}:
+      ArenaP.opened(sc)
 
 # What a scene's things do in Play (engine/script/rule.bend): the rules the editor saved, or its code's.
 def scene_rules(+p: Project, +sc: String) -> List<&2, R.Rule>:
@@ -163,6 +181,8 @@ def scene_rules(+p: Project, +sc: String) -> List<&2, R.Rule>:
       MannequinP.rules(sc)
     case Animation{}:
       AnimationP.rules(sc)
+    case Arena{}:
+      ArenaP.rules(sc)
 
 # Did the editor save a scene's rules? Then they are its rules.
 def has_saved_rules(+p: Project, +sc: String) -> Bool:
@@ -175,6 +195,8 @@ def has_saved_rules(+p: Project, +sc: String) -> Bool:
       MannequinP.own_rules(sc)
     case Animation{}:
       AnimationP.own_rules(sc)
+    case Arena{}:
+      ArenaP.own_rules(sc)
 
 # The things made in the editor in a scene, and the things of its code deleted there.
 def made(+p: Project, +sc: String) -> List<&2, Pre.Made>:
@@ -187,6 +209,8 @@ def made(+p: Project, +sc: String) -> List<&2, Pre.Made>:
       MannequinP.made(sc)
     case Animation{}:
       AnimationP.made(sc)
+    case Arena{}:
+      ArenaP.made(sc)
 
 def removed(+p: Project, +sc: String) -> List<&2, String>:
   match p:
@@ -198,6 +222,8 @@ def removed(+p: Project, +sc: String) -> List<&2, String>:
       MannequinP.removed(sc)
     case Animation{}:
       AnimationP.removed(sc)
+    case Arena{}:
+      ArenaP.removed(sc)
 
 # A project's main scene, as it opens, and its rules (what a published game plays).
 def start(+p: Project) -> S.Scene:
@@ -219,25 +245,29 @@ def opening() -> S.Scene:
 def frame(+p: Project, +x: Play.Session, +dt: F32, +reduce: Bool) -> Play.Session:
   match p:
     case Water{}:
-      Play.frame_with(~WaterP.start, ~WaterP.update, x, dt, reduce)
+      Play.frame_with(~WaterP.start, ~WaterP.update, ~WaterP.run, x, dt, reduce)
     case Character{}:
-      Play.frame_with(~CharacterP.start, ~CharacterP.update, x, dt, reduce)
+      Play.frame_with(~CharacterP.start, ~CharacterP.update, ~CharacterP.run, x, dt, reduce)
     case Mannequin{}:
-      Play.frame_with(~MannequinP.start, ~MannequinP.update, x, dt, reduce)
+      Play.frame_with(~MannequinP.start, ~MannequinP.update, ~MannequinP.run, x, dt, reduce)
     case Animation{}:
-      Play.frame_with(~AnimationP.start, ~AnimationP.update, x, dt, reduce)
+      Play.frame_with(~AnimationP.start, ~AnimationP.update, ~AnimationP.run, x, dt, reduce)
+    case Arena{}:
+      Play.frame_with(~ArenaP.start, ~ArenaP.update, ~ArenaP.run, x, dt, reduce)
 
 # Step (one tick while paused), with the project's scripts.
 def step(+p: Project, +x: Play.Session) -> Play.Session:
   match p:
     case Water{}:
-      Play.step_with(~WaterP.start, ~WaterP.update, x)
+      Play.step_with(~WaterP.start, ~WaterP.update, ~WaterP.run, x)
     case Character{}:
-      Play.step_with(~CharacterP.start, ~CharacterP.update, x)
+      Play.step_with(~CharacterP.start, ~CharacterP.update, ~CharacterP.run, x)
     case Mannequin{}:
-      Play.step_with(~MannequinP.start, ~MannequinP.update, x)
+      Play.step_with(~MannequinP.start, ~MannequinP.update, ~MannequinP.run, x)
     case Animation{}:
-      Play.step_with(~AnimationP.start, ~AnimationP.update, x)
+      Play.step_with(~AnimationP.start, ~AnimationP.update, ~AnimationP.run, x)
+    case Arena{}:
+      Play.step_with(~ArenaP.start, ~ArenaP.update, ~ArenaP.run, x)
 
 # The project's scripts that do not compile (engine/script/problem.bend): while there is one, Play
 # does not start (to_mode below) and the build stops (tools/project/registry.js).
@@ -251,6 +281,60 @@ def problems(+p: Project) -> List<&2, Pb.Problem>:
       MannequinP.problems()
     case Animation{}:
       AnimationP.problems()
+    case Arena{}:
+      ArenaP.problems()
+
+# The scripts a thing of this project may carry (Add Component > Script), each one's fields when it
+# is attached (its initial()), and where it runs (engine/script/me.bend's Runs).
+def scripts(+p: Project) -> List<&2, String>:
+  match p:
+    case Water{}:
+      WaterP.scripts()
+    case Character{}:
+      CharacterP.scripts()
+    case Mannequin{}:
+      MannequinP.scripts()
+    case Animation{}:
+      AnimationP.scripts()
+    case Arena{}:
+      ArenaP.scripts()
+
+def defaults(+p: Project, +name: String) -> Val.Value:
+  match p:
+    case Water{}:
+      WaterP.defaults(name)
+    case Character{}:
+      CharacterP.defaults(name)
+    case Mannequin{}:
+      MannequinP.defaults(name)
+    case Animation{}:
+      AnimationP.defaults(name)
+    case Arena{}:
+      ArenaP.defaults(name)
+
+def runs(+p: Project, +name: String) -> Me.Runs:
+  match p:
+    case Water{}:
+      WaterP.runs(name)
+    case Character{}:
+      CharacterP.runs(name)
+    case Mannequin{}:
+      MannequinP.runs(name)
+    case Animation{}:
+      AnimationP.runs(name)
+    case Arena{}:
+      ArenaP.runs(name)
+
+def offers_go(+p: Project, ns: List<&2, String>) -> List<&2, At.Offer>:
+  match ns:
+    case Nil{}:
+      []
+    case Con{+h, t}:
+      At.Offer{h, defaults(p, h), Me.runs_name(runs(p, h))} <> offers_go(p, t)
+
+# What the Inspector's Add Component > Script offers: each script, its fields, where it runs.
+def offers(+p: Project) -> List<&2, At.Offer>:
+  offers_go(p, scripts(p))
 
 # The toolbar's mode (0 editing, 1 playing, 2 paused), for this project: Play waits while one of its
 # scripts does not compile (engine/play/play.bend's to_mode_checked).
@@ -270,6 +354,8 @@ def camera(p: Project) -> Cam.Cam:
       Cam.close_up()
     case Animation{}:
       Cam.close_up()
+    case Arena{}:
+      Cam.start()
 
 def opening_camera() -> Cam.Cam:
   camera(open())
